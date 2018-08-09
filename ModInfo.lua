@@ -1,11 +1,7 @@
 local modinfo = {
-	name = "Skeleton game",
-	shortname = "SKEL",
-	game = "Skeleton game",
-	shortgame = "SKEL",
-    version = "Git",
-	description = "Skeleton game",
-	
+	name = "Ludum Dare 42",
+	shortname = "LD42",
+    	version = "Git",
 	modtype = "1",
 	depend = {
 		"cursors.sdz",
