@@ -2,12 +2,14 @@ include "lib_UnitScript.lua"
 include "lib_Animation.lua"
 
 myDefID= Spring.GetUnitDefID(unitID)
-bIsDrillShip = [UnitDefNames["drillship"].id] ==myDefID
+bIsDrillShip = UnitDefNames["drillship"].id ==myDefID
 bIsTransport = UnitDefNames["transportship"].id == myDefID
 bIsCannonBoat = UnitDefNames["canonboat"].id == myDefID
 
 -- functions intended for external calls by gadgets/widgets
+
 function setIceDrillLoad(totalIceLoad)
+	
 	totalIcecubes, IcecubesSoFar= #TableOfPieceGroups["icecube"], 0
 	process(TableOfPieceGroups["icecube"],
 	function (id)
@@ -22,7 +24,7 @@ function setIceDrillLoad(totalIceLoad)
 	
 end
 
-function startIcedrill(speed)
+function startIcedrill(speed, angle)
 	process(TableOfPieceGroups["icedrill"],
 	function (id)
 		Turn(id,x_axis, math.rad(0),speed)
@@ -30,23 +32,36 @@ function startIcedrill(speed)
 		Turn(id,z_axis, math.rad(0),speed)
 	end
 	)
-	Spin(TableOfPieceGroups["icedrill"],z_axis, math.rad(42),speed)	
-	
+	Turn(TableOfPieceGroups["icedrill"][6],x_axis,math.rad(angle),speed)
+	Spin(TableOfPieceGroups["icedrill"][7],z_axis, math.rad(-142),speed)	
+	bIceMiningActive = true
 	
 end
 
+function sfxIceMining()
+icemine= piece"icemine"
+	while true do
+	
+	Sleep(500)
+		if bIceMiningActive== true and math.random(1,50) > 25 then
+			Explode(icemine, SFX.SHATTER+ SFX.FALL +SFX.NO_HEATCLOUD)			
+		end
+	end
+
+end
+
 function stopIcedrill(speed)
-	Turn(TableOfPieceGroups["icedrill"][1],x_axis,math.rad(75),speed)
-	Turn(TableOfPieceGroups["icedrill"][3],x_axis,math.rad(-150),speed)
-	Turn(TableOfPieceGroups["icedrill"][6],x_axis,math.rad(-100),speed)
-	StopSpin(TableOfPieceGroups["icedrill"],z_axis,speed)
+	Turn(TableOfPieceGroups["icedrill"][2],x_axis,math.rad(70),speed)
+	Turn(TableOfPieceGroups["icedrill"][4],x_axis,math.rad(-160),speed)
+	Turn(TableOfPieceGroups["icedrill"][6],x_axis,math.rad(-80),speed)
+	StopSpin(TableOfPieceGroups["icedrill"][7],z_axis,speed)
 	--TODO Retract Table
 end
 
 
 -- UnitBuilding Functions
 function randomShowDecoration()
-	process(TableOfPieceGroups["Deco"]
+	process(TableOfPieceGroups["Deco"],
 	function(id)
 		if math.random(0,1) == 1 then Show(id) end		
 	end)
@@ -56,11 +71,13 @@ end
 showFunctions = {
 	[UnitDefNames["drillship"].id] = function ()
 		showT(TableOfPieceGroups["Boatbody"])
-		showT(TableOfPieceGroups["Turret"][1])
+		Show(TableOfPieceGroups["Turret"][1])
 		showT(TableOfPieceGroups["icedrill"])
 		setIceDrillLoad(0)
 		stopIcedrill(0)
 		randomShowDecoration()
+		bIceMiningActive=false
+		StartThread(sfxIceMining)
 		
 		
 		
@@ -73,14 +90,14 @@ showFunctions = {
 	
 	[UnitDefNames["canonboat"].id] = function ()
 		showT(TableOfPieceGroups["Boatbody"])
-		showT(TableOfPieceGroups["Turret"][2])
+		Show(TableOfPieceGroups["Turret"][2])
 		randomShowDecoration()
 	end
 }
 
 TableOfPieceGroups = getPieceTableByNameGroups(false, true)
 
-function showAndTell()
+function buildUnitByType()
 	hideAll(unitID)
 	showFunctions[myDefID]()
 	
@@ -95,7 +112,7 @@ end
 
 function script.Create()
 	resetAll(unitID)
-	showAndTell()
+	buildUnitByType()
 end
 
 function script.Killed(recentDamage, _)
@@ -136,7 +153,7 @@ function script.StopMoving()
 end
 
 function script.Activate()
-	startIcedrill(1.0)
+	startIcedrill(1.0,math.random(10,30))
 	return 1
 end
 
