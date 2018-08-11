@@ -39,6 +39,9 @@ local Animations = {};
 Animations['guy'] = {
 }
 
+Animations['idle'] = VFS.Include("Scripts/animations/idle.lua", scriptEnv)
+Animations['walk'] = VFS.Include("Scripts/animations/walk.lua", scriptEnv)
+
 function constructSkeleton(unit, piece, offset)
     if (offset == nil) then
         offset = {0,0,0};
@@ -84,6 +87,7 @@ function script.Create()
             end
         end
     end
+    PlayAnimation('idle');
 end
             
 local animCmd = {['turn']=Turn,['move']=Move};
@@ -104,6 +108,34 @@ end
 
 local SIG_WALK =  tonumber("00001",2);
 local SIG_IDLE =  tonumber("00010",2);
+
+local function Walk()
+	Signal(SIG_WALK)
+	SetSignalMask(SIG_WALK)
+	PlayAnimation("walk", true);
+	while true do
+		PlayAnimation("walk", false);
+	end
+end
+
+local function Idle()
+	Signal(SIG_WALK)
+	SetSignalMask(SIG_WALK)
+	PlayAnimation("idle",true)
+end
+
+function script.StartMoving()
+	Signal(SIG_WALK);
+	StartThread(Walk);
+end
+
+function script.StopMoving()
+	Signal(SIG_WALK);
+	StartThread(Idle);
+end
+
+
+
 
 
             
