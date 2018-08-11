@@ -11,6 +11,15 @@ local moveDefs  =    {
         crushStrength   =   5,
         heatmapping     =   false,
     },
+    {
+        name            =   "Eskimo",
+        footprintX      =   2,
+        footprintZ      =   2,
+        maxWaterDepth   =   10,
+        maxSlope        =   20,
+        crushStrength   =   5,
+        heatmapping     =   false,
+    },
 }
 
 return moveDefs
