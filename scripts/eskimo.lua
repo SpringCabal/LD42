@@ -87,11 +87,11 @@ function script.Create()
             end
         end
     end
-    PlayAnimation('idle');
 end
 
 local animCmd = {['turn']=Turn,['move']=Move};
 function PlayAnimation(animname)
+    return
     local anim = Animations[animname];
     for i = 1, #anim do
         local commands = anim[i].commands;
