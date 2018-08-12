@@ -133,6 +133,13 @@ local function UpdateSelection()
     local oldSelection = selection
     selection = Spring.GetSelectedUnits()
     table.sort(selection)
+    local filteredSelection = {}
+    for _, s in pairs(selection) do
+        if not Spring.GetUnitIsDead(s) then
+            table.insert(filteredSelection, s)
+        end
+    end
+    selection = filteredSelection
 
     if #oldSelection ~= #selection then
         return true
@@ -159,6 +166,9 @@ function widget:Update()
 end
 
 function widget:UnitDestroyed(unitID)
+    if ctrls[unitID] == nil then
+        return
+    end
     ctrls[unitID]:Dispose()
     ctrls[unitID] = nil
 end
