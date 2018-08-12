@@ -4,7 +4,6 @@ include "lib_Animation.lua"
 myDefID= Spring.GetUnitDefID(unitID)
 
 
--- functions intended for external calls by gadgets/widgets
 
 TableOfPieceGroups = getPieceTableByNameGroups(false, true)
 
@@ -25,7 +24,7 @@ function buildUnit(speed)
 							if id and math.random(0,1) ==1 then
 								rval = math.random(-360,360)
 								Turn(id,y_axis,math.rad(rval),speed)
-								rval =math.random(-90,15)
+								rval =math.random(-80,15)
 								Turn(id,x_axis,math.rad(rval),speed)
 								Show(id)
 							end
