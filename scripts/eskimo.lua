@@ -130,11 +130,10 @@ local function Idle()
 end
 
 local function Throw()
-    Signal(SIG_AIM)
-    SetSignalMask(SIG_AIM)
-    Show(Spear);
-    PlayAnimation("throw");
-    Hide(Spear);
+     Show(Spear)
+     PlayAnimation("throw")
+     Hide(Spear)
+     return true
 end
 
 function script.StartMoving()
@@ -161,9 +160,9 @@ function script.FireWeapon()
 	-- return Head
 	return Gun
 end
-
+ 
 function script.AimWeapon()
-    StartThread(Throw);
-    Sleep(1000);
-	return true
+    Signal(SIG_AIM)
+    SetSignalMask(SIG_AIM)
+    return Throw()
 end
