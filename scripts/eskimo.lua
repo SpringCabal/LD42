@@ -41,6 +41,8 @@ Animations['guy'] = {
 
 Animations['idle'] = VFS.Include("Scripts/animations/idle.lua", scriptEnv)
 Animations['walk'] = VFS.Include("Scripts/animations/walk.lua", scriptEnv)
+Animations['throw'] = VFS.Include("Scripts/animations/throw.lua", scriptEnv)
+
 
 function constructSkeleton(unit, piece, offset)
     if (offset == nil) then
@@ -87,11 +89,13 @@ function script.Create()
             end
         end
     end
+    Hide(Spear);
+    Hide(Gun);
+    PlayAnimation('idle');
 end
 
 local animCmd = {['turn']=Turn,['move']=Move};
 function PlayAnimation(animname)
-    return
     local anim = Animations[animname];
     for i = 1, #anim do
         local commands = anim[i].commands;
@@ -108,6 +112,7 @@ end
 
 local SIG_WALK =  tonumber("00001",2);
 local SIG_IDLE =  tonumber("00010",2);
+local SIG_AIM =   tonumber("00100",2);
 
 local function Walk()
 	Signal(SIG_WALK)
@@ -122,6 +127,14 @@ local function Idle()
 	Signal(SIG_WALK)
 	SetSignalMask(SIG_WALK)
 	PlayAnimation("idle",true)
+end
+
+local function Throw()
+    Signal(SIG_AIM)
+    SetSignalMask(SIG_AIM)
+    Show(Spear);
+    PlayAnimation("throw");
+    Hide(Spear);
 end
 
 function script.StartMoving()
@@ -150,5 +163,7 @@ function script.FireWeapon()
 end
 
 function script.AimWeapon()
+    StartThread(Throw);
+    Sleep(1000);
 	return true
 end

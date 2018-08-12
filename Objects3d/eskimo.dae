@@ -5,13 +5,91 @@
       <author>Blender User</author>
       <authoring_tool>Blender 2.77.0 commit date:2016-04-05, commit time:18:12, hash:abf6f08</authoring_tool>
     </contributor>
-    <created>2018-08-12T19:57:06</created>
-    <modified>2018-08-12T19:57:06</modified>
+    <created>2018-08-13T01:41:50</created>
+    <modified>2018-08-13T01:41:50</modified>
     <unit name="meter" meter="1"/>
     <up_axis>Z_UP</up_axis>
   </asset>
   <library_images/>
   <library_effects>
+    <effect id="Material_001-effect">
+      <profile_COMMON>
+        <technique sid="common">
+          <phong>
+            <emission>
+              <color sid="emission">0 0 0 1</color>
+            </emission>
+            <ambient>
+              <color sid="ambient">0 0 0 1</color>
+            </ambient>
+            <diffuse>
+              <color sid="diffuse">0.64 0.64 0.64 1</color>
+            </diffuse>
+            <specular>
+              <color sid="specular">0.5 0.5 0.5 1</color>
+            </specular>
+            <shininess>
+              <float sid="shininess">50</float>
+            </shininess>
+            <index_of_refraction>
+              <float sid="index_of_refraction">1</float>
+            </index_of_refraction>
+          </phong>
+        </technique>
+      </profile_COMMON>
+    </effect>
+    <effect id="Material_002-effect">
+      <profile_COMMON>
+        <technique sid="common">
+          <phong>
+            <emission>
+              <color sid="emission">0 0 0 1</color>
+            </emission>
+            <ambient>
+              <color sid="ambient">0 0 0 1</color>
+            </ambient>
+            <diffuse>
+              <color sid="diffuse">0.64 0.64 0.64 1</color>
+            </diffuse>
+            <specular>
+              <color sid="specular">0.5 0.5 0.5 1</color>
+            </specular>
+            <shininess>
+              <float sid="shininess">50</float>
+            </shininess>
+            <index_of_refraction>
+              <float sid="index_of_refraction">1</float>
+            </index_of_refraction>
+          </phong>
+        </technique>
+      </profile_COMMON>
+    </effect>
+    <effect id="Material_003-effect">
+      <profile_COMMON>
+        <technique sid="common">
+          <phong>
+            <emission>
+              <color sid="emission">0 0 0 1</color>
+            </emission>
+            <ambient>
+              <color sid="ambient">0 0 0 1</color>
+            </ambient>
+            <diffuse>
+              <color sid="diffuse">0.64 0.64 0.64 1</color>
+            </diffuse>
+            <specular>
+              <color sid="specular">0.5 0.5 0.5 1</color>
+            </specular>
+            <shininess>
+              <float sid="shininess">50</float>
+            </shininess>
+            <index_of_refraction>
+              <float sid="index_of_refraction">1</float>
+            </index_of_refraction>
+          </phong>
+        </technique>
+      </profile_COMMON>
+    </effect>
     <effect id="Material-effect">
       <profile_COMMON>
         <technique sid="common">
@@ -40,6 +118,15 @@
     </effect>
   </library_effects>
   <library_materials>
+    <material id="Material_001-material" name="Material_001">
+      <instance_effect url="#Material_001-effect"/>
+    </material>
+    <material id="Material_002-material" name="Material_002">
+      <instance_effect url="#Material_002-effect"/>
+    </material>
+    <material id="Material_003-material" name="Material_003">
+      <instance_effect url="#Material_003-effect"/>
+    </material>
     <material id="Material-material" name="Material">
       <instance_effect url="#Material-effect"/>
     </material>
@@ -79,7 +166,7 @@
         <vertices id="Cube_006-mesh-vertices">
           <input semantic="POSITION" source="#Cube_006-mesh-positions"/>
         </vertices>
-        <polylist count="112">
+        <polylist material="Material_001-material" count="112">
           <input semantic="VERTEX" source="#Cube_006-mesh-vertices" offset="0"/>
           <input semantic="NORMAL" source="#Cube_006-mesh-normals" offset="1"/>
           <input semantic="TEXCOORD" source="#Cube_006-mesh-map-0" offset="2" set="0"/>
@@ -122,7 +209,7 @@
         <vertices id="Cube_007-mesh-vertices">
           <input semantic="POSITION" source="#Cube_007-mesh-positions"/>
         </vertices>
-        <polylist count="48">
+        <polylist material="Material_002-material" count="48">
           <input semantic="VERTEX" source="#Cube_007-mesh-vertices" offset="0"/>
           <input semantic="NORMAL" source="#Cube_007-mesh-normals" offset="1"/>
           <input semantic="TEXCOORD" source="#Cube_007-mesh-map-0" offset="2" set="0"/>
@@ -251,7 +338,7 @@
         <vertices id="Cube_003-mesh-vertices">
           <input semantic="POSITION" source="#Cube_003-mesh-positions"/>
         </vertices>
-        <polylist count="484">
+        <polylist material="Material_003-material" count="484">
           <input semantic="VERTEX" source="#Cube_003-mesh-vertices" offset="0"/>
           <input semantic="NORMAL" source="#Cube_003-mesh-normals" offset="1"/>
           <input semantic="TEXCOORD" source="#Cube_003-mesh-map-0" offset="2" set="0"/>
@@ -628,20 +715,38 @@
               <instance_geometry url="#Cube_014-mesh" name="HandRight"/>
               <node id="Gun" name="Gun" type="NODE">
                 <matrix sid="transform">1 0 -5.7742e-8 -14.12012 2.25428e-9 1 0 0.1246743 -1.68448e-7 0 1 0.5149193 0 0 0 1</matrix>
-                <instance_geometry url="#Cube_006-mesh" name="Gun"/>
+                <instance_geometry url="#Cube_006-mesh" name="Gun">
+                  <bind_material>
+                    <technique_common>
+                      <instance_material symbol="Material_001-material" target="#Material_001-material"/>
+                    </technique_common>
+                  </bind_material>
+                </instance_geometry>
                 <node id="GunMuzzle" name="GunMuzzle" type="NODE">
                   <matrix sid="transform">1 0 -1.47149e-7 0.5793343 -1.60594e-9 1 0 0.1300135 3.86656e-8 0 1 35.24704 0 0 0 1</matrix>
                 </node>
               </node>
               <node id="Spear" name="Spear" type="NODE">
                 <matrix sid="transform">1 0 -5.7742e-8 -14.12012 2.25428e-9 1 0 0.1246743 -1.68448e-7 0 1 0.5149193 0 0 0 1</matrix>
-                <instance_geometry url="#Cube_007-mesh" name="Spear"/>
+                <instance_geometry url="#Cube_007-mesh" name="Spear">
+                  <bind_material>
+                    <technique_common>
+                      <instance_material symbol="Material_002-material" target="#Material_002-material"/>
+                    </technique_common>
+                  </bind_material>
+                </instance_geometry>
               </node>
             </node>
           </node>
           <node id="Head" name="Head" type="NODE">
             <matrix sid="transform">0.9999999 0 3.72529e-9 0.9972839 -3.41199e-8 1 0 -5.96046e-8 4.64622e-6 0 0.9999999 21.10915 0 0 0 1</matrix>
-            <instance_geometry url="#Cube_003-mesh" name="Head"/>
+            <instance_geometry url="#Cube_003-mesh" name="Head">
+              <bind_material>
+                <technique_common>
+                  <instance_material symbol="Material_003-material" target="#Material_003-material"/>
+                </technique_common>
+              </bind_material>
+            </instance_geometry>
           </node>
           <node id="ArmLeft" name="ArmLeft" type="NODE">
             <matrix sid="transform">0.9999999 0 3.72529e-9 9.806616 -3.41199e-8 1 0 -3.57628e-7 4.64622e-6 0 0.9999999 16.78763 0 0 0 1</matrix>
