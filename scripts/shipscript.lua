@@ -65,7 +65,6 @@ function stopIcedrill(speed)
 	Turn(TableOfPieceGroups["icedrill"][6],x_axis,math.rad(-80),speed)
 	StopSpin(TableOfPieceGroups["icedrill"][7],z_axis,speed)
 	bIceMiningActive = false
-	--TODO Retract Table
 end
 
 
@@ -118,7 +117,7 @@ function buildUnitByType()
 	if showFunctions[myDefID] then
 		showFunctions[myDefID]()
 	end
-	StartThread(startIcedrill)
+
 
 
 end
