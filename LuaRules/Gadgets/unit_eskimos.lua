@@ -14,6 +14,8 @@ function gadget:GetInfo()
 	}
 end
 
+local LOG_SECTION = "eskimo-attributes"
+
 local GAME_FRAME_PER_SEC = 33
 local MULTI = 1 / GAME_FRAME_PER_SEC
 
@@ -30,8 +32,9 @@ local REST_STATES = {
 
 local MAX_FOOD          = 100
 local START_FOOD        = 40
-local FOOD_DECAY_RATE   = 0.1 * MULTI
+local FOOD_DECAY_RATE   = 1   * MULTI
 local FOOD_EATING_RATE  = 10  * MULTI
+local FOOD_RES_USAGE    = 1   * MULTI
 
 local EATING_STATES = {
     IDLE = "idle",
@@ -41,8 +44,9 @@ local EATING_STATES = {
 
 local MAX_HEAT          = 100
 local START_HEAT        = 80
-local WARMING_INCREASE  = 1   * MULTI
-local COLD_DECREASE     = 0.1 * MULTI
+local WARMING_INCREASE  = 4   * MULTI
+local COLD_DECREASE     = 1   * MULTI
+local HEAT_RES_USAGE    = 1   * MULTI
 
 local WARM_STATES = {
     WARM = "warm",
@@ -90,9 +94,10 @@ function gadget:UnitCreated(unitID)
             health =       _l("health")       or START_HEALTH,
             food =         _l("food")         or START_FOOD,
             heat =         _l("heat")         or START_HEAT,
-            rest_state =   _l("rest_state")   or REST_STATES.RESTING,
+            rest_state =   _l("rest_state")   or REST_STATES.ACTIVE,
             warm_state =   _l("warm_state")   or WARM_STATES.COLD,
             eating_state = _l("eating_state") or EATING_STATES.IDLE,
+			--eating_state = _l("eating_state") or EATING_STATES.EATING,
         }
     }
 
@@ -116,14 +121,24 @@ local function DoHeat(eskimo)
     local warm_state = eskimo.attrs.warm_state
     local heat = eskimo.attrs.heat
     if warm_state == WARM_STATES.WARM then
-        heat = heat + WARMING_INCREASE
+		if not GG.Resources.Consume("food", HEAT_RES_USAGE) then
+			SetAttribute(eskimo.unitID, "warm_state", WARM_STATES.COLD)
+		else
+			heat = heat + WARMING_INCREASE
+		end
     elseif warm_state == WARM_STATES.COLD then
         heat = heat - COLD_DECREASE
+	elseif not warm_state == WARM_STATES.FREEZING then
+		Spring.Log(LOG_SECTION, LOG.ERROR, "Invalid warm_state " ..
+			tostring(warm_state) .. " for: " .. tostring(unitID))
     end
 
     if heat <= 0 then
         SetAttribute(eskimo.unitID, "warm_state", WARM_STATES.FREEZING)
     end
+	if heat >= MAX_HEAT then
+		SetAttribute(eskimo.unitID, "warm_state", WARM_STATES.COLD)
+	end
 
     heat = math.min(heat, MAX_HEAT)
     heat = math.max(heat, 0)
@@ -136,12 +151,22 @@ local function DoFood(eskimo)
     if eating_state == EATING_STATES.IDLE then
         food = food - FOOD_DECAY_RATE
     elseif eating_state == EATING_STATES.EATING then
-        food = food + FOOD_EATING_RATE
+		if not GG.Resources.Consume("food", FOOD_RES_USAGE) then
+			SetAttribute(eskimo.unitID, "eating_state", EATING_STATES.IDLE)
+		else
+			food = food + FOOD_EATING_RATE
+		end
+	elseif not eating_state == EATING_STATES.STARVING then
+		Spring.Log(LOG_SECTION, LOG.ERROR, "Invalid eating_state " ..
+			tostring(eating_state) .. " for: " .. tostring(unitID))
     end
 
     if food <= 0 then
-        SetAttribute(eskimo.unitID, "eating_state", WARM_STATES.STARVING)
+        SetAttribute(eskimo.unitID, "eating_state", EATING_STATES.STARVING)
     end
+	if food >= MAX_FOOD then
+		SetAttribute(eskimo.unitID, "eating_state", EATING_STATES.IDLE)
+	end
 
     food = math.min(food, MAX_FOOD)
     food = math.max(food, 0)
@@ -156,7 +181,7 @@ local function DoHealth(eskimo)
     if eskimo.attrs.warm_state == WARM_STATES.FREEZING then
         health = health - FREEZING_HEALTH_DECAY
     end
-    if eskimo.attrs.eating_state == WARM_STATES.STARVING then
+    if eskimo.attrs.eating_state == EATING_STATES.STARVING then
         health = health - STARVING_HEALTH_DECAY
     end
 
