@@ -135,44 +135,20 @@ function script.StopMoving()
 end
 
 function script.QueryWeapon()
-	Spring.Echo("1 script.QueryWeapon")
-	-- return Head
-	return Gun
+	return Head
+	--return Gun
 end
 
 function script.AimFromWeapon()
-	Spring.Echo("2 script.AimFromWeapon")
-	-- return Head
-	return Gun
+	return Head
+	--return Gun
 end
 
 function script.FireWeapon()
-	Spring.Echo("3 script.FireWeapon")
 	-- return Head
 	return Gun
 end
 
 function script.AimWeapon()
-	Spring.Echo("4 script.AimWeapon")
-	return true
-end
-
-function script.QueryWeapon1()
-	Spring.Echo("!1 script.QueryWeapon")
-	return Head
-end
-
-function script.AimFromWeapon1()
-	Spring.Echo("!2 script.AimFromWeapon")
-	return Head
-end
-
-function script.FireWeapon1()
-	Spring.Echo("!3 script.FireWeapon")
-	return Head
-end
-
-function script.AimWeapon1()
-	Spring.Echo("!4 script.AimWeapon")
 	return true
 end

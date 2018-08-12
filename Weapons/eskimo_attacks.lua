@@ -4,11 +4,10 @@ local Spear = Weapon:New {
     -- general
     weaponType            = "Cannon", -- there's a default, but honestly, why?
     name                  = "Spear",
-    turret                = true,
     impactOnly            = true,
     noSelfDamage          = true,
     range                 = 1000,     -- bad defaults (only 10.0)
-    weaponVelocity        = 10,       -- default velocity is 0, wtf?
+    weaponVelocity        = 1000,     -- default velocity is 0, wtf?
     reloadTime            = 3.0,
 
     -- collision & avoidance

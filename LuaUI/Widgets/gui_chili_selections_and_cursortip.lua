@@ -11,16 +11,12 @@ function widget:GetInfo()
 end
 
 local Chili
-local Progressbar
-local Label
 
 local selection
 local ctrls = {}
 
 function widget:Initialize()
     Chili = WG.Chili
-
-
     selection = Spring.GetSelectedUnits()
     GenerateUI(selection)
 end
