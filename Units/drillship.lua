@@ -45,6 +45,6 @@ local DrillShip = Unit:New {
 }
 
 return {
-    DrillShip    = DrillShip,
+    drillship    = DrillShip,
 }
 

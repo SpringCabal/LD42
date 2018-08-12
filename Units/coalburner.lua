@@ -42,6 +42,6 @@ local Coalburner = Unit:New {
 }
 
 return {
-    Coalburner    = Coalburner,
+    coalburner    = Coalburner,
 }
 

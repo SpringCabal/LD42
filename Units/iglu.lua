@@ -46,6 +46,6 @@ local Iglu = Unit:New {
 }
 
 return {
-    Iglu    = Iglu,
+    iglu    = Iglu,
 }
 
