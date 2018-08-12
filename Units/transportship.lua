@@ -110,5 +110,5 @@
 -- }
 --
 -- return {
---     TransportShip    = TransportShip,
+--     transportship    = TransportShip,
 -- }

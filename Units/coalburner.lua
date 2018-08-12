@@ -1,20 +1,18 @@
 
 
-local Iglu = Unit:New {
-	acceleration        = 0.5,
-	brakeRate           = 0.4,
+local Coalburner = Unit:New {
+
     --buildCostMetal        = 65, -- used only for power XP calcs
     canMove             = false,
---     canGuard            = false,
---     canPatrol           = false,
---     canRepeat           = false,
+
+    category            = "BUILDING",
 
     --pushResistant       = true,
     collisionVolumeScales   = '37 40 37',
     collisionVolumeTest     = 1,
     collisionVolumeType     = 'CylY',
-    footprintX          = 6,
-    footprintZ          = 6,
+    footprintX          = 4,
+    footprintZ          = 4,
     mass                = 50,
     minCollisionSpeed   = 1,
 
@@ -27,7 +25,7 @@ local Iglu = Unit:New {
     upright             = true,
 
 
-    name                = "Iglu",
+    name                = "Coalburner",
     activateWhenBuilt   = true,
     customParams = {
     },
@@ -37,15 +35,13 @@ local Iglu = Unit:New {
     autoheal 					= 1,
 
     maxDamage           = 1600,
-    maxVelocity         = 10,
     onoffable           = true,
-    fireState           = 0,
-    moveState           = 0,
-    script              = "igluscript.lua",
-	objectName 				= "iglu.s3o",
+  
+    script              = "coalburnerscript.lua",
+	objectName 				= "coalburner.s3o",
 }
 
 return {
-    iglu    = Iglu,
+    coalburner    = Coalburner,
 }
 
