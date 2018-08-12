@@ -43,6 +43,8 @@ Animations['idle'] = VFS.Include("Scripts/animations/idle.lua", scriptEnv)
 Animations['walk'] = VFS.Include("Scripts/animations/walk.lua", scriptEnv)
 Animations['throw'] = VFS.Include("Scripts/animations/throw.lua", scriptEnv)
 Animations['death_shot'] = VFS.Include("Scripts/animations/death_shot.lua", scriptEnv)
+Animations['death_exhausted'] = VFS.Include("Scripts/animations/death_exhausted.lua", scriptEnv)
+
 
 function constructSkeleton(unit, piece, offset)
     if (offset == nil) then
@@ -162,7 +164,6 @@ function script.FireWeapon()
 end
  
 function script.AimWeapon()
-    Signal(SIG_AIM)
     SetSignalMask(SIG_AIM)
     return Throw()
 end
@@ -171,6 +172,6 @@ function script.Killed(recentDamage, _)
 	Signal(SIG_AIM);
 	Signal(SIG_WALK);
 	Signal(SIG_IDLE);
-	PlayAnimation('death_shot');
+	PlayAnimation('death_exhausted');
     return 1;
 end
