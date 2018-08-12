@@ -52,7 +52,7 @@ function constructSkeleton(unit, piece, offset)
 
     for i=1,3 do
         info.offset[i] = offset[i]+info.offset[i];
-    end 
+    end
 
     bones[piece] = info.offset;
     local map = Spring.GetUnitPieceMap(unit);
@@ -66,14 +66,14 @@ function constructSkeleton(unit, piece, offset)
                 bones[cid] = cinfo;
             end
         end
-    end        
+    end
     return bones;
 end
 
 function script.Create()
     local map = Spring.GetUnitPieceMap(unitID);
     local offsets = constructSkeleton(unitID,map.Scene, {0,0,0});
-    
+
     for a,anim in pairs(Animations) do
         for i,keyframe in pairs(anim) do
             local commands = keyframe.commands;
@@ -89,7 +89,7 @@ function script.Create()
     end
     PlayAnimation('idle');
 end
-            
+
 local animCmd = {['turn']=Turn,['move']=Move};
 function PlayAnimation(animname)
     local anim = Animations[animname];
@@ -134,8 +134,45 @@ function script.StopMoving()
 	StartThread(Idle);
 end
 
+function script.QueryWeapon()
+	Spring.Echo("1 script.QueryWeapon")
+	-- return Head
+	return Gun
+end
 
+function script.AimFromWeapon()
+	Spring.Echo("2 script.AimFromWeapon")
+	-- return Head
+	return Gun
+end
 
+function script.FireWeapon()
+	Spring.Echo("3 script.FireWeapon")
+	-- return Head
+	return Gun
+end
 
+function script.AimWeapon()
+	Spring.Echo("4 script.AimWeapon")
+	return true
+end
 
-            
+function script.QueryWeapon1()
+	Spring.Echo("!1 script.QueryWeapon")
+	return Head
+end
+
+function script.AimFromWeapon1()
+	Spring.Echo("!2 script.AimFromWeapon")
+	return Head
+end
+
+function script.FireWeapon1()
+	Spring.Echo("!3 script.FireWeapon")
+	return Head
+end
+
+function script.AimWeapon1()
+	Spring.Echo("!4 script.AimWeapon")
+	return true
+end
