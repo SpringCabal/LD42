@@ -8,7 +8,6 @@ local Iglu = Unit:New {
 --     canGuard            = false,
 --     canPatrol           = false,
 --     canRepeat           = false,
-    category            = "SHIP",
 
     --pushResistant       = true,
     collisionVolumeScales   = '37 40 37',
