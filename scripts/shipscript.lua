@@ -48,13 +48,12 @@ end
 function sfxIceMining()
 icemine= piece"icemine"
 	while true do
-
-	Sleep(500)
+		Sleep(500)
 		if bIceMiningActive== true and math.random(1,50) > 25 then
 			Explode(icemine, SFX.SHATTER+ SFX.FALL +SFX.NO_HEATCLOUD)
 			StartThread(PlaySoundByUnitDefID, myDefID, "sounds/icedrill.ogg", 0.75, math.random(1000,1500), 1, 0)
 		end
-	
+		GG.Drill.DrillUnit(unitID)
 	end
 
 end

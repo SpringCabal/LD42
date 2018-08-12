@@ -60,7 +60,6 @@ local Eskimo = Humanoid:New {
 	-- General
 	name                = "Eskimo",
 	movementClass       = "Eskimo",
-	turret 				= true, -- doesn't work regardless
 	objectName 			= "eskimo.dae",
 	script              = "eskimo.lua",
 	maxDamage           = 1600,
@@ -79,7 +78,6 @@ local Pirate = Humanoid:New {
 	-- General
 	name                = "Pirate",
 	movementClass       = "Eskimo",
-	turret 				= true, -- doesn't work regardless
 	objectName 			= "pirate.dae",
 	script              = "eskimo.lua",
 	maxDamage           = 1600,
