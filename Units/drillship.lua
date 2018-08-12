@@ -1,118 +1,50 @@
--- unitDef = {
--- 	unitname = [[drillship]],
---
--- 	name = [[Icedrillship]],
--- 	description = [[Pirates harvesting ice]],
--- 	acceleration = 0.0498,
--- 	activateWhenBuilt = true,
--- 	brakeRate = 0.0808,
---
--- 	buildCostMetal = 400,
--- 	builder = false,
---
--- 	buildPic = [[]],
--- 	canGuard = true,
--- 	canMove = true,
--- 	canPatrol = true,
--- 	category = [[SHIP]],
--- 	collisionVolumeOffsets = [[0 4 4]],
--- 	collisionVolumeScales = [[32 32 128]],
--- 	collisionVolumeType = [[CylZ]],
--- 	corpse = [[]],
---
--- 	customParams = {
---
--- 	},
---
--- 	explodeAs = [[]],
--- 	floater = true,
--- 	footprintX = 4,
--- 	footprintZ = 4,
--- 	iconType = [[]],
--- 	idleAutoHeal = 5,
--- 	idleTime = 1800,
--- 	losEmitHeight = 40,
--- 	maxDamage = 1900,
--- 	maxVelocity = 2.84,
--- 	minCloakDistance = 75,
--- 	minWaterDepth = 5,
--- 	movementClass = [[SHIP4]],
--- 	moveState = 0,
--- 	noAutoFire = false,
--- 	noChaseCategory = [[]],
--- 	objectName = [[drillship.s3o]],
--- 	radarDistance = 1000,
--- 	script				 = [[shipscript.lua]],
--- 	selfDestructAs = [[]],
--- 	sightDistance = 660,
--- 	sonarDistance = 660,
--- 	turninplace = 0,
--- 	turnRate = 486,
--- 	waterline = 4,
--- 	workerTime = 0,
---
--- 	weapons = {
---
--- 	},
---
---
---
---
--- }
---
--- return lowerkeys({ drillship = unitDef })
+local DrillShip = Unit:New {
+	acceleration        = 0.5,
+	brakeRate           = 0.4,
+    --buildCostMetal        = 65, -- used only for power XP calcs
+    canMove             = true,
+--     canGuard            = false,
+--     canPatrol           = false,
+--     canRepeat           = false,
+    category            = "SHIP",
+
+    --pushResistant       = true,
+    collisionVolumeScales   = '37 40 37',
+    collisionVolumeTest     = 1,
+    collisionVolumeType     = 'CylY',
+    footprintX          = 6,
+    footprintZ          = 6,
+    mass                = 50,
+    minCollisionSpeed   = 1,
+    movementClass       = "SHIP4",
+    repairable          = false,
+    sightDistance       = 800,
 
 
--- This script below loads them but still crashes Spring when I try to create them
+    stealth             = true,
+    turnRate            = 3000,
+    upright             = true,
 
 
---
--- local DrillShip = Unit:New {
--- 	acceleration        = 0.5,
--- 	brakeRate           = 0.4,
---     --buildCostMetal        = 65, -- used only for power XP calcs
---     canMove             = true,
--- --     canGuard            = false,
--- --     canPatrol           = false,
--- --     canRepeat           = false,
---     category            = "INFANTRY",
---
---     --pushResistant       = true,
---     collisionVolumeScales   = '37 40 37',
---     collisionVolumeTest     = 1,
---     collisionVolumeType     = 'CylY',
---     footprintX          = 6,
---     footprintZ          = 6,
---     mass                = 50,
---     minCollisionSpeed   = 1,
---     movementClass       = "Eskimo",
---     repairable          = false,
---     sightDistance       = 800,
---
---
---     stealth             = true,
---     turnRate            = 3000,
---     upright             = true,
---
---
---     name                = "DrillShip",
---     activateWhenBuilt   = true,
---     customParams = {
---     },
---
---     idletime = 120, --in simframes
---     idleautoheal = 50,
---     autoheal = 1,
---
---     maxDamage           = 1600,
---     maxVelocity         = 10,
---     onoffable           = true,
---     fireState           = 0,
---     moveState           = 0,
---     script              = "drillship.lua",
--- 	objectName 			= "drillship.s3o",
--- }
---
--- return {
---     DrillShip    = DrillShip,
--- }
+    name                = "DrillShip",
+    activateWhenBuilt   = true,
+    customParams = {
+    },
+
+    idletime = 120, --in simframes
+    idleautoheal = 50,
+    autoheal = 1,
+
+    maxDamage           = 1600,
+    maxVelocity         = 10,
+    onoffable           = true,
+    fireState           = 0,
+    moveState           = 0,
+    script              = "shipscript.lua",
+	objectName 			= "drillship.s3o",
+}
+
+return {
+    drillship    = DrillShip,
+}
+
