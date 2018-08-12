@@ -1,50 +1,51 @@
--- This script below loads them but still crashes Spring when I try to create an object
 
 
--- unitDef = {
---   unitname                      = [[iglu]],
---   name                          = [[Iglu]],
---   description                   = [[Citizen Building]],
---   acceleration                  = 0,
---   activateWhenBuilt             = true,
---   brakeRate                     = 0,
---   buildCostMetal                = 70,
---   builder                       = false,
---   buildingGroundDecalDecaySpeed = 30,
---   buildingGroundDecalSizeX      = 6,
---   buildingGroundDecalSizeY      = 6,
---   buildingGroundDecalType       = [[]],
---   buildPic                      = [[]],
---   category                      = [[BUILDING]],
---
---
---
---   damageModifier                = 0.25,
---   energyMake                    = 2,
---   explodeAs                     = [[SMALL_BUILDINGEX]],
---   footprintX                    = 5,
---   footprintZ                    = 5,
---   iconType                      = [[]],
---   idleAutoHeal                  = 5,
---   idleTime                      = 1800,
---   maxDamage                     = 500,
---   maxSlope                      = 18,
---   maxVelocity                   = 0,
---   maxWaterDepth                 = 0,
---   minCloakDistance              = 150,
---   noAutoFire                    = false,
---   objectName                    = [[iglu.s3o]],
---   onoffable                     = true,
---   script                        = [[igluscript.lua]],
---   selfDestructAs                = [[SMALL_BUILDINGEX]],
---   sightDistance                 = 273,
---   turnRate                      = 0,
---   useBuildingGroundDecal        = true,
---   workerTime                    = 0,
---   yardMap                       = [[ooooooooooooooooooooooooo]],
---
---
---
--- }
---
--- return lowerkeys({ iglu = unitDef })
+local Iglu = Unit:New {
+	acceleration        = 0.5,
+	brakeRate           = 0.4,
+    --buildCostMetal        = 65, -- used only for power XP calcs
+    canMove             = false,
+--     canGuard            = false,
+--     canPatrol           = false,
+--     canRepeat           = false,
+
+    --pushResistant       = true,
+    collisionVolumeScales   = '37 40 37',
+    collisionVolumeTest     = 1,
+    collisionVolumeType     = 'CylY',
+    footprintX          = 6,
+    footprintZ          = 6,
+    mass                = 50,
+    minCollisionSpeed   = 1,
+
+    repairable          = false,
+    sightDistance       = 800,
+
+
+    stealth             = true,
+    turnRate            = 3000,
+    upright             = true,
+
+
+    name                = "Iglu",
+    activateWhenBuilt   = true,
+    customParams = {
+    },
+
+    idletime					= 120, --in simframes
+    idleautoheal 				= 50,
+    autoheal 					= 1,
+
+    maxDamage           = 1600,
+    maxVelocity         = 10,
+    onoffable           = true,
+    fireState           = 0,
+    moveState           = 0,
+    script              = "igluscript.lua",
+	objectName 				= "iglu.s3o",
+}
+
+return {
+    iglu    = Iglu,
+}
+
