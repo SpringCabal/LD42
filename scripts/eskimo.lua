@@ -116,6 +116,8 @@ local SIG_WALK =  tonumber("00001",2);
 local SIG_IDLE =  tonumber("00010",2);
 local SIG_AIM =   tonumber("00100",2);
 
+local isThrowing = false;
+
 local function Walk()
 	Signal(SIG_WALK)
 	SetSignalMask(SIG_WALK)
@@ -129,13 +131,6 @@ local function Idle()
 	Signal(SIG_WALK)
 	SetSignalMask(SIG_WALK)
 	PlayAnimation("idle",true)
-end
-
-local function Throw()
-     Show(Spear)
-     PlayAnimation("throw")
-     Hide(Spear)
-     return true
 end
 
 function script.StartMoving()
@@ -165,7 +160,15 @@ end
  
 function script.AimWeapon()
     SetSignalMask(SIG_AIM)
-    return Throw()
+    if(not isThrowing) then 
+        Signal(SIG_AIM)
+        isThrowing = true;
+        Show(Spear)
+        PlayAnimation("throw")
+        Hide(Spear)
+        isThrowing = false;
+        return true
+    end
 end
 
 function script.Killed(recentDamage, _)
