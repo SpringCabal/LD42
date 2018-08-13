@@ -24,11 +24,10 @@ end
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-local initializeFrame = 0
+local initializeFrame
 
 function gadget:Initialize()
-	Spring.SetGameRulesParam("gameEnd", nil)
-	initializeFrame = Spring.GetGameFrame() or 0
+	Spring.SetGameRulesParam("gameEnd", "")
 end
 
 local eskimoDefID = UnitDefNames["eskimo"].id
@@ -50,7 +49,12 @@ function gadget:GameFrame(frame)
 	if Spring.GetGameRulesParam("sb_gameMode") == "dev" then
 		return
 	end
-	if frame > initializeFrame + 2 then
+	if not initializeFrame then
+		initializeFrame = Spring.GetGameFrame()
+		Spring.SetGameRulesParam("gameEnd", "")
+		Spring.SetGameRulesParam("startTime", initializeFrame)
+	end
+	if frame > initializeFrame + 5 then
 		local endCheck = EndCheck()
 		if endCheck == "victory" then
 			Spring.SetGameRulesParam("gameEnd", "victory")
