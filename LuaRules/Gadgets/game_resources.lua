@@ -15,10 +15,10 @@ function gadget:GetInfo()
 end
 
 local MAX_FOOD      = 100
-local START_FOOD    = 80
+local START_FOOD    = 20
 
 local MAX_HEAT      = 100
-local START_HEAT    = 20
+local START_HEAT    = 80
 
 
 local resources = {}

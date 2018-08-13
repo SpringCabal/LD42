@@ -30,7 +30,7 @@ local REST_STATES = {
 }
 
 local MAX_FOOD          = 100
-local START_FOOD        = 40
+local START_FOOD        = 90
 local FOOD_DECAY_RATE   = 1   * MULTI
 local FOOD_EATING_RATE  = 10  * MULTI
 local FOOD_RES_USAGE    = 1   * MULTI
@@ -42,10 +42,13 @@ local EATING_STATES = {
 }
 
 local MAX_HEAT          = 100
-local START_HEAT        = 80
+local START_HEAT        = 40
 local WARMING_INCREASE  = 4   * MULTI
 local COLD_DECREASE     = 1   * MULTI
-local HEAT_RES_USAGE    = 1   * MULTI
+local HEAT_RES_USAGE    = 0.5   * MULTI
+
+local COAL_BURNER_MIN_DISTANCE = 300
+local coalBurnerDefID = UnitDefNames["coalburner"].id
 
 local WARM_STATES = {
     WARM = "warm",
@@ -107,16 +110,31 @@ function gadget:UnitDestroyed(unitID)
 	end
 end
 
-
+-- not really needed anymore but don't want to refactor atm
 function SetAttribute(unitID, key, value)
     Spring.SetUnitRulesParam(unitID, key, value)
 end
 
 local function DoHeat(unitID)
-    local warm_state = Spring.GetUnitRulesParam(unitID, "warm_state")
+	local warm_state = Spring.GetUnitRulesParam(unitID, "warm_state")
     local heat = Spring.GetUnitRulesParam(unitID, "heat")
+
+	local threshold = 2
+	-- heat when near a coal burner
+	if heat + threshold <= MAX_HEAT then
+		local x, _, z = Spring.GetUnitPosition(unitID)
+		for _, nearbyUnitID in pairs(Spring.GetUnitsInCylinder(x, z, COAL_BURNER_MIN_DISTANCE)) do
+			local defID = Spring.GetUnitDefID(nearbyUnitID)
+			if defID == coalBurnerDefID then
+				warm_state = WARM_STATES.WARM
+				SetAttribute(unitID, "warm_state", warm_state)
+				break
+			end
+		end
+	end
+
     if warm_state == WARM_STATES.WARM then
-		if not GG.Resources.Consume("food", HEAT_RES_USAGE) then
+		if not GG.Resources.Consume("heat", HEAT_RES_USAGE) then
 			SetAttribute(unitID, "warm_state", WARM_STATES.COLD)
 		else
 			heat = heat + WARMING_INCREASE
