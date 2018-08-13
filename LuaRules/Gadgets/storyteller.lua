@@ -15,18 +15,18 @@ function gadget:GetInfo()
 end
 
 local GAME_FRAME_PER_SEC = 33
+local ourTeam = 0
+local enemyTeam = 1
+local gaiaTeam = Spring.GetGaiaTeamID()
 
 local story
-
 local s11n
+local lastStepFrame
+local waitFrames
 
-
-local lastStepFrame = -math.huge
-local waitFrames = 0
 function gadget:Initialize()
 	lastStepFrame = -math.huge
 	waitFrames = 0
-
     story = GetStory()
 	s11n = GG.s11n:GetUnitBridge()
 	for _, unitID in pairs(Spring.GetAllUnits()) do
@@ -37,8 +37,6 @@ function gadget:Initialize()
     end
 end
 
-local ourTeam = 0
-local enemyTeam = 1
 function GetStory()
     -- Spawn a few pirates
     -- Spawn a drilling boat
@@ -117,7 +115,7 @@ function SpawnUnits(units, team)
 		else
 			y = Spring.GetGroundHeight(x, z) + 5000
 		end
-		s11n:Add({
+		local obj = {
 			defName = defName,
 			pos = {
 				x = x,
@@ -125,7 +123,21 @@ function SpawnUnits(units, team)
 				z = z,
 			},
 			team = team,
-		})
+		}
+		if defName == "iglu" then
+			obj.team = gaiaTeam
+			obj.neutral = true
+			obj.blocking = {
+	        	blockEnemyPushing = true,
+	        	blockHeightChanges = false,
+	        	crushable = false,
+	        	isBlocking = true,
+	        	isProjectileCollidable = false,
+	        	isRaySegmentCollidable = false,
+	        	isSolidObjectCollidable = true,
+	        }
+		end
+		s11n:Add(obj)
 	end
 end
 

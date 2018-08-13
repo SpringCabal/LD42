@@ -18,9 +18,9 @@ local LOG_SECTION = "drill"
 
 local GAME_FRAME_PER_SEC = 33
 
-local DRILL_SIZE = 400
+local DRILL_SIZE = 250
 local NEARBY_SIZE = 100
-local DRILL_AMOUNT = 1.0
+local DRILL_AMOUNT = 2.0
 
 local ICE_HEIGHT = -1
 
@@ -50,6 +50,7 @@ function gadget:UnitCreated(unitID)
     drillShips[unitID] = {
         unitID = unitID,
         hasOrder = false,
+		checkedFrame = -1,
     }
 end
 
@@ -85,6 +86,12 @@ end
 
 function DrillUnit(unitID)
     local x, y, z = Spring.GetUnitPosition(unitID)
+
+	local unitDefID = Spring.GetUnitDefID(unitID)
+	if unitDefID == drillShipDefID then
+		local drill = Spring.GetUnitPieceMap(unitID)["icemine"]
+		x, y, z = Spring.GetUnitPiecePosDir(unitID, drill)
+	end
     -- Spring.Echo("DRILL", Spring.GetGameFrame(), unitID, x, y, z)
 
     Spring.SetHeightMapFunc(DecreaseTerrain, x, z, DRILL_SIZE, DRILL_AMOUNT)
@@ -151,6 +158,7 @@ local function distance(x1, z1, x2, z2)
 end
 
 local DISABLE_GADGET = false
+local CHECK_FRAME_INTERVAL = 30
 function gadget:GameFrame()
     if DISABLE_GADGET then
         return
@@ -158,9 +166,11 @@ function gadget:GameFrame()
 	if Spring.GetGameRulesParam("sb_gameMode") == "dev" then
         return
     end
+	local frame = Spring.GetGameFrame()
     for unitID, drillShip in pairs(drillShips) do
         -- Spring.Echo("NoNearbyIce(unitID)", NearbyIce(unitID))
-        if not NearbyIce(unitID) then
+        if frame - drillShip.checkedFrame > CHECK_FRAME_INTERVAL and not NearbyIce(unitID) then
+			drillShip.checkedFrame = frame
             local moveClose = false
             if drillShip.hasOrder then
                 local x, _, z = Spring.GetUnitPosition(unitID)

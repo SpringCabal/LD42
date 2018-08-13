@@ -51,7 +51,9 @@ icemine= piece"icemine"
 		Sleep(500)
 		if bIceMiningActive== true and math.random(1,50) > 25 then
 			Explode(icemine, SFX.SHATTER+ SFX.FALL +SFX.NO_HEATCLOUD)
-			StartThread(PlaySoundByUnitDefID, myDefID, "sounds/icedrill.ogg", 0.75, math.random(1000,1500), 1, 0)
+			local x, y, z = Spring.GetUnitPosition(unitID)
+			Spring.PlaySoundFile("sounds/icedrill.ogg", 1.0, x, y, z)
+			-- StartThread(PlaySoundByUnitDefID, myDefID, "sounds/icedrill.ogg", 0.75, math.random(1000,1500), 1, 0)
 		end
 		GG.Drill.DrillUnit(unitID)
 	end
