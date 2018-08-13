@@ -200,6 +200,9 @@ local function DoHealth(eskimo)
 end
 
 function gadget:GameFrame()
+	if Spring.GetGameRulesParam("sb_gameMode") == "dev" then
+        return
+    end
     local frame = Spring.GetGameFrame()
 
     for _, eskimo in pairs(eskimos) do
