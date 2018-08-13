@@ -80,7 +80,7 @@ function script.Create()
     local offsets = constructSkeleton(unitID,map.Scene, {0,0,0});
     
     Spring.SetUnitMidAndAimPos(unitID, 0, 30, 0, 0, 30, 0, true)
-    Spring.SetUnitRadiusAndHeight(unitID, 40, 60)
+    Spring.SetUnitRadiusAndHeight(unitID, 20, 40)
 
     for a,anim in pairs(Animations) do
         for i,keyframe in pairs(anim) do
@@ -190,12 +190,19 @@ function script.StopMoving()
 end
 
 function script.QueryWeapon()
-	return Head
-	--return Gun
+    if(hasGun) then
+        return GunMuzzle
+    else
+	    return Head
+    end
 end
 
 function script.AimFromWeapon()
-	return Head
+    if(hasGun) then
+        return GunMuzzle
+    else
+	    return Head
+    end
 	--return Gun
 end
 

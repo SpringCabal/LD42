@@ -30,7 +30,8 @@ local Gun = Weapon:New {
     noSelfDamage          = true,
     range                 = 1000,     -- bad defaults (only 10.0)
     weaponVelocity        = 2000,     -- default velocity is 0, wtf?
-    reloadTime            = 2.0,
+    reloadTime            = 3.0,
+    burst                 = 4,
 
     -- collision & avoidance
     avoidFriendly         = false,
