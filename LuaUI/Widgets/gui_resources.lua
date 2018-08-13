@@ -16,6 +16,7 @@ local ctrl
 
 local maxFood
 local maxHeat
+local maxMoney
 
 function widget:Initialize()
     Chili = WG.Chili
@@ -23,6 +24,7 @@ function widget:Initialize()
 
     maxFood = Spring.GetGameRulesParam("maxFood")
     maxHeat = Spring.GetGameRulesParam("maxHeat")
+    maxMoney = Spring.GetGameRulesParam("maxMoney")
 end
 
 local EL_SIZE = 40
@@ -79,11 +81,12 @@ end
 function GetBarValues()
     local food = Spring.GetGameRulesParam("food")
     local heat = Spring.GetGameRulesParam("heat")
+    local money = Spring.GetGameRulesParam("money")
     return {
         {
             value = food,
             max = maxFood,
-            color = { 0, 1, 0, 1 },
+            color = { 0.7, 0.1, 0, 1 },
             name = "Food"
         },
         {
@@ -91,6 +94,12 @@ function GetBarValues()
             max = maxHeat,
             color = { 0.5, 0.3, 0.1, 1.0 },
             name = "Heat",
+        },
+        {
+            value = money,
+            max = maxMoney,
+            color = { 0.2, 0.8, 0.1, 1.0 },
+            name = "Money",
         }
     }
 end

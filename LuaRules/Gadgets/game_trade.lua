@@ -37,6 +37,10 @@ function gadget:RecvLuaMsg(msg, playerID)
     local x, z, value = tonumber(msgParams[2]), tonumber(msgParams[3]), tonumber(msgParams[4])
     Spring.SetGameRulesParam("tradeMode", 0)
 
+    Spring.SetGameRulesParam("money",
+        math.min(Spring.GetGameRulesParam("money") + value,
+                 Spring.GetGameRulesParam("maxMoney")))
+
     Spring.SetHeightMapFunc(GG.Drill.DecreaseTerrain, x, z, size, 1)
 end
 
@@ -74,7 +78,10 @@ function CalculateIce(gx, gz, size)
     return iceAmount
 end
 
-function gadget:MousePress()
+function gadget:MousePress(mx, my, button)
+    if button ~= 1 then
+        return false
+    end
     if Spring.GetGameRulesParam("sb_gameMode") == "dev" then
         return false
     end
@@ -111,11 +118,11 @@ function gadget:Update()
     old_x = x
     old_z = z
 
-    cachedValue = CalculateIce(
+    cachedValue = math.floor(math.sqrt(CalculateIce(
         x,
         z,
         size * 2 / 3
-    )
+    )) / 2)
 end
 
 

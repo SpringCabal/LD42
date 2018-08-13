@@ -20,6 +20,8 @@ local START_FOOD    = 20
 local MAX_HEAT      = 100
 local START_HEAT    = 80
 
+local MAX_MONEY     = 100
+local START_MONEY	= 0
 
 local resources = {}
 
@@ -29,11 +31,13 @@ function SetResource(name, value)
 end
 
 function gadget:Initialize()
-	SetResource("max_food", MAX_FOOD)
-	SetResource("max_heat", MAX_HEAT)
+	SetResource("maxFood", MAX_FOOD)
+	SetResource("maxHeat", MAX_HEAT)
+	SetResource("maxMoney", MAX_MONEY)
 
     SetResource("food", START_FOOD)
     SetResource("heat", START_HEAT)
+	SetResource("money", START_MONEY)
 end
 
 
