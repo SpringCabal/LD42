@@ -42,6 +42,7 @@ Animations['guy'] = {
 Animations['idle'] = VFS.Include("Scripts/animations/idle.lua", scriptEnv)
 Animations['walk'] = VFS.Include("Scripts/animations/walk.lua", scriptEnv)
 Animations['aim_spear'] = VFS.Include("Scripts/animations/aim_spear.lua", scriptEnv)
+Animations['aim_gun'] = VFS.Include("Scripts/animations/aim_gun.lua", scriptEnv)
 Animations['throw'] = VFS.Include("Scripts/animations/throw.lua", scriptEnv)
 Animations['death_shot'] = VFS.Include("Scripts/animations/death_shot.lua", scriptEnv)
 Animations['death_exhausted'] = VFS.Include("Scripts/animations/death_exhausted.lua", scriptEnv)
@@ -96,6 +97,7 @@ function script.Create()
     Hide(Spear);
     Hide(Gun);
     PlayAnimation('idle');
+    -- GetGun();  -- callAsUnit this for pirates, or just wire the function to poll an URP
 end
 
 local animCmd = {['turn']=Turn,['move']=Move};
@@ -119,6 +121,7 @@ local SIG_IDLE =  tonumber("00010",2);
 local SIG_AIM =   tonumber("00100",2);
 
 local isThrowing = false;
+local hasGun = false;
 
 local function Walk()
 	Signal(SIG_WALK)
@@ -135,11 +138,39 @@ local function Idle()
 	PlayAnimation("idle",true)
 end
 
+local function AimGun()
+    Signal(SIG_AIM)
+    SetSignalMask(SIG_AIM)
+    PlayAnimation("aim_gun")
+
+    return true
+end
+
+local function AimSpear()
+    Signal(SIG_AIM)
+    SetSignalMask(SIG_AIM)
+    Show(Spear)
+    PlayAnimation("aim_spear")
+    return true
+end
+
+function GetGun()
+    hasGun = true;
+    Hide(Spear)
+    Show(Gun)
+end
+
 local function Throw()
     isThrowing = true
     Hide(Spear)
     PlayAnimation("throw")
     isThrowing = false
+end
+
+local function Shoot()
+    Move(Gun, x_axis, 15,0 )
+    WaitForMove(Gun, z_axis)
+    Move(Gun, x_axis, 0, 15)
 end
 
 function script.StartMoving()
@@ -164,24 +195,30 @@ end
 
 function script.FireWeapon()
 	-- return Head
-	return Gun
+    if (hasGun) then
+	    return GunMuzzle
+    else
+        return Spear
+    end
 end
 
 function script.AimWeapon(num, heading, pitch)
     local _,isLoaded = Spring.GetUnitWeaponState(unitID, num);
     if (isLoaded and not isThrowing) then
-        Signal(SIG_AIM)
-        SetSignalMask(SIG_AIM)
-        Show(Spear)
-        PlayAnimation("aim_spear")
-        Turn(Head, z_axis, heading,7);
-        WaitForTurn(Head,z_axis)
-        return true
+        if(hasGun) then
+            return AimGun();
+        else
+            return AimSpear();
+        end
     end
 end
 
 function script.Shot(weaponOrSomething)
-    StartThread(Throw);
+    if (hasGun) then
+        StartThread(Shoot);
+    else
+        StartThread(Throw);
+    end
 end
 
 function script.Killed(recentDamage, _)
