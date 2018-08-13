@@ -10,13 +10,15 @@ TableOfPieceGroups = getPieceTableByNameGroups(false, true)
 function buildUnit(speed)
 	hideAll(unitID)
 	Show(TableOfPieceGroups["Build"][1])
-	for buildIndex=1, #TableOfPieceGroups["Build"],1 do 
-		if TableOfPieceGroups["Build"][buildIndex] then
-			if math.random(0,1)==1 then 
+	for buildIndex=1, #TableOfPieceGroups["Build"],1 do
+		-- README: Picasso, I have disabled buildIndex==3 piece (which seems to be the tall one).
+		-- I have done this to prevent iglus from obscuring a large part of the map
+		if buildIndex~=3 and TableOfPieceGroups["Build"][buildIndex] then
+			if math.random(0,1)==1 then
 				Show(TableOfPieceGroups["Build"][buildIndex])
 				rval = math.random(-360,360)
 				Turn(TableOfPieceGroups["Build"][buildIndex],y_axis,math.rad(rval),0)
-				
+
 				xyIndex= "XY"..buildIndex.."Deco"
 				yIndex= "Y"..buildIndex.."Deco"
 				process(TableOfPieceGroups[xyIndex],
@@ -28,10 +30,10 @@ function buildUnit(speed)
 								Turn(id,x_axis,math.rad(rval),speed)
 								Show(id)
 							end
-						
+
 						end
 						)
-				
+
 				process(TableOfPieceGroups[yIndex],
 						function(id)
 							if id and math.random(0,1) == 1 then
@@ -39,19 +41,19 @@ function buildUnit(speed)
 								Turn(id,y_axis,math.rad(rval),speed)
 								Show(id)
 							end
-						
+
 						end
 						)
-			
-			
+
+
 			end
 		end
-	
+
 	end
-	
-	
-	
-	
+
+
+
+
 end
 
 
@@ -65,13 +67,13 @@ function script.Create()
 end
 
 function script.Killed(recentDamage, _)
-	
+
 	return 1
 end
 
 
 function script.Activate()
-	
+
 	return 1
 end
 
