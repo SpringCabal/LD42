@@ -1,6 +1,8 @@
 
 
 local Iglu = Unit:New {
+	buildPic            = "",
+	
 	acceleration        = 0.5,
 	brakeRate           = 0.4,
     --buildCostMetal        = 65, -- used only for power XP calcs
@@ -48,4 +50,3 @@ local Iglu = Unit:New {
 return {
     iglu    = Iglu,
 }
-

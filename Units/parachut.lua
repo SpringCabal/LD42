@@ -3,6 +3,7 @@
 local Parachut = Unit:New {
 	acceleration        = 0.5,
 	brakeRate           = 0.4,
+	buildPic            = "",
     --buildCostMetal        = 65, -- used only for power XP calcs
     canMove             = false,
 --     canGuard            = false,
@@ -48,4 +49,3 @@ local Parachut = Unit:New {
 return {
     parachut    = Parachut,
 }
-

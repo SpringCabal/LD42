@@ -1,8 +1,7 @@
 
 
 local Coalburner = Unit:New {
-
-    --buildCostMetal        = 65, -- used only for power XP calcs
+    buildPic            = "",
     canMove             = false,
 
     category            = "BUILDING",
@@ -36,7 +35,7 @@ local Coalburner = Unit:New {
 
     maxDamage           = 1600,
     onoffable           = true,
-  
+
     script              = "coalburnerscript.lua",
 	objectName 				= "coalburner.s3o",
 }
@@ -44,4 +43,3 @@ local Coalburner = Unit:New {
 return {
     coalburner    = Coalburner,
 }
-
