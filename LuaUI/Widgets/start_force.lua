@@ -14,4 +14,5 @@ end
 
 function widget:Initialize()
 	Spring.SendCommands('forcestart')
+	Spring.SendCommands("disticon " .. 100000)
 end
