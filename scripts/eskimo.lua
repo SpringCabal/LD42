@@ -46,6 +46,8 @@ Animations['aim_gun'] = VFS.Include("Scripts/animations/aim_gun.lua", scriptEnv)
 Animations['throw'] = VFS.Include("Scripts/animations/throw.lua", scriptEnv)
 Animations['death_shot'] = VFS.Include("Scripts/animations/death_shot.lua", scriptEnv)
 Animations['death_exhausted'] = VFS.Include("Scripts/animations/death_exhausted.lua", scriptEnv)
+Animations['flounder'] = VFS.Include("Scripts/animations/flounder.lua", scriptEnv)
+
 
 function constructSkeleton(unit, piece, offset)
     if (offset == nil) then
@@ -128,10 +130,12 @@ local SIG_IDLE =  tonumber("00010",2);
 local SIG_AIM =   tonumber("00100",2);
 
 local isThrowing = false;
+local isDrowning = false;
 local hasGun = false;
 local deathSound = "sounds/pirate_death.ogg";
 
 local function Walk()
+    if(isDrowning) then return end;
 	Signal(SIG_WALK)
 	SetSignalMask(SIG_WALK)
 	PlayAnimation("walk", true);
@@ -141,20 +145,22 @@ local function Walk()
 end
 
 local function Idle()
+    if(isDrowning) then return end;
 	Signal(SIG_WALK)
 	SetSignalMask(SIG_WALK)
 	PlayAnimation("idle",true)
 end
 
 local function AimGun()
+    if(isDrowning) then return end;
     Signal(SIG_AIM)
     SetSignalMask(SIG_AIM)
     PlayAnimation("aim_gun")
-
     return true
 end
 
 local function AimSpear()
+    if(isDrowning) then return end;
     Signal(SIG_AIM)
     SetSignalMask(SIG_AIM)
     Show(Spear)
@@ -182,11 +188,13 @@ local function Shoot()
 end
 
 function script.StartMoving()
+    if(isDrowning) then return end;
 	Signal(SIG_WALK);
 	StartThread(Walk);
 end
 
 function script.StopMoving()
+    if(isDrowning) then return end;
 	Signal(SIG_WALK);
 	StartThread(Idle);
 end
@@ -218,6 +226,7 @@ function script.FireWeapon()
 end
 
 function script.AimWeapon(num, heading, pitch)
+    if (isDrowning) then return end;
     if (num == 1 and hasGun) then return end
     if (num == 2 and not hasGun) then return end
 
@@ -236,6 +245,22 @@ function script.Shot(weaponOrSomething)
         StartThread(Shoot);
     else
         StartThread(Throw);
+    end
+end
+
+function StartDrowning() 
+    if (not isDrowning) then
+        isDrowning = true;
+        Signal(SIG_AIM)
+        Signal(SIG_IDLE)
+        Signal(SIG_WALK)
+        StartThread(Drown);
+    end
+end
+
+function Drown()
+    while (true) do
+        PlayAnimation('flounder');
     end
 end
 

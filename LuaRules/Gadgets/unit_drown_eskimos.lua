@@ -17,9 +17,12 @@ end
 local LOG_SECTION = "eski"
 local eskimos = {}
 local eskimoDefID = UnitDefNames["eskimo"].id
+local pirateDefID = UnitDefNames["pirate"].id
 
-function UnitIsEskimo(unitID)
-    return eskimoDefID == Spring.GetUnitDefID(unitID)
+
+function UnitCanDrown(unitID)
+    local unitDefID =  Spring.GetUnitDefID(unitID);
+    return unitDefID == eskimoDefID or pirateDefID == unitDefID
 end
 
 function gadget:Initialize()
@@ -29,7 +32,7 @@ function gadget:Initialize()
 end
 
 function gadget:UnitCreated(unitID)
-    if not UnitIsEskimo(unitID) then
+    if not UnitCanDrown(unitID) then
 		return
 	end
     eskimos[unitID] = {
@@ -47,7 +50,13 @@ function gadget:GameFrame()
         local x,y,z = Spring.GetUnitPosition(unitID)
         local h = Spring.GetGroundHeight(x,z)
         if h <= 0 then -- time to drown
-            Spring.DestroyUnit(unitID)
+            local func = Spring.UnitScript.GetScriptEnv(unitID)["StartDrowning"]
+            if func then
+                Spring.UnitScript.CallAsUnit(unitID, func, {})
+            end
+            local hp = Spring.GetUnitRulesParam(unitID, "health")
+            hp = hp - 1;
+            Spring.SetUnitRulesParam(unitID, "health", hp, {public=true})
         end
     end
 end
