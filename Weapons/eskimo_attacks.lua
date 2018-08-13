@@ -9,6 +9,7 @@ local Spear = Weapon:New {
     range                 = 1000,     -- bad defaults (only 10.0)
     weaponVelocity        = 1000,     -- default velocity is 0, wtf?
     reloadTime            = 3.0,
+    tolerance             = 6000,
 
     -- collision & avoidance
     avoidFriendly         = false,
@@ -35,6 +36,7 @@ local Gun = Weapon:New {
     weaponVelocity        = 2000,     -- default velocity is 0, wtf?
     reloadTime            = 3.0,
     burst                 = 4,
+    tolerance             = 6000,
 
     -- collision & avoidance
     avoidFriendly         = false,

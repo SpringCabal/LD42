@@ -134,6 +134,10 @@ end
 
 
 function script.Create()
+
+    Spring.SetUnitMidAndAimPos(unitID, 0, 30, 0, 0, 30, 0, true)
+    Spring.SetUnitRadiusAndHeight(unitID, 80, 60)
+
 	resetAll(unitID)
 	buildUnitByType()
 end
