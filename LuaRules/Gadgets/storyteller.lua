@@ -80,7 +80,7 @@ function GetStory()
             name = "spawn",
             units = {"pirate", "pirate", "pirate"},
 			team = enemyTeam,
-			time = 15,
+			time = 30,
         },
 		{
 			name = "intro",
@@ -101,7 +101,7 @@ function GetStory()
         },
 		{
             name = "intro",
-            about = "You are running out of coal. \nBuy additional with by pressing: 2",
+            about = "You are running out of coal. \nBuy additional by pressing: 2",
 			time = 30,
         },
 		{
@@ -205,6 +205,14 @@ function SpawnUnits(units, team)
 	        }
 		end
 		s11n:Add(obj)
+		if defName == "iglu" then
+			-- add an extra lantern nearby
+			obj.defName = "lantern"
+			obj.pos.x = obj.pos.x + math.random(130, 150) * math.sgn(math.random() - 0.5)
+			obj.pos.z = obj.pos.z + math.random(130, 150) * math.sgn(math.random() - 0.5)
+			obj.pos.y = Spring.GetGroundHeight(obj.pos.x, obj.pos.z)
+			s11n:Add(obj)
+		end
 	end
 end
 
