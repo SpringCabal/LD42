@@ -25,6 +25,8 @@ local s11n
 local lastStepFrame
 local waitFrames
 
+-- ugh
+local killed = {}
 function gadget:Initialize()
 	lastStepFrame = -math.huge
 	waitFrames = 0
@@ -32,6 +34,7 @@ function gadget:Initialize()
 	s11n = GG.s11n:GetUnitBridge()
 	for _, unitID in pairs(Spring.GetAllUnits()) do
 		Spring.DestroyUnit(unitID, false, true)
+		killed[unitID] = true
 	end
 	if Spring.GetGameRulesParam("sb_gameMode") == nil then
         Spring.RevertHeightMap(0, 0, Game.mapSizeX, Game.mapSizeZ, 1)
@@ -78,7 +81,7 @@ function GetStory()
         },
         {
             name = "spawn",
-            units = {"pirate", "pirate", "pirate"},
+            units = {"pirate"},
 			team = enemyTeam,
 			time = 30,
         },
@@ -111,7 +114,7 @@ function GetStory()
         },
         {
             name = "spawn",
-            units = {"pirate","drillship","pirate"},
+            units = {"pirate","drillship"},
 			team = enemyTeam,
         },
 		{
@@ -119,14 +122,9 @@ function GetStory()
 			-- about = "food_healing",
 			about = "Sell the Ice to feed and heat your people.\n\n(Press 1 and Left Mouse Button)",
 		},
-		{
-            name = "intro",
-            about = "The ice...",
-			time = 3,
-        },
         {
             name = "spawn",
-            units = {"pirate","drillship","pirate","pirate","drillship"},
+            units = {"pirate","drillship","pirate","pirate"},
 			team = enemyTeam,
         },
 		{
@@ -134,9 +132,14 @@ function GetStory()
 			-- about = "food_healing",
 			about = "Your people are hungry. Buy food. (Press 3)",
 		},
+		{
+			name = "intro",
+			about = "The ice...",
+			time = 3,
+		},
         {
             name = "spawn",
-            units = {"pirate","drillship","pirate","pirate", "pirate"},
+            units = {"drillship","drillship","drillship"},
 			team = enemyTeam,
         },
         {
@@ -173,9 +176,12 @@ function SpawnUnits(units, team)
 				x, y, z = findPosition(defName, team)
 				found = false
 				for _, unitID in pairs(Spring.GetUnitsInCylinder(x, z, IGLU_MIN_DISTANCE)) do
-					local defID = Spring.GetUnitDefID(unitID)
-					if igluDefID == defID or defID == coalBurnerDefID then
-						found = true
+					if not killed[unitID] then
+					-- if not Spring.Spring.GetUnitIsDead(unitID) then
+						local defID = Spring.GetUnitDefID(unitID)
+						if igluDefID == defID or defID == coalBurnerDefID then
+							found = true
+						end
 					end
 				end
 			until not found
