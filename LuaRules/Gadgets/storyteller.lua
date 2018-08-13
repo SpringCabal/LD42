@@ -36,6 +36,8 @@ function gadget:Initialize()
 	if Spring.GetGameRulesParam("sb_gameMode") == nil then
         Spring.RevertHeightMap(0, 0, Game.mapSizeX, Game.mapSizeZ, 1)
     end
+
+	Spring.SetGameRulesParam("introEvent", "")
 end
 
 function GetStory()
@@ -61,35 +63,77 @@ function GetStory()
 					 "eskimo", "eskimo", "eskimo", "eskimo", "eskimo",
 					 "eskimo", "eskimo", "eskimo", "eskimo", "eskimo",},
 			team = ourTeam,
+			time = 1,
+			-- time = 5,
+        },
+		{
+            name = "intro",
+			about = "The last remaining good people, bundled on a block of ice.",
+			time = 7,
+        },
+		{
+            name = "intro",
+			about = "Survive.",
+			time = 5,
         },
         {
             name = "spawn",
             units = {"pirate", "pirate", "pirate"},
 			team = enemyTeam,
+			time = 15,
         },
+		{
+			name = "intro",
+			-- about = "food_healing",
+			about = "Your people are cold. Send them to the stove to warm up.",
+		},
+		{
+			name = "intro",
+			-- about = "food_healing",
+			about = "They come for Ice.",
+			time = 1,
+		},
         {
             name = "spawn",
             units = {"drillship"},
 			team = enemyTeam,
+			time = 50,
         },
-        {
+		{
             name = "intro",
-            about = "food_healing",
+            about = "You are running out of coal. \nBuy additional with by pressing: 2",
+			time = 30,
+        },
+		{
+            name = "intro",
+            about = "They are relentless.",
+			time = 3,
         },
         {
             name = "spawn",
             units = {"pirate","drillship","pirate"},
 			team = enemyTeam,
         },
-        {
+		{
+			name = "intro",
+			-- about = "food_healing",
+			about = "Your people are hungry. Send them to the huts to eat (TODO).",
+		},
+		{
             name = "intro",
-            about = "selling"
+            about = "The ice...",
+			time = 3,
         },
         {
             name = "spawn",
             units = {"pirate","drillship","pirate","pirate","drillship"},
 			team = enemyTeam,
         },
+		{
+			name = "intro",
+			-- about = "food_healing",
+			about = "Sell the Ice to feed and heat your people.\n\n(Press 1 and Left Mouse Button)",
+		},
         {
             name = "spawn",
             units = {"pirate","drillship","pirate","pirate", "pirate"},
@@ -165,6 +209,7 @@ function SpawnUnits(units, team)
 end
 
 function DoIntro(about)
+	Spring.SetGameRulesParam("introEvent", about)
 end
 
 function DoOutro()
@@ -184,7 +229,9 @@ function NextStep()
     local step = story[1]
     DoStep(step)
     table.remove(story, 1)
-	if step.name == "spawn" then
+	if step.time then
+		waitFrames = step.time * GAME_FRAME_PER_SEC
+	elseif step.name == "spawn" then
 		waitFrames = 30 * GAME_FRAME_PER_SEC
 	else
 		waitFrames = 10 * GAME_FRAME_PER_SEC
