@@ -213,6 +213,12 @@ function SpawnUnits(units, team)
 			obj.pos.y = Spring.GetGroundHeight(obj.pos.x, obj.pos.z)
 			s11n:Add(obj)
 		end
+		if defName == "pirate" then
+			-- spawn a parachute on them nearby
+			obj.defName = "parachut"
+			obj.pos.y = obj.pos.y + 100
+			s11n:Add(obj)
+		end
 	end
 end
 
