@@ -88,41 +88,37 @@ function gadget:UnitCreated(unitID)
         return Spring.GetUnitRulesParam(unitID, attr)
     end
 
-    local eskimo = {
-        unitID = unitID,
-        attrs = {
-            health =       _l("health")       or START_HEALTH,
-            food =         _l("food")         or START_FOOD,
-            heat =         _l("heat")         or START_HEAT,
-            rest_state =   _l("rest_state")   or REST_STATES.ACTIVE,
-            warm_state =   _l("warm_state")   or WARM_STATES.COLD,
-            eating_state = _l("eating_state") or EATING_STATES.IDLE,
-			--eating_state = _l("eating_state") or EATING_STATES.EATING,
-        }
+    local attrs = {
+        health =       _l("health")       or START_HEALTH,
+        food =         _l("food")         or START_FOOD,
+        heat =         _l("heat")         or START_HEAT,
+        rest_state =   _l("rest_state")   or REST_STATES.ACTIVE,
+        warm_state =   _l("warm_state")   or WARM_STATES.COLD,
+        eating_state = _l("eating_state") or EATING_STATES.IDLE,
+		--eating_state = _l("eating_state") or EATING_STATES.EATING,
     }
 
-    eskimos[unitID] = eskimo
-    UpdateAllAttributes(unitID, eskimo.attrs)
-end
-
-function SetAttribute(unitID, key, value)
-    local eskimo = eskimos[unitID]
-    eskimo.attrs[key] = value
-    Spring.SetUnitRulesParam(unitID, key, value)
+	eskimos[unitID] = unitID
+    UpdateAllAttributes(unitID, attrs)
 end
 
 function gadget:UnitDestroyed(unitID)
-    if UnitIsEskimo(unitID) then
-        eskimos[unitID] = nil
-    end
+	if UnitIsEskimo(unitID) then
+		eskimos[unitID] = nil
+	end
 end
 
-local function DoHeat(eskimo)
-    local warm_state = eskimo.attrs.warm_state
-    local heat = eskimo.attrs.heat
+
+function SetAttribute(unitID, key, value)
+    Spring.SetUnitRulesParam(unitID, key, value)
+end
+
+local function DoHeat(unitID)
+    local warm_state = Spring.GetUnitRulesParam(unitID, "warm_state")
+    local heat = Spring.GetUnitRulesParam(unitID, "heat")
     if warm_state == WARM_STATES.WARM then
 		if not GG.Resources.Consume("food", HEAT_RES_USAGE) then
-			SetAttribute(eskimo.unitID, "warm_state", WARM_STATES.COLD)
+			SetAttribute(unitID, "warm_state", WARM_STATES.COLD)
 		else
 			heat = heat + WARMING_INCREASE
 		end
@@ -134,25 +130,25 @@ local function DoHeat(eskimo)
     end
 
     if heat <= 0 then
-        SetAttribute(eskimo.unitID, "warm_state", WARM_STATES.FREEZING)
+        SetAttribute(unitID, "warm_state", WARM_STATES.FREEZING)
     end
 	if heat >= MAX_HEAT then
-		SetAttribute(eskimo.unitID, "warm_state", WARM_STATES.COLD)
+		SetAttribute(unitID, "warm_state", WARM_STATES.COLD)
 	end
 
     heat = math.min(heat, MAX_HEAT)
     heat = math.max(heat, 0)
-    SetAttribute(eskimo.unitID, "heat", heat)
+    SetAttribute(unitID, "heat", heat)
 end
 
-local function DoFood(eskimo)
-    local eating_state = eskimo.attrs.eating_state
-    local food = eskimo.attrs.food
+local function DoFood(unitID)
+	local eating_state = Spring.GetUnitRulesParam(unitID, "eating_state")
+    local food = Spring.GetUnitRulesParam(unitID, "food")
     if eating_state == EATING_STATES.IDLE then
         food = food - FOOD_DECAY_RATE
     elseif eating_state == EATING_STATES.EATING then
 		if not GG.Resources.Consume("food", FOOD_RES_USAGE) then
-			SetAttribute(eskimo.unitID, "eating_state", EATING_STATES.IDLE)
+			SetAttribute(unitID, "eating_state", EATING_STATES.IDLE)
 		else
 			food = food + FOOD_EATING_RATE
 		end
@@ -162,26 +158,29 @@ local function DoFood(eskimo)
     end
 
     if food <= 0 then
-        SetAttribute(eskimo.unitID, "eating_state", EATING_STATES.STARVING)
+        SetAttribute(unitID, "eating_state", EATING_STATES.STARVING)
     end
 	if food >= MAX_FOOD then
-		SetAttribute(eskimo.unitID, "eating_state", EATING_STATES.IDLE)
+		SetAttribute(unitID, "eating_state", EATING_STATES.IDLE)
 	end
 
     food = math.min(food, MAX_FOOD)
     food = math.max(food, 0)
-    SetAttribute(eskimo.unitID, "food", food)
+    SetAttribute(unitID, "food", food)
 end
 
-local function DoHealth(eskimo)
-    local health = eskimo.attrs.health
-    if eskimo.attrs.rest_state == REST_STATES.RESTING then
+local function DoHealth(unitID)
+	local warm_state = Spring.GetUnitRulesParam(unitID, "warm_state")
+	local rest_state = Spring.GetUnitRulesParam(unitID, "rest_state")
+	local eating_state = Spring.GetUnitRulesParam(unitID, "eating_state")
+    local health = Spring.GetUnitRulesParam(unitID, "health")
+    if rest_state == REST_STATES.RESTING then
         health = health + HEALTH_REGEN_RATE
     end
-    if eskimo.attrs.warm_state == WARM_STATES.FREEZING then
+    if warm_state == WARM_STATES.FREEZING then
         health = health - FREEZING_HEALTH_DECAY
     end
-    if eskimo.attrs.eating_state == EATING_STATES.STARVING then
+    if eating_state == EATING_STATES.STARVING then
         health = health - STARVING_HEALTH_DECAY
     end
 
@@ -192,10 +191,10 @@ local function DoHealth(eskimo)
 
     health = math.min(health, MAX_HEALTH)
     health = math.max(health, 0)
-    SetAttribute(eskimo.unitID, "health", health)
+    SetAttribute(unitID, "health", health)
 
     if delayedDestroy then
-        Spring.DestroyUnit(eskimo.unitID)
+        Spring.DestroyUnit(unitID)
     end
 end
 
@@ -205,10 +204,10 @@ function gadget:GameFrame()
     end
     local frame = Spring.GetGameFrame()
 
-    for _, eskimo in pairs(eskimos) do
-        DoHeat(eskimo)
-        DoFood(eskimo)
-        DoHealth(eskimo)
+    for _, unitID in pairs(eskimos) do
+        DoHeat(unitID)
+        DoFood(unitID)
+        DoHealth(unitID)
     end
 end
 
