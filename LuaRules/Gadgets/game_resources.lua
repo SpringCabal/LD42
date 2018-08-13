@@ -21,7 +21,7 @@ local MAX_HEAT      = 100
 local START_HEAT    = 80
 
 local MAX_MONEY     = 100
-local START_MONEY	= 0
+local START_MONEY	= 80
 
 function SetResource(name, value)
     Spring.SetGameRulesParam(name, value)

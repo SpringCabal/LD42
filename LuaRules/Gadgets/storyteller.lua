@@ -83,12 +83,13 @@ function GetStory()
             name = "spawn",
             units = {"pirate"},
 			team = enemyTeam,
-			time = 30,
+			time = 10,
         },
 		{
 			name = "intro",
 			-- about = "food_healing",
 			about = "Your people are cold. Send them to the stove to warm up.",
+			time = 20,
 		},
 		{
 			name = "intro",
@@ -98,15 +99,15 @@ function GetStory()
 		},
         {
             name = "spawn",
-            units = {"drillship"},
+            units = {"drillship", "drillship", "drillship"},
 			team = enemyTeam,
-			time = 50,
+			time = 150,
         },
 		{
-            name = "intro",
-            about = "You are running out of coal. \nBuy more. (Press 2)",
-			time = 30,
-        },
+			name = "intro",
+			-- about = "food_healing",
+			about = "Your people are hungry and cold. Buy more: \nCoal: Press 2\n Food: Press 3",
+		},
 		{
             name = "intro",
             about = "They are relentless.",
@@ -126,11 +127,19 @@ function GetStory()
             name = "spawn",
             units = {"pirate","drillship","pirate","pirate"},
 			team = enemyTeam,
+			time = 20,
         },
 		{
 			name = "intro",
 			-- about = "food_healing",
-			about = "Your people are hungry. Buy food. (Press 3)",
+			about = "Reinforcements. Just in time!",
+		},
+		{
+			name = "spawn",
+			units = {"eskimo", "eskimo", "eskimo", "eskimo", "eskimo"},
+			team = ourTeam,
+			time = 50,
+			-- time = 5,
 		},
 		{
 			name = "intro",
@@ -139,8 +148,9 @@ function GetStory()
 		},
         {
             name = "spawn",
-            units = {"drillship","drillship","drillship"},
+            units = {"drillship","drillship","drillship","drillship","drillship"},
 			team = enemyTeam,
+			time = 160,
         },
         {
             name = "outro", -- keep spawning units and global warming
@@ -233,6 +243,9 @@ function DoIntro(about)
 end
 
 function DoOutro()
+	if Spring.GetGameRulesParam("gameEnd") ~= "loss" then
+		Spring.SetGameRulesParam("gameEnd", "victory")
+	end
 end
 
 function DoStep(step)

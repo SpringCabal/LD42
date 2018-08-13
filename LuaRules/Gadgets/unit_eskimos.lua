@@ -33,7 +33,7 @@ local MAX_FOOD          = 100
 local START_FOOD        = 90
 local FOOD_DECAY_RATE   = 1   * MULTI
 local FOOD_EATING_RATE  = 10  * MULTI
-local FOOD_RES_USAGE    = 1   * MULTI
+local FOOD_RES_USAGE    = 0.1 * MULTI
 
 local EATING_STATES = {
     IDLE = "idle",
