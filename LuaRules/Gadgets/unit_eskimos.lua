@@ -161,6 +161,11 @@ end
 local function DoFood(unitID)
 	local eating_state = Spring.GetUnitRulesParam(unitID, "eating_state")
     local food = Spring.GetUnitRulesParam(unitID, "food")
+	if food < 20 then -- automatically eat
+		eating_state = EATING_STATES.EATING
+		Spring.SetUnitRulesParam(unitID, "eating_state", eating_state)
+	end
+
     if eating_state == EATING_STATES.IDLE then
         food = food - FOOD_DECAY_RATE
     elseif eating_state == EATING_STATES.EATING then

@@ -44,7 +44,7 @@ end
 GG.Resources = {
     SetResource = SetResource,
     Consume = function(name, amount)
-		if resources[name] - amount > 0 then
+		if resources[name] - amount < 0 then
 			return false
 		end
 		local newAmount = resources[name] - amount
