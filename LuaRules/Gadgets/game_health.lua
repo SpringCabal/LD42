@@ -22,7 +22,7 @@ end
 
 function gadget:UnitCreated(unitID, unitDefID)
     local unitDef = UnitDefs[unitDefID]
-    Spring.SetUnitRulesParam(unitID, "health", unitDef.customParams.health or 100000)
+    Spring.SetUnitRulesParam(unitID, "health", unitDef.customParams.health or 100000, {public=true})
 end
 
 function gadget:UnitPreDamaged(unitID, unitDefID, unitTeam, damage, paralyzer, weaponDefID, projectileID, attackerID, attackerDefID, attackerTeam)
@@ -33,7 +33,7 @@ function gadget:UnitPreDamaged(unitID, unitDefID, unitTeam, damage, paralyzer, w
     local damage = UnitDefs[attackerDefID].customParams.damage
     hp = hp - damage
     -- local damage = WeaponDefs[weaponDefID].customParams.damage
-    Spring.SetUnitRulesParam(unitID, "health", hp)
+    Spring.SetUnitRulesParam(unitID, "health", hp, {public=true})
     if hp < 0 then
 		return 10000000000000000 -- die without recursion
         -- Spring.DestroyUnit(unitID)
