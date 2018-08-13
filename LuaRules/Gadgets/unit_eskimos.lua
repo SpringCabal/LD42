@@ -123,6 +123,8 @@ local function DoHeat(unitID)
 	-- heat when near a coal burner
 	if heat + threshold <= MAX_HEAT then
 		local x, _, z = Spring.GetUnitPosition(unitID)
+		warm_state = WARM_STATES.COLD
+		SetAttribute(unitID, "warm_state", warm_state)
 		for _, nearbyUnitID in pairs(Spring.GetUnitsInCylinder(x, z, COAL_BURNER_MIN_DISTANCE)) do
 			local defID = Spring.GetUnitDefID(nearbyUnitID)
 			if defID == coalBurnerDefID then

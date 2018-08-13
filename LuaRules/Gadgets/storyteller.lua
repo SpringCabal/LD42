@@ -101,7 +101,7 @@ function GetStory()
         },
 		{
             name = "intro",
-            about = "You are running out of coal. \nBuy additional by pressing: 2",
+            about = "You are running out of coal. \nBuy more. (Press 2)",
 			time = 30,
         },
 		{
@@ -117,7 +117,7 @@ function GetStory()
 		{
 			name = "intro",
 			-- about = "food_healing",
-			about = "Your people are hungry. Send them to the huts to eat (TODO).",
+			about = "Sell the Ice to feed and heat your people.\n\n(Press 1 and Left Mouse Button)",
 		},
 		{
             name = "intro",
@@ -132,7 +132,7 @@ function GetStory()
 		{
 			name = "intro",
 			-- about = "food_healing",
-			about = "Sell the Ice to feed and heat your people.\n\n(Press 1 and Left Mouse Button)",
+			about = "Your people are hungry. Buy food. (Press 3)",
 		},
         {
             name = "spawn",
