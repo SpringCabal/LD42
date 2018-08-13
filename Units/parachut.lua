@@ -33,7 +33,7 @@ local Parachut = Unit:New {
     activateWhenBuilt   = true,
     customParams = { },
 
-    maxDamage           = 1600,
+    maxDamage           = 1,
     maxVelocity         = 10,
     script              = "",
 	objectName 				= "parachut.s3o",

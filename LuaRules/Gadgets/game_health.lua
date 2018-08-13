@@ -27,7 +27,7 @@ end
 
 function gadget:UnitPreDamaged(unitID, unitDefID, unitTeam, damage, paralyzer, weaponDefID, projectileID, attackerID, attackerDefID, attackerTeam)
     local hp = Spring.GetUnitRulesParam(unitID, "health")
-    if not hp then
+    if not hp or not attackerDefID then
         return 0
     end
     local damage = UnitDefs[attackerDefID].customParams.damage
