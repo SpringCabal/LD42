@@ -61,8 +61,15 @@ end
 
 
 function script.Create()
+
+	Spring.SetUnitNoSelect(unitID,true);
+	Spring.SetUnitNoMinimap(unitID,true);
+	Spring.SetUnitNeutral(unitID,true);
+	
+
 	resetAll(unitID)
 	buildUnit()
+
 end
 
 function script.Killed(recentDamage, _)
