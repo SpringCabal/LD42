@@ -930,7 +930,8 @@ do
   local GetUnitIsStunned     = Spring.GetUnitIsStunned
   local GetUnitHealth        = function(unitID)
       local maxHealth = UnitDefs[Spring.GetUnitDefID(unitID)].customParams.health
-      return Spring.GetUnitRulesParam(unitID, "health"), tonumber(maxHealth)
+      local health = math.max(Spring.GetUnitRulesParam(unitID, "health") or 0, 0)
+      return health, tonumber(maxHealth)
   end
   function GetEskimoBars(unitID)
       local health = Spring.GetUnitRulesParam(unitID, "health")
@@ -1036,7 +1037,6 @@ do
       end
 
       --// HEALTH
-      Spring.Echo("AA", Spring.GetUnitRulesParam(unitID, "health"))
       if (health) and ((drawFullHealthBars)or(hp<1)) and ((build==1)or(build-hp>=0.01)) then
         hp100 = hp*100; hp100 = hp100 - hp100%1; --//same as floor(hp*100), but 10% faster
         if (hp100<0) then hp100=0 elseif (hp100>100) then hp100=100 end
@@ -1051,7 +1051,6 @@ do
 				infotext = hp100..'%'
 			  end
           end
-          SPring.Echo("ABC")
           AddBar("health",hp,nil,infotext or '',bfcolormap[hp100])
         end
       end
