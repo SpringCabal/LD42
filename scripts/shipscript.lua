@@ -139,7 +139,7 @@ function script.Create()
 end
 
 function script.Killed(recentDamage, _)
-
+	 StartThread(PlaySoundByUnitDefID, myDefID, "sounds/sinkingship.ogg", 0.75, math.random(1000,1500), 1, 0)
 	return 1
 end
 
