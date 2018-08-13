@@ -66,14 +66,25 @@ local function SetupControls()
 
     local survialTime = math.floor((Spring.GetGameFrame() - Spring.GetGameRulesParam("startTime")) / 33)
 
+    local gameEnd = Spring.GetGameRulesParam("gameEnd")
+
+    local caption
+    local color
+    if gameEnd == 'loss' then
+        caption = "Game Over"
+        color = {1, 0, 0, 1}
+    else
+        caption = "Victory!"
+        color = {0, 1, 0, 1}
+    end
 	Chili.Label:New{
  		x = 60,
  		y = 30,
  		width = 100,
  		parent = window_endgame,
- 		caption = "Game Over",
+ 		caption = caption,
  		fontsize = 50,
- 		textColor = {1,0,0,1},
+ 		textColor = color,--{1,0,0,1},
  	}
 
 	Chili.Label:New{
