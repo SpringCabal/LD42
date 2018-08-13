@@ -241,6 +241,10 @@ function script.Killed(recentDamage, _)
 	Signal(SIG_AIM);
 	Signal(SIG_WALK);
 	Signal(SIG_IDLE);
-	PlayAnimation('death_exhausted');
+    if(recentDamage > 0) then
+        PlayAnimation('death_shot');
+        return 2;
+    end
+    PlayAnimation('death_exhausted');
     return 1;
 end
