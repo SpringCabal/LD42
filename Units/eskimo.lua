@@ -78,6 +78,7 @@ local Eskimo = Humanoid:New {
 	customParams = {
 		health = 100,
 		damage = 10,
+		death_sound = "DeathEskimo",
 	},
 	corpse                 = [[DEAD_A]],
 	featureDefs                   = {
@@ -87,12 +88,14 @@ local Eskimo = Humanoid:New {
 			footprintX       = 2,
 			footprintZ       = 2,
 			object           = [[eskimo_dead_exhaustion.dae]],
+			smokeTime        = 0,
 		},
 		DEAD_B  = {
 			blocking         = false,
 			footprintX       = 2,
 			footprintZ       = 2,
 			object           = [[eskimo_dead_shot.dae]],
+			smokeTime        = 0,
 		},
 
 	},
@@ -120,6 +123,7 @@ local Pirate = Humanoid:New {
 		has_gun = "1",
 		health = 100,
 		damage = 10,
+		death_sound = "DeathPirate",
 	},
 	corpse                 = [[LESS_DEAD]],
 	featureDefs                   = {
@@ -128,13 +132,15 @@ local Pirate = Humanoid:New {
 			blocking         = false,
 			footprintX       = 2,
 			footprintZ       = 2,
-			object           = [[pirate_dead.dae]],
+			object           = [[pirate_dead_1.dae]],
+			smokeTime        = 0,
 		},
 		DEAD  = {
 			blocking         = false,
 			footprintX       = 2,
 			footprintZ       = 2,
-			object           = [[pirate_dead.dae]],
+			object           = [[pirate_dead_2.dae]],
+			smokeTime        = 0,
 		},
 	}
 }

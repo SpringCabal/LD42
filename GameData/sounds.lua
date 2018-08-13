@@ -35,6 +35,14 @@ local Sounds = {
 			file = "sounds/shotgunimpact.wav",
       in3d = "true",
 		},
+		DeathPirate = {
+			file = "sounds/pirate_death.ogg",
+      in3d = "true",
+		},
+    DeathEskimo = {
+			file = "sounds/eskimo_death.ogg",
+      in3d = "true",
+		},
   },
 }
 

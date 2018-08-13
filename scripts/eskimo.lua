@@ -102,6 +102,7 @@ function script.Create()
         GetGun()
     end
 
+    deathSound = UnitDefs[unitDefID].customParams.death_sound
 
     PlayAnimation('idle');
 end
@@ -128,6 +129,7 @@ local SIG_AIM =   tonumber("00100",2);
 
 local isThrowing = false;
 local hasGun = false;
+local deathSound = "sounds/pirate_death.ogg";
 
 local function Walk()
 	Signal(SIG_WALK)
@@ -241,7 +243,12 @@ function script.Killed(recentDamage, _)
 	Signal(SIG_AIM);
 	Signal(SIG_WALK);
 	Signal(SIG_IDLE);
-    if(recentDamage > 0) then
+
+    local px,py,pz = Spring.GetUnitPosition(unitID);
+    Spring.PlaySoundFile(deathSound, 9, px, py, pz)
+
+    --if(recentDamage > 0) then -- this doesn't really tell apart kills and expirations, fixme
+    if(math.random() > 0.5) then
         PlayAnimation('death_shot');
         return 2;
     end
