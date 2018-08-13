@@ -17,7 +17,7 @@ local Ship = Unit:New {
 	footprintX          = 6,
 	footprintZ          = 6,
 	upright				= true,
-	maxVelocity         = 10,
+	maxVelocity         = 3,
 
 	acceleration        = 0.5,
 	brakeRate           = 0.4,
@@ -27,7 +27,7 @@ local Ship = Unit:New {
 	--     canPatrol           = false,
 	--     canRepeat           = false,
 
-	turnRate            = 90 / 0.16,
+	turnRate            = 30 / 0.16,
 
 	maxDamage           = 1600,
 	activateWhenBuilt   = true,

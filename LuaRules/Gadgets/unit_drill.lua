@@ -18,9 +18,9 @@ local LOG_SECTION = "drill"
 
 local GAME_FRAME_PER_SEC = 33
 
-local DRILL_SIZE = 250
+local DRILL_SIZE = 400
 local NEARBY_SIZE = 100
-local DRILL_AMOUNT = 0.03
+local DRILL_AMOUNT = 1.0
 
 local ICE_HEIGHT = -1
 
@@ -77,9 +77,7 @@ function DecreaseTerrain(x, z, size, amount)
 
             gh = gh - amount * d -- / math.log(2 + d) -- * (max / (d + 0.001))
 
-            if gh < -100 then
-                gh = -100
-            end
+			gh = math.max(gh, -500)
             Spring.SetHeightMap(gx, gz, gh)
         end
     end
@@ -118,19 +116,19 @@ function FindClosestIce(unitID)
     sx = Math.RoundInt(sx, Game.squareSize)
     sz = Math.RoundInt(sz, Game.squareSize)
 
-    for size = Game.squareSize, Game.mapSizeX do
+    for size = Game.squareSize, math.max(Game.mapSizeX, Game.mapSizeZ) do
         local x = sx
         local z = sz
 
         for _, z in pairs({sz - size, sz + size}) do
-	        for x = sx - size, sx + size do
+	        for x = sx - size, sx + size, Game.squareSize do
 	            if Spring.GetGroundHeight(x, z) > ICE_HEIGHT then
 	                return x, z
 	            end
 	        end
         end
         for _, x in pairs({sx - size, sx + size}) do
-	        for z = sz - size, sz + size do
+	        for z = sz - size, sz + size, Game.squareSize do
 	            if Spring.GetGroundHeight(x, z) > ICE_HEIGHT then
 	                return x, z
 	            end
