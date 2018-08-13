@@ -32,7 +32,7 @@ function widget:Initialize()
 end
 
 function widget:DrawScreen()
-    local startPos = vsy / 2
+    local startPos = vsy / 4
     gl.PushMatrix()
     for i = 1, #events do
         local event = events[i]
@@ -49,7 +49,7 @@ function widget:DrawScreen()
 		local size = fontSize
         local fw = gl.GetTextWidth(str) * size
         gl.Color(color[1], color[2], color[3], color[4])
-        gl.Text(str, (vsx - fw) / 2, pos, size)
+        gl.Text(str, (vsx - fw) / 2, pos, size, 's')
     end
     gl.PopMatrix()
 end

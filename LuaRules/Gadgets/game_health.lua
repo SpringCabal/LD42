@@ -35,7 +35,8 @@ function gadget:UnitPreDamaged(unitID, unitDefID, unitTeam, damage, paralyzer, w
     -- local damage = WeaponDefs[weaponDefID].customParams.damage
     Spring.SetUnitRulesParam(unitID, "health", hp)
     if hp < 0 then
-        Spring.DestroyUnit(unitID)
+		return 10000000000000000 -- die without recursion
+        -- Spring.DestroyUnit(unitID)
     end
     return 0
 end
