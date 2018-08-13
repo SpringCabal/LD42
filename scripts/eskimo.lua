@@ -41,10 +41,10 @@ Animations['guy'] = {
 
 Animations['idle'] = VFS.Include("Scripts/animations/idle.lua", scriptEnv)
 Animations['walk'] = VFS.Include("Scripts/animations/walk.lua", scriptEnv)
+Animations['aim_spear'] = VFS.Include("Scripts/animations/aim_spear.lua", scriptEnv)
 Animations['throw'] = VFS.Include("Scripts/animations/throw.lua", scriptEnv)
 Animations['death_shot'] = VFS.Include("Scripts/animations/death_shot.lua", scriptEnv)
 Animations['death_exhausted'] = VFS.Include("Scripts/animations/death_exhausted.lua", scriptEnv)
-
 
 function constructSkeleton(unit, piece, offset)
     if (offset == nil) then
@@ -77,6 +77,8 @@ end
 function script.Create()
     local map = Spring.GetUnitPieceMap(unitID);
     local offsets = constructSkeleton(unitID,map.Scene, {0,0,0});
+    
+    Spring.SetUnitMidAndAimPos(unitID, 0, 30, 0, 0, 30, 0, true)
 
     for a,anim in pairs(Animations) do
         for i,keyframe in pairs(anim) do
@@ -133,6 +135,13 @@ local function Idle()
 	PlayAnimation("idle",true)
 end
 
+local function Throw()
+    isThrowing = true
+    Hide(Spear)
+    PlayAnimation("throw")
+    isThrowing = false
+end
+
 function script.StartMoving()
 	Signal(SIG_WALK);
 	StartThread(Walk);
@@ -158,23 +167,21 @@ function script.FireWeapon()
 	return Gun
 end
 
-
 function script.AimWeapon(num, heading, pitch)
-    if(not isThrowing) then 
+    local _,isLoaded = Spring.GetUnitWeaponState(unitID, num);
+    if (isLoaded and not isThrowing) then
         Signal(SIG_AIM)
         SetSignalMask(SIG_AIM)
-        isThrowing = true;
         Show(Spear)
-        PlayAnimation("throw")
+        PlayAnimation("aim_spear")
         Turn(Head, z_axis, heading,7);
-        WaitForTurn(Head,x_axis)
-        Hide(Spear)
-        isThrowing = false;
+        WaitForTurn(Head,z_axis)
         return true
     end
+end
 
-    Sleep(100);
-    return true;
+function script.Shot(weaponOrSomething)
+    StartThread(Throw);
 end
 
 function script.Killed(recentDamage, _)
