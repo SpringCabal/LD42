@@ -56,7 +56,11 @@ function gadget:GameFrame()
             end
             local hp = Spring.GetUnitRulesParam(unitID, "health")
             hp = hp - 1;
-            Spring.SetUnitRulesParam(unitID, "health", hp, {public=true})
+            if (hp <= 0) 
+                then Spring.DestroyUnit(unitID) 
+            else
+                Spring.SetUnitRulesParam(unitID, "health", hp, {public=true})
+            end
         end
     end
 end
