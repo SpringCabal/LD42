@@ -157,18 +157,22 @@ function script.FireWeapon()
 	-- return Head
 	return Gun
 end
+
+local function Throw()
+    isThrowing = true;
+    Show(Spear)
+    PlayAnimation("throw")
+    Hide(Spear)
+    isThrowing = false;
+    return true
+end
  
 function script.AimWeapon()
     SetSignalMask(SIG_AIM)
     if(not isThrowing) then 
         Signal(SIG_AIM)
-        isThrowing = true;
-        Show(Spear)
-        PlayAnimation("throw")
-        Hide(Spear)
-        isThrowing = false;
-        return true
     end
+    return Throw();
 end
 
 function script.Killed(recentDamage, _)
