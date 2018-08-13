@@ -11,9 +11,8 @@ function buildUnit(speed)
 	hideAll(unitID)
 	Show(TableOfPieceGroups["Build"][1])
 	for buildIndex=1, #TableOfPieceGroups["Build"],1 do
-		-- README: Picasso, I have disabled buildIndex==3 piece (which seems to be the tall one).
-		-- I have done this to prevent iglus from obscuring a large part of the map
-		if buildIndex~=3 and TableOfPieceGroups["Build"][buildIndex] then
+
+		if TableOfPieceGroups["Build"][buildIndex] then
 			if math.random(0,1)==1 then
 				Show(TableOfPieceGroups["Build"][buildIndex])
 				rval = math.random(-360,360)
@@ -67,7 +66,21 @@ function script.Create()
 end
 
 function script.Killed(recentDamage, _)
-
+	process(TableOfPieceGroups,
+			function(t)
+				process(t,
+						function(id)
+							if id then
+								if math.random(0,1)==1 then
+									Explode(id,SFX.FALL+SFX.NO_HEATCLOUD)
+								else
+									Explode(id,SFX.SHATTER+SFX.NO_HEATCLOUD)
+								end
+							end
+						end
+				)			
+			end
+			)
 	return 1
 end
 
