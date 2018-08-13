@@ -20,7 +20,7 @@ local GAME_FRAME_PER_SEC = 33
 
 local DRILL_SIZE = 250
 local NEARBY_SIZE = 100
-local DRILL_AMOUNT = 500
+local DRILL_AMOUNT = 0.03
 
 local ICE_HEIGHT = -1
 
@@ -57,23 +57,26 @@ function gadget:UnitDestroyed(unitID)
     drillShips[unitID] = nil
 end
 
-function UpdateHeight(x, z, size)
+function DecreaseTerrain(x, z, size, amount)
     local startX = Math.RoundInt(x - size / 2, Game.squareSize)
     local startZ = Math.RoundInt(z - size / 2, Game.squareSize)
 
     size = Math.RoundInt(size, Game.squareSize)
     local sh = size / 2
+	local max = sh -- math.sqrt(sh * sh + sh * sh)
     for x = 0, size, Game.squareSize do
         local dx = (x - sh) * (x - sh)
         for z = 0, size, Game.squareSize do
             local dz = (z - sh) * (z - sh)
-            local d = math.sqrt(dx + dz)
+            local d = max - math.sqrt(dx + dz)
+			d = math.max(0, d)
 
             local gx = x + startX
             local gz = z + startZ
             local gh = Spring.GetGroundHeight(gx, gz)
 
-            gh = gh - DRILL_AMOUNT / d
+            gh = gh - amount * d -- / math.log(2 + d) -- * (max / (d + 0.001))
+
             if gh < -100 then
                 gh = -100
             end
@@ -86,7 +89,7 @@ function DrillUnit(unitID)
     local x, y, z = Spring.GetUnitPosition(unitID)
     -- Spring.Echo("DRILL", Spring.GetGameFrame(), unitID, x, y, z)
 
-    Spring.SetHeightMapFunc(UpdateHeight, x, z, DRILL_SIZE)
+    Spring.SetHeightMapFunc(DecreaseTerrain, x, z, DRILL_SIZE, DRILL_AMOUNT)
 end
 
 function NearbyIce(unitID)
@@ -154,6 +157,9 @@ function gadget:GameFrame()
     if DISABLE_GADGET then
         return
     end
+	if Spring.GetGameRulesParam("sb_gameMode") == "dev" then
+        return
+    end
     for unitID, drillShip in pairs(drillShips) do
         -- Spring.Echo("NoNearbyIce(unitID)", NearbyIce(unitID))
         if not NearbyIce(unitID) then
@@ -185,4 +191,5 @@ end
 
 GG.Drill = {
     DrillUnit = DrillUnit,
+	DecreaseTerrain = DecreaseTerrain
 }
