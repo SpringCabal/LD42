@@ -68,6 +68,9 @@ local Eskimo = Humanoid:New {
 	weapons = {
 		{
 			name = "Spear",
+		},
+		{		
+			name = "Gun",
 		}
 	},
 
@@ -85,6 +88,9 @@ local Pirate = Humanoid:New {
 
 	weapons = {
 		{
+			name = "Spear",
+		},
+		{		
 			name = "Gun",
 		}
 	},

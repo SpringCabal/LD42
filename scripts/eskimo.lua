@@ -216,6 +216,9 @@ function script.FireWeapon()
 end
 
 function script.AimWeapon(num, heading, pitch)
+    if (num == 1 and hasGun) then return end
+    if (num == 2 and not hasGun) then return end
+
     local _,isLoaded = Spring.GetUnitWeaponState(unitID, num);
     if (isLoaded and not isThrowing) then
         if(hasGun) then
