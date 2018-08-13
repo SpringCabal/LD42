@@ -35,7 +35,7 @@ local Parachut = Unit:New {
 
     maxDamage           = 1,
     maxVelocity         = 10,
-    script              = "",
+    script              = "parachut.lua",
 	objectName 				= "parachut.s3o",
 }
 

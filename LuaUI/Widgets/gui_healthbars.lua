@@ -52,7 +52,7 @@ local alwaysDrawBarPercentageForComs = true     -- true:  commanders always will
 local drawFeatureBarPercentage  = 0
 local choppedCornerSize         = 0.44
 local outlineSize               = 0.7
-local drawFullHealthBars        = false
+local drawFullHealthBars        = true
 
 local drawFeatureHealth         = true
 local featureTitlesAlpha        = featureBarAlpha * titlesAlpha/barAlpha
@@ -868,7 +868,7 @@ do
   end
 
   function DrawBars(fullText)
-    local yoffset = 20
+    local yoffset = 50
     for i=1,barsN do
       local barInfo = bars[i]
       DrawUnitBar(yoffset,barInfo.progress,barInfo.color)
@@ -928,9 +928,10 @@ do
   local glPopMatrix     = gl.PopMatrix
   local glBillboard     = gl.Billboard
   local GetUnitIsStunned     = Spring.GetUnitIsStunned
-  local GetUnitHealth        = function(unitID)
-      return Spring.GetUnitRulesParam(unitID, "health"), Spring.GetGameRulesParam("maxHealth")
-  end
+  local GetUnitHealth        = Spring.GetUnitHealth
+  -- function(unitID)
+  --     return Spring.GetUnitRulesParam(unitID, "health"), Spring.GetGameRulesParam("maxHealth")
+  -- end
   function GetEskimoBars(unitID)
       local health = Spring.GetUnitRulesParam(unitID, "health")
       local food = Spring.GetUnitRulesParam(unitID, "food")
@@ -1023,7 +1024,7 @@ do
             -- title,progress,color_index,text,color
             AddBar(bar.name, bar.value / 100, nil, (bar.name .. ": " .. floor(bar.value)..'%') or '', bar.color)
         end
-    else
+    elseif unitDefID == UnitDefNames["drillship"].id or unitDefID == UnitDefNames["pirate"].id then
       --// BARS //-----------------------------------------------------------------------------
       --// Shield
       if (ci.maxShield>0) then
