@@ -18,7 +18,7 @@ local dtTime = 0
 local trackTime
 local startedPlaying = false
 -- FIXME: add the music file path here
-local musicFile
+local musicFile = "sounds/remixed_background.ogg"
 
 local function StartPlaying()
     playingTime = 0
@@ -53,7 +53,7 @@ function widget:Update(dt)
             StartPlaying()
         end
     end
-end 
+end
 
 function widget:Shutdown()
     Spring.StopSoundStream()
