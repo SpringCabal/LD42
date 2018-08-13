@@ -102,7 +102,7 @@ local Pirate = Humanoid:New {
 	customParams = {
 		has_gun = "1",
 		health = 100,
-		damage = 20,
+		damage = 10,
 	}
 }
 

@@ -84,10 +84,10 @@ function GetBarValues()
     local money = Spring.GetGameRulesParam("money")
     return {
         {
-            value = food,
-            max = maxFood,
-            color = { 0.7, 0.1, 0, 1 },
-            name = "Food"
+            value = money,
+            max = maxMoney,
+            color = { 0.2, 0.8, 0.1, 1.0 },
+            name = "Money",
         },
         {
             value = heat,
@@ -96,11 +96,11 @@ function GetBarValues()
             name = "Heat",
         },
         {
-            value = money,
-            max = maxMoney,
-            color = { 0.2, 0.8, 0.1, 1.0 },
-            name = "Money",
-        }
+            value = food,
+            max = maxFood,
+            color = { 0.7, 0.1, 0, 1 },
+            name = "Food"
+        },
     }
 end
 

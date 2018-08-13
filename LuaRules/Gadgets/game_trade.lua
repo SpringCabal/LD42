@@ -35,7 +35,7 @@ function gadget:RecvLuaMsg(msg, playerID)
     end
 
     local x, z, value = tonumber(msgParams[2]), tonumber(msgParams[3]), tonumber(msgParams[4])
-    Spring.SetGameRulesParam("tradeMode", 0)
+    Spring.SetGameRulesParam("uiMode", -1)
 
     Spring.SetGameRulesParam("money",
         math.min(Spring.GetGameRulesParam("money") + value,
@@ -46,7 +46,6 @@ end
 
 function gadget:Initialize()
     Spring.SetGameRulesParam("meltIce", 0)
-    Spring.SetGameRulesParam("tradeMode", 1)
 end
 
 else
@@ -85,7 +84,7 @@ function gadget:MousePress(mx, my, button)
     if Spring.GetGameRulesParam("sb_gameMode") == "dev" then
         return false
     end
-    if Spring.GetGameRulesParam("tradeMode") <= 0 then
+    if Spring.GetGameRulesParam("uiMode") ~= 1 then
         return false
     end
     Spring.SendLuaRulesMsg("TRADE|" .. tostring(old_x) .. "|" ..
@@ -101,7 +100,7 @@ function gadget:Update()
     if Spring.GetGameRulesParam("sb_gameMode") == "dev" then
         return
     end
-    if Spring.GetGameRulesParam("tradeMode") <= 0 then
+    if Spring.GetGameRulesParam("uiMode") ~= 1 then
         return
     end
 
@@ -240,7 +239,7 @@ function gadget:DrawScreen()
     if Spring.GetGameRulesParam("sb_gameMode") == "dev" then
         return
     end
-    if Spring.GetGameRulesParam("tradeMode") <= 0 then
+    if Spring.GetGameRulesParam("uiMode") ~= 1 then
         return
     end
 
@@ -356,7 +355,7 @@ function gadget:DrawWorld()
         })
         Blit(name, self.patternTexture)
     end
-    if Spring.GetGameRulesParam("tradeMode") <= 0 then
+    if Spring.GetGameRulesParam("uiMode") ~= 1 then
         return
     end
 

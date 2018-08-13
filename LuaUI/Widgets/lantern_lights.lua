@@ -15,9 +15,11 @@ end
 
 local lanternDefID = UnitDefNames["lantern"].id
 local function GetLights(beamLights, beamLightCount, pointLights, pointLightCount)
-	
+
 	-- GIVE UP. TODO: Try to fix it.. someday
-	if true then return end
+	if true then
+		return beamLights, beamLightCount, pointLights, pointLightCount
+	end
 
     for _, unitID in pairs(Spring.GetAllUnits()) do
         local unitDefID = Spring.GetUnitDefID(unitID)

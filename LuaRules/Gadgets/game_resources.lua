@@ -44,9 +44,17 @@ end
 GG.Resources = {
     SetResource = SetResource,
     Consume = function(name, amount)
+		if resources[name] - amount > 0 then
+			return false
+		end
 		local newAmount = resources[name] - amount
 		newAmount = math.max(newAmount, 0)
 		SetResource(name, newAmount)
-		return newAmount > 0
-    end
+		return true
+    end,
+	Add = function(name, amount)
+		local newAmount = resources[name] + amount
+		newAmount = math.min(newAmount, 100) -- HARDCODED
+		SetResource(name, newAmount)
+	end
 }

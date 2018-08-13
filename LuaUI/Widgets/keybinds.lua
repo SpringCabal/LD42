@@ -20,26 +20,26 @@ local white = "\255\255\255\255"
 
 local function SetBindings()
     local binds = { --real keybinds
-        
+
         "Any+pause  pause",
-        
+
         --"Alt+b  debug",
         --"--Alt+v  debugcolvol",
 
 		"ctrl+q quitforce",
-		
+
 		"f12 screenshot",
-		
+
 		"Any+up moveforward ",
 		"Any+left moveleft ",
 		"Any+right moveright",
 		"Any+down moveback",
-		
+
 		"Any+w moveforward ",
 		"Any+a moveleft ",
 		"Any+d moveright",
 		"Any+s moveback",
-		
+
 		"Any+pageup moveup",
 		"Any+pagedown movedown",
     }
@@ -66,11 +66,11 @@ function widget:Initialize()
 
     bindText = { -- keybinds told to player
         --purple .. "Q : " .. white .. "swap pull / push",
-        --purple .. "A : " .. white .. "stop shooting",
-        --purple .. "W : " .. white .. "jump (+ left mouse)",
-        --purple .. "S : " .. white .. "stop shooting & moving",
+        purple .. "1 (+ left mouse): " .. white .. "sell ice",
+        purple .. "2 (need 50 money): " .. white .. "buy heating resource",
+        purple .. "3 (need 50 money): " .. white .. "buy food",
     }
-    
+
     mouseText = {
 --         purple .. "Left click: " .. white .. "Shoot",
 --         purple .. "Right click : " .. white .. "Place Mines",
@@ -93,27 +93,27 @@ function MakeBindingText()
     if (not WG.Chili) then
 		return
 	end
-    
+
     for _,child in pairs(children) do
         screen0:RemoveChild(child)
     end
-    
-    
+
+
     h = 20
     y = h*(#bindText + #mouseText)
     x = 10
-    
+
     for _,text in ipairs(mouseText) do
         AddLine(text,x,y)
         y = y - h
-    end    
+    end
     for _,text in ipairs(bindText) do
         AddLine(text,x,y)
         y = y - h
     end
 end
 
-function  AddLine(text,x,y,h)   
+function  AddLine(text,x,y,h)
     children[#children+1] = Chili.Label:New{
         x = x,
         bottom = y,
