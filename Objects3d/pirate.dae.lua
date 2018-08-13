@@ -1,7 +1,7 @@
 model = {
-      radius = 20.0,
-      height = 20.0,
-      tex1 = "eskimo.png",
+      radius = 90.0,
+      height = 90.0,
+      tex1 = "pirate.png",
       midpos = {0,30,0},
 }
 return model
