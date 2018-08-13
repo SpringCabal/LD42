@@ -47,12 +47,15 @@ end
 
 function sfxIceMining()
 icemine= piece"icemine"
+minetime= 0
 	while true do
 		Sleep(500)
 		if bIceMiningActive== true and math.random(1,50) > 25 then
 			Explode(icemine, SFX.SHATTER+ SFX.FALL +SFX.NO_HEATCLOUD)
 			local x, y, z = Spring.GetUnitPosition(unitID)
 			Spring.PlaySoundFile("sounds/icedrill.ogg", 1.0, x, y, z)
+			minetime= minetime +1
+			setIceDrillLoad(math.min(100,minetime)/100)
 			-- StartThread(PlaySoundByUnitDefID, myDefID, "sounds/icedrill.ogg", 0.75, math.random(1000,1500), 1, 0)
 		end
 		GG.Drill.DrillUnit(unitID)
@@ -136,7 +139,7 @@ function script.Create()
 end
 
 function script.Killed(recentDamage, _)
-
+	 StartThread(PlaySoundByUnitDefID, myDefID, "sounds/sinkingship.ogg", 0.75, math.random(1000,1500), 1, 0)
 	return 1
 end
 
