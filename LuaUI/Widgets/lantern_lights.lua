@@ -13,27 +13,32 @@ function widget:GetInfo()
 	}
 end
 
-local lanternDefID = UnitDefNames["lantern"]
+local lanternDefID = UnitDefNames["lantern"].id
 local function GetLights(beamLights, beamLightCount, pointLights, pointLightCount)
+	
+	-- GIVE UP. TODO: Try to fix it.. someday
+	if true then return end
+
     for _, unitID in pairs(Spring.GetAllUnits()) do
         local unitDefID = Spring.GetUnitDefID(unitID)
 
-        pointLightCount = pointLightCount + 1
-        local x, y, z = Spring.GetUnitPosition(unitID)
-        pointLights[pointLightCount] = {
-            px = x,
-            py = y + 100,
-            pz = z,
-            param = {
-                radius = 50,
-                r = 1,
-                g = 0,
-                b = 0,
-            },
-            -- colMult = 100000000,
-        }
+		if unitDefID == lanternDefID then
+	        local x, y, z = Spring.GetUnitPosition(unitID)
+			pointLightCount = pointLightCount + 1
+	        pointLights[pointLightCount] = {
+	            px = x,
+	            py = y + 100,
+	            pz = z,
+	            param = {
+	                radius = 50,
+	                r = 1,
+	                g = 0,
+	                b = 0,
+	            },
+	            colMult = 1,
+	        }
+		end
     end
-
 
 	return beamLights, beamLightCount, pointLights, pointLightCount
 end

@@ -19,7 +19,6 @@ local LOG_SECTION = "eskimo-attributes"
 local GAME_FRAME_PER_SEC = 33
 local MULTI = 1 / GAME_FRAME_PER_SEC
 
-local MAX_HEALTH            = 100
 local START_HEALTH          = 50
 local HEALTH_REGEN_RATE     = 1.0 * MULTI
 local FREEZING_HEALTH_DECAY = 1.0 * MULTI
@@ -64,7 +63,7 @@ local function UnitIsEskimo(unitID)
 end
 
 function gadget:Initialize()
-    Spring.SetGameRulesParam("maxHealth", MAX_HEALTH)
+    Spring.SetGameRulesParam("maxHealth", UnitDefs[eskimoDefID].customParams.health)
     Spring.SetGameRulesParam("maxFood", MAX_FOOD)
     Spring.SetGameRulesParam("maxHeat", MAX_HEAT)
 
@@ -189,7 +188,7 @@ local function DoHealth(unitID)
         delayedDestroy = true
     end
 
-    health = math.min(health, MAX_HEALTH)
+    health = math.min(health, UnitDefs[eskimoDefID].customParams.health)
     health = math.max(health, 0)
     SetAttribute(unitID, "health", health)
 

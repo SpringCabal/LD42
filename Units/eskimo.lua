@@ -43,6 +43,7 @@ local Humanoid = Unit:New {
 	-- we cannot modify all blocking properties here, and we need to rely on Lua
 
 	-- Categories (probably don't need by default?)
+	-- OH IT WAS NEEDED.
 	category            = "INFANTRY",
 
 	-- Collision Volumes
@@ -69,12 +70,15 @@ local Eskimo = Humanoid:New {
 		{
 			name = "Spear",
 		},
-		{		
+		{
 			name = "Gun",
 		}
 	},
 
-	customParams = {},
+	customParams = {
+		health = 100,
+		damage = 10,
+	}
 }
 
 local Pirate = Humanoid:New {
@@ -90,14 +94,16 @@ local Pirate = Humanoid:New {
 		{
 			name = "Spear",
 		},
-		{		
+		{
 			name = "Gun",
 		}
 	},
 
 	customParams = {
-		has_gun = "1"
-	},
+		has_gun = "1",
+		health = 100,
+		damage = 20,
+	}
 }
 
 return {

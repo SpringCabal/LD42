@@ -34,6 +34,10 @@ local Ship = Unit:New {
 	onoffable           = true,
 	fireState           = 0,
 	moveState           = 0,
+
+	customParams = {
+		health = 500,
+	}
 }
 
 local DrillShip = Ship:New {
