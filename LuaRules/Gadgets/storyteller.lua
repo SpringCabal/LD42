@@ -101,7 +101,7 @@ function GetStory()
             name = "spawn",
             units = {"drillship", "drillship", "drillship"},
 			team = enemyTeam,
-			time = 150,
+			time = 60,
         },
 		{
 			name = "intro",
