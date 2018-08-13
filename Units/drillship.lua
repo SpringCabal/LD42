@@ -2,9 +2,9 @@ local Ship = Unit:New {
 	buildPic			= "",
 
 	--pushResistant       = true,
-	collisionVolumeScales   = '37 40 37',
+	collisionVolumeScales   = '120 120 240',
 	collisionVolumeTest     = 1,
-	collisionVolumeType     = 'CylY',
+	collisionVolumeType     = 'CylZ',
 	mass                = 50,
 	minCollisionSpeed   = 1,
 	movementClass       = "SHIP4",

@@ -21,8 +21,20 @@ local Sounds = {
       --- some things you can do with this file
       --- can be either ogg or wav
       file = "sounds/digitout.wav",
-	  in3d = "true",
+	    in3d = "true",
     },
+		GunShot = {
+			file = "sounds/gunshot.wav",
+      in3d = "true",
+		},
+    Hit = {
+			file = "sounds/hit.wav",
+      in3d = "true",
+		},
+		SpearThrow = {
+			file = "sounds/shotgunimpact.wav",
+      in3d = "true",
+		},
   },
 }
 
