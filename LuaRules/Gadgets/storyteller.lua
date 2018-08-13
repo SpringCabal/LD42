@@ -18,6 +18,7 @@ local GAME_FRAME_PER_SEC = 33
 local ourTeam = 0
 local enemyTeam = 1
 local gaiaTeam = Spring.GetGaiaTeamID()
+local IGLU_MIN_DISTANCE = 400
 
 local story
 local s11n
@@ -51,14 +52,14 @@ function GetStory()
     return {
 		{
             name = "spawn",
-            units = {"iglu", "iglu", "iglu", "iglu", "iglu",
-					 "iglu", "iglu", "iglu", "iglu", "iglu",
+            units = {"coalburner", "iglu", "iglu", "iglu", "iglu", "iglu",
+					 -- "iglu", "iglu", "iglu", "iglu", "iglu",
 					 -- "iglu", "iglu", "iglu", "iglu", "iglu",
 		 		     -- "iglu", "iglu", "iglu", "iglu", "iglu",
 					 -- "eskimo", "eskimo", "eskimo", "eskimo", "eskimo",
 					 -- "eskimo", "eskimo", "eskimo", "eskimo", "eskimo",
 					 "eskimo", "eskimo", "eskimo", "eskimo", "eskimo",
-					 "eskimo", "eskimo", "eskimo", "eskimo", "eskimo"},
+					 "eskimo", "eskimo", "eskimo", "eskimo", "eskimo",},
 			team = ourTeam,
         },
         {
@@ -100,20 +101,42 @@ function GetStory()
     }
 end
 
+local function findPosition(defName, team)
+	local x, y, z
+	if defName == "drillship" then
+		x = Game.mapSizeX / 2 + math.random(Game.mapSizeX / 4, Game.mapSizeX / 2) * math.sgn(math.random() - 0.5)
+		z = Game.mapSizeZ / 2 + math.random(Game.mapSizeZ / 4, Game.mapSizeZ / 2) * math.sgn(math.random() - 0.5)
+	else
+		x = Game.mapSizeX / 2 + math.random(-Game.mapSizeX / 8, Game.mapSizeX / 8)
+		z = Game.mapSizeZ / 2 + math.random(-Game.mapSizeZ / 8, Game.mapSizeZ / 8)
+	end
+	if defName == "pirate" then
+		y = Spring.GetGroundHeight(x, z) + 5000
+	else
+		y = Spring.GetGroundHeight(x, z)
+	end
+	return x, y, z
+end
+
+local igluDefID = UnitDefNames["iglu"].id
+local coalBurnerDefID = UnitDefNames["coalburner"].id
 function SpawnUnits(units, team)
 	for _, defName in pairs(units) do
 		local x, y, z
-		if defName ~= "drillship" then
-			x = Game.mapSizeX / 2 + math.random(-Game.mapSizeX / 8, Game.mapSizeX / 8)
-			z = Game.mapSizeZ / 2 + math.random(-Game.mapSizeZ / 8, Game.mapSizeZ / 8)
+		if defName == "iglu" or defName == "coalburner" then
+			local found
+			repeat
+				x, y, z = findPosition(defName, team)
+				found = false
+				for _, unitID in pairs(Spring.GetUnitsInCylinder(x, z, IGLU_MIN_DISTANCE)) do
+					local defID = Spring.GetUnitDefID(unitID)
+					if igluDefID == defID or defID == coalBurnerDefID then
+						found = true
+					end
+				end
+			until not found
 		else
-			x = Game.mapSizeX / 2 + math.random(Game.mapSizeX / 4, Game.mapSizeX / 2)
-			z = Game.mapSizeZ / 2 + math.random(Game.mapSizeZ / 4, Game.mapSizeZ / 2)
-		end
-		if defName ~= "pirate" then
-			y = Spring.GetGroundHeight(x, z)
-		else
-			y = Spring.GetGroundHeight(x, z) + 5000
+			x, y, z = findPosition(defName, team)
 		end
 		local obj = {
 			defName = defName,
@@ -124,7 +147,7 @@ function SpawnUnits(units, team)
 			},
 			team = team,
 		}
-		if defName == "iglu" then
+		if defName == "iglu" or defName == "coalburner" then
 			obj.team = gaiaTeam
 			obj.neutral = true
 			obj.blocking = {

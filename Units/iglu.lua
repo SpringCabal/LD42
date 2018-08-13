@@ -2,7 +2,7 @@
 
 local Iglu = Unit:New {
 	buildPic            = "",
-	
+
 	acceleration        = 0.5,
 	brakeRate           = 0.4,
     --buildCostMetal        = 65, -- used only for power XP calcs
@@ -41,8 +41,6 @@ local Iglu = Unit:New {
     maxDamage           = 1600,
     maxVelocity         = 10,
     onoffable           = true,
-    fireState           = 0,
-    moveState           = 0,
     script              = "igluscript.lua",
 	objectName 				= "iglu.s3o",
 }
