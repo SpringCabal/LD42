@@ -85,11 +85,13 @@ local Pirate = Humanoid:New {
 
 	weapons = {
 		{
-			name = "Spear",
+			name = "Gun",
 		}
 	},
 
-	customParams = {},
+	customParams = {
+		has_gun = "1"
+	},
 }
 
 return {

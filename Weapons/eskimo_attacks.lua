@@ -22,6 +22,28 @@ local Spear = Weapon:New {
     model                 = 'spear.dae',
 }
 
+local Gun = Weapon:New {
+    -- general
+    weaponType            = "LaserCannon", 
+    name                  = "Gun",
+    impactOnly            = true,
+    noSelfDamage          = true,
+    range                 = 1000,     -- bad defaults (only 10.0)
+    weaponVelocity        = 2000,     -- default velocity is 0, wtf?
+    reloadTime            = 2.0,
+
+    -- collision & avoidance
+    avoidFriendly         = false,
+    avoidFeature          = false,
+
+    collideFriendly       = false,
+    collideFeature        = false,
+
+    -- targeting & accuracy
+    accuracy              = 0.1,
+}
+
 return {
 	Spear = Spear,
+    Gun = Gun,
 }

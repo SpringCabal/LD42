@@ -97,8 +97,13 @@ function script.Create()
     end
     Hide(Spear);
     Hide(Gun);
+    local unitDefID = Spring.GetUnitDefID(unitID)
+    if ( UnitDefs[unitDefID].customParams.has_gun == "1") then
+        GetGun()
+    end
+
+
     PlayAnimation('idle');
-    -- GetGun();  -- callAsUnit this for pirates, or just wire the function to poll an URP
 end
 
 local animCmd = {['turn']=Turn,['move']=Move};
