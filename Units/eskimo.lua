@@ -19,8 +19,8 @@ local Humanoid = Unit:New {
 	-- Movement & Placement
 	-- Wiki: (this section should be split into building and non-building parts)
 	-- Maybe even needs to be split differently for ships/air/ground
-	footprintX          = 10,		-- 1 seems a bad default (too small!)
-	footprintZ          = 10,
+	footprintX          = 4,		-- 1 seems a bad default (too small!)
+	footprintZ          = 4,
 	upright             = true,
 	minCollisionSpeed   = 1000000,
     pushResistant       = false,
