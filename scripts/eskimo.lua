@@ -80,6 +80,7 @@ function script.Create()
     local offsets = constructSkeleton(unitID,map.Scene, {0,0,0});
     
     Spring.SetUnitMidAndAimPos(unitID, 0, 30, 0, 0, 30, 0, true)
+    Spring.SetUnitRadiusAndHeight(unitID, 40, 60)
 
     for a,anim in pairs(Animations) do
         for i,keyframe in pairs(anim) do

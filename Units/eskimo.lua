@@ -43,7 +43,7 @@ local Humanoid = Unit:New {
 	-- we cannot modify all blocking properties here, and we need to rely on Lua
 
 	-- Categories (probably don't need by default?)
-	-- category            = "INFANTRY",
+	category            = "INFANTRY",
 
 	-- Collision Volumes
 	-- This should be a good default for games that don't care about performance
