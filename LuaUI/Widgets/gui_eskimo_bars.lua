@@ -1,7 +1,7 @@
 function widget:GetInfo()
   return {
     name      = "selection_display",
-    desc      = "Displays eskimo selection and attributes. Named like this to hide the SB UI",
+    desc      = "Displays eskimo selection and attributes.",
     author    = "gajop",
     date      = "LD42",
     license   = "GNU GPL, v2 or later",
