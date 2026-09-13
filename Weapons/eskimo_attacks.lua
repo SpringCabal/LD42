@@ -54,7 +54,19 @@ local Gun = Weapon:New {
     soundHit              = [[Hit]],
 }
 
+-- Weapon:New returns a class instance, so its helper methods would otherwise
+-- be interpreted as unknown WeaponDef fields by Spring.
+local function stripClassMethods(def)
+    def.New = nil
+    def.Clone = nil
+    def.Append = nil
+    def.new = nil
+    def.clone = nil
+    def.append = nil
+    return def
+end
+
 return {
-	Spear = Spear,
-    Gun = Gun,
+    spear = stripClassMethods(Spear),
+    gun = stripClassMethods(Gun),
 }

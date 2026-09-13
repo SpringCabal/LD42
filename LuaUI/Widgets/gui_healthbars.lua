@@ -929,14 +929,14 @@ do
   local glBillboard     = gl.Billboard
   local GetUnitIsStunned     = Spring.GetUnitIsStunned
   local GetUnitHealth        = function(unitID)
-      local maxHealth = UnitDefs[Spring.GetUnitDefID(unitID)].customParams.health
-      local health = math.max(Spring.GetUnitRulesParam(unitID, "health") or 0, 0)
-      return health, tonumber(maxHealth)
+      local maxHealth = tonumber(UnitDefs[Spring.GetUnitDefID(unitID)].customParams.health) or 1
+      local health = math.max(tonumber(Spring.GetUnitRulesParam(unitID, "health")) or 0, 0)
+      return health, maxHealth
   end
   function GetEskimoBars(unitID)
-      local health = Spring.GetUnitRulesParam(unitID, "health")
-      local food = Spring.GetUnitRulesParam(unitID, "food")
-      local heat = Spring.GetUnitRulesParam(unitID, "heat")
+      local health = tonumber(Spring.GetUnitRulesParam(unitID, "health")) or 0
+      local food = tonumber(Spring.GetUnitRulesParam(unitID, "food")) or 0
+      local heat = tonumber(Spring.GetUnitRulesParam(unitID, "heat")) or 0
       return {
           {
               value = health,

@@ -15,7 +15,8 @@ end
 
 --------------------------------------------------------------------------------
 function addon:Initialize()
-	local name = Game.modName
+	local name = (Game and (Game.modName or Game.gameName)) or "My Cube"
+	local engineVersion = (Engine and Engine.version) or "unknown"
 	--Spring.SetWMIcon("bitmaps/logo.bmp")
-	Spring.SetWMCaption(name .. " (Spring " .. Game.version .. ")", name)
+	Spring.SetWMCaption(name .. " (Spring " .. engineVersion .. ")", name)
 end

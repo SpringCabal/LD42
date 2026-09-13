@@ -21,27 +21,16 @@ local white = "\255\255\255\255"
 local function SetBindings()
     local binds = { --real keybinds
 
-        "Any+pause  pause",
-
         --"Alt+b  debug",
         --"--Alt+v  debugcolvol",
 
-		"ctrl+q quitforce",
-
-		"f12 screenshot",
-
-		"Any+up moveforward ",
-		"Any+left moveleft ",
-		"Any+right moveright",
-		"Any+down moveback",
+		"ctrl+q reloadforce",
 
 		"Any+w moveforward ",
 		"Any+a moveleft ",
 		"Any+d moveright",
 		"Any+s moveback",
 
-		"Any+pageup moveup",
-		"Any+pagedown movedown",
     }
 
     for _,binding in pairs(binds) do
@@ -52,7 +41,6 @@ end
 local gameMode
 local function SetGameMode(gameMode)
     if gameMode == "play" then
-        Spring.SendCommands("unbindall") --muahahahaha
         Spring.SendCommands("unbindkeyset enter chat") --because because.
     else
         Spring.SendCommands("bindkeyset enter chat")

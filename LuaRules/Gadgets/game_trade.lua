@@ -318,6 +318,10 @@ function gadget:DrawShape(shape, x, z)
 
         if not self.shaderObj then
             self:initShader()
+			if not self.shaderObj then
+				gl.PopAttrib(pushAttribBits)
+				return
+			end
             self.dlist = gl.CreateList(DrawRectangle)
         end
         gl.Texture(0, shape)
@@ -334,12 +338,16 @@ function gadget:DrawShape(shape, x, z)
 end
 
 local function Blit(tex1, tex2)
-    gl.Blending("disable")
-    gl.Texture(tex1)
+	if not gl.RenderToTexture then
+		return false
+	end
+	gl.Blending("disable")
+	gl.Texture(tex1)
     gl.RenderToTexture(tex2, function()
         gl.TexRect(-1,-1, 1, 1, 0, 0, 1, 1)
     end)
-    gl.Texture(false)
+	gl.Texture(false)
+	return true
 end
 
 function gadget:DrawWorld()
@@ -349,11 +357,10 @@ function gadget:DrawWorld()
 
     if not self.patternTexture then
         local name = "Bitmaps/circle.png"
-        local texInfo = gl.TextureInfo(name)
-        self.patternTexture = gl.CreateTexture(texInfo.xsize, texInfo.ysize, {
-            fbo = true,
-        })
-        Blit(name, self.patternTexture)
+        -- RenderToTexture is not exposed by the current Lua API. The source
+        -- image is already suitable for gl.Texture, so keep it as the brush
+        -- texture instead of creating an unnecessary FBO copy.
+        self.patternTexture = name
     end
     if Spring.GetGameRulesParam("uiMode") ~= 1 then
         return

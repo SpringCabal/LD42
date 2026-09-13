@@ -82,6 +82,9 @@ Unit = Def:New{
 	objectName				= "<NAME>.dae",
 	buildPic				= "<NAME>.png",
 	script					= "<NAME>.cob",
+	-- My Cube has no economy, but Spring still uses a unit's nominal cost
+	-- when calculating experience power. Keep that value finite and positive.
+	buildCostMetal			= 65,
 }
 	
 Weapon = Def:New{

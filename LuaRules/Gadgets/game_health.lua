@@ -22,7 +22,8 @@ end
 
 function gadget:UnitCreated(unitID, unitDefID)
     local unitDef = UnitDefs[unitDefID]
-    Spring.SetUnitRulesParam(unitID, "health", unitDef.customParams.health or 100000, {public=true})
+    local health = tonumber(unitDef.customParams.health) or 100000
+    Spring.SetUnitRulesParam(unitID, "health", health, {public=true})
 end
 
 function gadget:UnitPreDamaged(unitID, unitDefID, unitTeam, damage, paralyzer, weaponDefID, projectileID, attackerID, attackerDefID, attackerTeam)
@@ -30,7 +31,7 @@ function gadget:UnitPreDamaged(unitID, unitDefID, unitTeam, damage, paralyzer, w
     if not hp or not attackerDefID then
         return 0
     end
-    local damage = UnitDefs[attackerDefID].customParams.damage
+	local damage = tonumber(UnitDefs[attackerDefID].customParams.damage) or 0
     hp = hp - damage
     -- local damage = WeaponDefs[weaponDefID].customParams.damage
     Spring.SetUnitRulesParam(unitID, "health", hp, {public=true})

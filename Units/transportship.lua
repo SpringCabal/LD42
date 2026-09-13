@@ -112,3 +112,7 @@
 -- return {
 --     transportship    = TransportShip,
 -- }
+
+-- The old definition is intentionally disabled, but unit definition files
+-- still need to return a table for the engine's unit loader.
+return {}

@@ -77,39 +77,40 @@ local function SetupShaderTable()
   
 		void main()
 		{
+		vec4 position = gl_Vertex;
 		gl_TexCoord[0]= gl_TextureMatrix[0]*gl_MultiTexCoord0;
-		gl_Vertex.x = abs(mirrorX-gl_Vertex.x);
-		gl_Vertex.z = abs(mirrorZ-gl_Vertex.z);
+		position.x = abs(mirrorX-position.x);
+		position.z = abs(mirrorZ-position.z);
 		
 		float alpha = 1.0;
 		#ifdef curvature
-		  if(mirrorX)gl_Vertex.y -= pow(abs(gl_Vertex.x-left*mirrorX)/150.0, 2.0);
-		  if(mirrorZ)gl_Vertex.y -= pow(abs(gl_Vertex.z-up*mirrorZ)/150.0, 2.0);
+		  if(mirrorX != 0.0)position.y -= pow(abs(position.x-left*mirrorX)/150.0, 2.0);
+		  if(mirrorZ != 0.0)position.y -= pow(abs(position.z-up*mirrorZ)/150.0, 2.0);
 		  alpha = 0.0;
-			if(mirrorX) alpha -= pow(abs(gl_Vertex.x-left*mirrorX)/lengthX, 2.0);
-			if(mirrorZ) alpha -= pow(abs(gl_Vertex.z-up*mirrorZ)/lengthZ, 2.0);
+			if(mirrorX != 0.0) alpha -= pow(abs(position.x-left*mirrorX)/lengthX, 2.0);
+			if(mirrorZ != 0.0) alpha -= pow(abs(position.z-up*mirrorZ)/lengthZ, 2.0);
 			alpha = 1.0 + (6.0 * (alpha + 0.18));
 		#endif
   
 		float ff = 20000.0;
-		if((mirrorZ && mirrorX))
-		  ff=ff/(pow(abs(gl_Vertex.z-up*mirrorZ)/150.0, 2.0)+pow(abs(gl_Vertex.x-left*mirrorX)/150.0, 2.0)+2.0);
-		else if(mirrorX)
-		  ff=ff/(pow(abs(gl_Vertex.x-left*mirrorX)/150.0, 2.0)+2.0);
-		else if(mirrorZ)
-		  ff=ff/(pow(abs(gl_Vertex.z-up*mirrorZ)/150.0, 2.0)+2.0);
+		if((mirrorZ != 0.0) && (mirrorX != 0.0))
+		  ff=ff/(pow(abs(position.z-up*mirrorZ)/150.0, 2.0)+pow(abs(position.x-left*mirrorX)/150.0, 2.0)+2.0);
+		else if(mirrorX != 0.0)
+		  ff=ff/(pow(abs(position.x-left*mirrorX)/150.0, 2.0)+2.0);
+		else if(mirrorZ != 0.0)
+		  ff=ff/(pow(abs(position.z-up*mirrorZ)/150.0, 2.0)+2.0);
   
-		gl_Position  = gl_ModelViewProjectionMatrix*gl_Vertex;
+		gl_Position  = gl_ModelViewProjectionMatrix*position;
 		//gl_Position.z+ff;
 		
 		#ifdef edgeFog
-		  gl_FogFragCoord = length((gl_ModelViewMatrix * gl_Vertex).xyz)+ff; //see how Spring shaders do the fog and copy from there to fix this
+		  gl_FogFragCoord = length((gl_ModelViewMatrix * position).xyz)+ff; //see how Spring shaders do the fog and copy from there to fix this
 		#endif
 		
 		gl_FrontColor = vec4(brightness * gl_Color.rgb, alpha);
 
 		color = gl_FrontColor;
-		vertex = gl_Vertex;
+		vertex = position;
 		}
 	  ]],
 	 --  fragment = [[
@@ -266,7 +267,6 @@ function widget:Initialize()
 	end
 
 	SetupShaderTable()
-	Spring.SendCommands("luaui disablewidget External VR Grid")
 	if gl.CreateShader and USE_SHADER then
 		mirrorShader = gl.CreateShader(shaderTable)
 		if (mirrorShader == nil) then
@@ -303,6 +303,12 @@ function widget:Shutdown()
 end
 
 local function DrawWorldFunc() --is overwritten when not using the shader
+	if not mirrorShader then
+		gl.DepthMask(true)
+		gl.CallList(dList)
+		gl.Texture(false)
+		return
+	end
 
 	local glTranslate = gl.Translate
 	local glUniform = gl.Uniform

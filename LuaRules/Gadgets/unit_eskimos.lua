@@ -57,6 +57,7 @@ local WARM_STATES = {
 }
 
 local eskimoDefID = UnitDefNames["eskimo"].id
+local MAX_HEALTH = tonumber(UnitDefs[eskimoDefID].customParams.health) or START_HEALTH
 
 local eskimos = {}
 
@@ -66,7 +67,7 @@ local function UnitIsEskimo(unitID)
 end
 
 function gadget:Initialize()
-    Spring.SetGameRulesParam("maxHealth", UnitDefs[eskimoDefID].customParams.health)
+    Spring.SetGameRulesParam("maxHealth", MAX_HEALTH)
     Spring.SetGameRulesParam("maxFood", MAX_FOOD)
     Spring.SetGameRulesParam("maxHeat", MAX_HEAT)
 
@@ -143,7 +144,7 @@ local function DoHeat(unitID)
 		end
     elseif warm_state == WARM_STATES.COLD then
         heat = heat - COLD_DECREASE
-	elseif not warm_state == WARM_STATES.FREEZING then
+	elseif warm_state ~= WARM_STATES.FREEZING then
 		Spring.Log(LOG_SECTION, LOG.ERROR, "Invalid warm_state " ..
 			tostring(warm_state) .. " for: " .. tostring(unitID))
     end
@@ -177,7 +178,7 @@ local function DoFood(unitID)
 		else
 			food = food + FOOD_EATING_RATE
 		end
-	elseif not eating_state == EATING_STATES.STARVING then
+	elseif eating_state ~= EATING_STATES.STARVING then
 		Spring.Log(LOG_SECTION, LOG.ERROR, "Invalid eating_state " ..
 			tostring(eating_state) .. " for: " .. tostring(unitID))
     end
@@ -198,7 +199,7 @@ local function DoHealth(unitID)
 	local warm_state = Spring.GetUnitRulesParam(unitID, "warm_state")
 	local rest_state = Spring.GetUnitRulesParam(unitID, "rest_state")
 	local eating_state = Spring.GetUnitRulesParam(unitID, "eating_state")
-    local health = Spring.GetUnitRulesParam(unitID, "health")
+    local health = tonumber(Spring.GetUnitRulesParam(unitID, "health")) or 0
     if rest_state == REST_STATES.RESTING then
         health = health + HEALTH_REGEN_RATE
     end
@@ -214,7 +215,7 @@ local function DoHealth(unitID)
         delayedDestroy = true
     end
 
-    health = math.min(health, UnitDefs[eskimoDefID].customParams.health)
+    health = math.min(health, MAX_HEALTH)
     health = math.max(health, 0)
     SetAttribute(unitID, "health", health)
 

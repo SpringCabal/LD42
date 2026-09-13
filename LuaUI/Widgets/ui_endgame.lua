@@ -125,13 +125,11 @@ local function SetupControls()
 			function()
 				nameBox = nil
 				restartButton = nil
-				Spring.SendCommands("quit","quitforce")
+				Spring.SendCommands("reloadforce")
 			end
 		};
 		parent = window_endgame;
 	}
-
-	screen0:AddChild(window_endgame)
 
 end
 
@@ -139,7 +137,7 @@ end
 --------------------------------------------------------------------------------
 --callins
 
-include('keysym.h.lua')
+VFS.Include('LuaHandler/Utilities/keysym.lua', nil, VFS.BASE)
 local RETURN = KEYSYMS.RETURN
 function widget:KeyPress(key, mods, isRepeat)
 	if key == RETURN and restartButton and restartButton.OnClick and restartButton.OnClick[1] and
@@ -173,8 +171,10 @@ end
 
 function widget:GameFrame()
     local gameEnd = Spring.GetGameRulesParam("gameEnd")
-    if gameEnd == "victory" or gameEnd == "loss" then
-        widget:GameOver({})
+    if gameEnd == "victory" then
+		widget:GameOver({Spring.GetMyAllyTeamID()})
+	elseif gameEnd == "loss" then
+		widget:GameOver({})
     end
 end
 
@@ -188,9 +188,7 @@ function widget:GameOver(winningAllyTeams)
         if myAllyTeamID == winningAllyTeamID then
             Spring.SendCommands("endgraph 0")
             SetupControls()
-            caption:SetCaption("You win!");
-            caption.font.color={0,1,0,1};
-            ShowEndGameWindow()
+			ShowEndGameWindow()
             return
         end
     end
