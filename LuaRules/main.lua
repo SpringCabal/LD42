@@ -1,7 +1,4 @@
--- Wiki: http://springrts.com/wiki/Gamedev:Glossary#springcontent.sdz
-
--- Include base content gadget handler to run synced gadgets
-local SCRIPT_DIR = Script.GetName() .. '/'
-VFS.Include(SCRIPT_DIR .. 'utilities.lua', nil, VFSMODE)
-
-VFS.Include("luagadgets/gadgets.lua",nil, VFS.BASE)
+-- Core-WASM owns the MyCube gameplay callins. Lua unit scripts remain content.
+-- The stock gadget loader only sees files in LuaRules/Gadgets, so retain the
+-- small bridge that enables the scripts referenced by the unit definitions.
+return VFS.Include("luagadgets/gadgets.lua", nil, VFS.BASE)

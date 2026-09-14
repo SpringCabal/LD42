@@ -1,7 +1,7 @@
 local modinfo = {
-	name = "Ludum Dare 42",
-	shortname = "LD42",
-    	version = "Git",
+	name = "MyCube WASM",
+	shortname = "MyCubeWASM",
+    	version = "0.1.0-wasm",
 	modtype = "1",
 	-- Single-player only: without this the engine binds a UDP socket and warns
 	-- that nobody else can reach it. Nothing here is ever hosted or joined.

@@ -1,4 +1,4 @@
--- Wiki: http://springrts.com/wiki/Gamedev:Glossary#springcontent.sdz
-
--- Include base content gadget handler to run unsynced gadgets
-VFS.Include("luagadgets/gadgets.lua",nil, VFS.BASE)
+-- MyCube's unsynced drawing is provided by LuaUI/Core-WASM widgets.
+-- LuaRules is a split handle, so retain this minimal half to keep the
+-- synced LuaRules gadgets (including the original unit-script framework)
+-- registered for engine lifecycle events.

@@ -1,0 +1,1 @@
+module(mycube-ui, LuaUI/wasm/mycube-ui.wasm, ui, 0, 1.0.0)
