@@ -9,5 +9,5 @@ just build   # format, lint, and build both modules
 just copy    # build and install both WASM artifacts
 ```
 
-The original Lua game is retained beside this port; Lua unit scripts remain the
-content-side animation boundary.
+The original Lua game is retained beside this port; authored unit scripts are
+implemented by the Rust CUS module in `rules-synced/src/unit_scripts`.

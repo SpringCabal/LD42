@@ -39,11 +39,8 @@ impl Gadget<Global> for ReaperGadget {
                 );
             }
         }
-        for id in destroys {
-            // Match DestroyUnit(unitID, false, true) from the original
-            // parachute remover: reclaimed removal must not leave a landed
-            // parachute model/feature behind.
-            units::destroy(id, true);
+        for request in destroys {
+            units::destroy(request.id, request.reclaimed);
         }
     }
 }

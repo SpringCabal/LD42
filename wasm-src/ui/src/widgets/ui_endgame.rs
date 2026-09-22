@@ -45,7 +45,8 @@ impl Widget<Global> for UiEndgameWidget {
         } else {
             "Victory!"
         };
-        let survival_seconds = current_frame().max(0) / crate::state::FRAMES_PER_SECOND;
+        let end_frame = hud.end_frame.unwrap_or_else(current_frame);
+        let survival_seconds = end_frame.max(0) / crate::state::FRAMES_PER_SECOND;
         let _ = spring::gfx::begin_text(false);
         let _ = spring::gfx::color(0.85, 0.95, 1.0, 1.0);
         let _ = spring::gfx::text(title, width as f32 / 2.0, card_y + 135.0, 32.0, "cson");
@@ -57,7 +58,7 @@ impl Widget<Global> for UiEndgameWidget {
             "cson",
         );
         let _ = spring::gfx::text(
-            "Ctrl+Q: return to menu",
+            "Ctrl+R: restart    Ctrl+Q: return to menu",
             width as f32 / 2.0,
             card_y + 42.0,
             16.0,

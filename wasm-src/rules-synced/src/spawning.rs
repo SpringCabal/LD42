@@ -16,6 +16,7 @@ pub fn register_spawned(units: &mut Units, story: &mut Story, id: i32, name: &st
                     heat: 40.0,
                     eating: false,
                     warm: false,
+                    drowning: false,
                 });
                 set_eskimo(id, 100.0, 90.0, 40.0);
             }

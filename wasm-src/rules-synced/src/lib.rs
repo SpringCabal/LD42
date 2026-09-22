@@ -13,6 +13,7 @@ pub mod state;
 pub mod story;
 pub mod terrain;
 pub mod trade;
+pub mod unit_scripts;
 pub mod units;
 pub mod untargetable;
 
@@ -21,3 +22,5 @@ spring_addons::export_rules_gadgets! {
     setup: gadgets::setup,
     scratch: 4096,
 }
+
+spring::export_core_cus!(unit_scripts::MyCubeCusModule);

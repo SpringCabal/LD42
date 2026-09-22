@@ -14,27 +14,34 @@ pub fn update_drowning(units: &mut Units) -> Vec<i32> {
     if ids.is_empty() {
         return Vec::new();
     }
-    let lane = units.drowning_cursor;
-    units.drowning_cursor = (lane + 1) % 5;
     let mut dead = Vec::new();
-    for (index, id) in ids.into_iter().enumerate() {
-        if index % 5 != lane {
-            continue;
-        }
+    for id in ids {
         if let Ok(position) = spring::get_unit_position(id, false, false)
             && spring::get_ground_height(position.x, position.z).unwrap_or(1.0) <= 0.0
         {
-            // unit_drown_eskimos.lua invokes the retained Eskimo unit-script
-            // hook as drowning begins. Core does not call that legacy gadget,
-            // so preserve the authored animation explicitly and only once.
-            if !units.drowning_animated.contains(&id) {
-                let _ = spring::typed::call_unit_script(id, "StartDrowning", &[], 0);
-                units.drowning_animated.push(id);
+            // unit_drown_eskimos.lua calls StartDrowning on every water
+            // frame. The Lua function itself is idempotent, and repeating the
+            // call matters here: a map-authored unit can reach this gadget
+            // before its deferred CUS instance has been attached.
+            if let Some(eskimo) = units.eskimos.iter_mut().find(|eskimo| eskimo.id == id) {
+                eskimo.drowning = true;
             }
-            let health = spring::get_unit_rules_param_f32(id, "health").unwrap_or(1.0) - 5.0;
-            let _ = spring::set_unit_rules_param_f32(id, "health", health, PUBLIC);
+            let _ = spring::set_unit_rules_param_f32(id, "drowning", 1.0, PUBLIC);
+            // Lua invokes StartDrowning from this gadget callin. Calling
+            // back through Spring.UnitScript here would re-enter this same
+            // Core-Wasm store, so defer the equivalent named callback to the
+            // CUS tick that follows the callin.
+            crate::unit_scripts::request_drowning(id);
+            let health = spring::get_unit_rules_param_f32(id, "health").unwrap_or(0.0) - 1.0;
             if health <= 0.0 {
+                // Use ordinary destruction so Killed plays the authored death
+                // sound/animation and Spring creates the configured corpse.
                 dead.push(id);
+            } else {
+                let _ = spring::set_unit_rules_param_f32(id, "health", health, PUBLIC);
+                if let Some(eskimo) = units.eskimos.iter_mut().find(|eskimo| eskimo.id == id) {
+                    eskimo.health = health;
+                }
             }
         }
     }

@@ -1,4 +1,2 @@
 -- MyCube's unsynced drawing is provided by LuaUI/Core-WASM widgets.
--- LuaRules is a split handle, so retain this minimal half to keep the
--- synced LuaRules gadgets (including the original unit-script framework)
--- registered for engine lifecycle events.
+-- Retain the split LuaRules handle for the synced gadget loader.

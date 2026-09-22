@@ -7,6 +7,7 @@ const BAR_HEIGHT: f32 = 10.0;
 const BAR_STEP: f32 = 11.0;
 const UNIT_STEP: f32 = 40.0;
 const FIRST_UNIT_Y: f32 = 50.0;
+const UNIT_PANEL_HEIGHT: f32 = 32.0;
 
 /// The selected-unit panel from `gui_eskimo_bars.lua`.
 ///
@@ -40,7 +41,7 @@ impl Widget<Global> for GuiSelectionStatsWidget {
         &self,
         _ctx: &spring_addons::AddonContext<'_, Global>,
         _width: i32,
-        _height: i32,
+        height: i32,
     ) {
         let Ok(selection) = spring::selection::get_selected_units(0) else {
             return;
@@ -51,7 +52,10 @@ impl Widget<Global> for GuiSelectionStatsWidget {
             let Ok(def) = spring::units_info::get_unit_def_id(unit_id) else {
                 continue;
             };
-            let y = FIRST_UNIT_Y + UNIT_STEP * index as f32;
+            // Chili's y coordinate is measured from the top. Core screen
+            // primitives use a bottom origin, so mirror the selected-unit
+            // panel into the top-left instead of drawing it at the bottom.
+            let y = height as f32 - FIRST_UNIT_Y - UNIT_PANEL_HEIGHT - UNIT_STEP * index as f32;
             if eskimo_def == Some(def) {
                 self.draw_bar(
                     0.0,

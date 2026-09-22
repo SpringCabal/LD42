@@ -18,6 +18,8 @@ pub struct Eskimo {
     // is retained at the resource-cap threshold.
     pub eating: bool,
     pub warm: bool,
+    // Water starts the authored flounder/death sequence.
+    pub drowning: bool,
 }
 
 /// Runtime state matching the Lua drill gadget's per-ship table. The search
@@ -91,9 +93,7 @@ pub struct Units {
     pub drills: Vec<DrillShip>,
     pub parachutes: Vec<i32>,
     pub pirates: Vec<i32>,
-    pub drowning_animated: Vec<i32>,
     pub eskimo_sync_cursor: usize,
-    pub drowning_cursor: usize,
 }
 
 /// Scripted-story progress.
@@ -110,6 +110,7 @@ pub struct Story {
     pub spawn_rng: u32,
     pub victory: bool,
     pub game_end: String,
+    pub end_frame: i32,
 }
 
 /// In-flight terrain deformation jobs.
@@ -122,7 +123,13 @@ pub struct Terrain {
 #[derive(Default)]
 pub struct Pending {
     pub spawns: Vec<SpawnRequest>,
-    pub destroys: Vec<i32>,
+    pub destroys: Vec<DestroyRequest>,
+}
+
+#[derive(Clone, Copy)]
+pub struct DestroyRequest {
+    pub id: i32,
+    pub reclaimed: bool,
 }
 
 pub fn f32_param(name: &str, value: f32) {
@@ -157,8 +164,25 @@ pub fn initialize(global: &Global) {
         }
         story.initialized = true;
         story.intro_event.clear();
-        story.next_step = 1;
+        story.end_frame = -1;
+        // storyteller.lua's first GameFrame is frame 0 in the normal game
+        // mode (sb_gameMode is unset), so the opening units are created on
+        // frame 0 rather than one simulation frame later.
+        story.next_step = 0;
         story.spawn_rng = 0x4d59_4355;
+    }
+    // storyteller.lua clears map-authored units before starting its scenario.
+    // Queue the same reclaimed destruction so stale buildings or units cannot
+    // retain their map teams and appear alongside the authored expedition.
+    if let Ok(units) = spring::get_all_units() {
+        global
+            .pending
+            .access_mut()
+            .destroys
+            .extend(units.into_iter().map(|id| DestroyRequest {
+                id,
+                reclaimed: true,
+            }));
     }
     let economy = {
         let mut economy = global.economy.access_mut();
@@ -176,11 +200,17 @@ pub fn initialize(global: &Global) {
     text_param("introEvent", "");
 }
 
-pub fn story_game_end(story: &mut Story, value: &str) {
-    if story.game_end == value {
+pub fn story_game_end(story: &mut Story, value: &str, frame: i32) {
+    // A loss takes precedence if the final player unit disappears on the
+    // same frame that the scripted story reaches its outro.
+    if story.game_end == "loss" || story.game_end == value {
         return;
     }
     story.game_end = String::from(value);
+    if value == "loss" {
+        story.victory = false;
+    }
+    story.end_frame = frame;
     text_param("gameEnd", value);
 }
 pub fn publish_resources(economy: &Economy) {

@@ -48,8 +48,11 @@ pub fn run_story(state: &mut Story, frame: i32) -> Vec<SpawnRequest> {
         14 => ("The ice...", &[][..], 0, 3),
         15 => ("", &DRILLS_5[..], 1, 160),
         _ => {
+            if state.game_end == "loss" {
+                return Vec::new();
+            }
             state.victory = true;
-            story_game_end(state, "victory");
+            story_game_end(state, "victory", frame);
             return Vec::new();
         }
     };

@@ -19,7 +19,7 @@ impl Gadget<Global> for GameEndGadget {
 
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
         if ctx.global().units.access().eskimos.is_empty() && frame > 5 {
-            state::story_game_end(&mut ctx.global().story.access_mut(), "loss");
+            state::story_game_end(&mut ctx.global().story.access_mut(), "loss", frame);
         }
     }
 }

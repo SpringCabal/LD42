@@ -3,7 +3,7 @@
 use alloc::vec::Vec;
 
 use crate::state::{self, Economy, Units};
-use crate::units::set_eskimo;
+use crate::units::{set_eskimo, set_eskimo_needs};
 
 pub fn update_eskimos(units: &mut Units, economy: &mut Economy) -> Vec<i32> {
     let burner_positions: Vec<spring::Float3> = units
@@ -13,6 +13,13 @@ pub fn update_eskimos(units: &mut Units, economy: &mut Economy) -> Vec<i32> {
         .collect();
     let sync_lane = units.eskimo_sync_cursor;
     for (index, eskimo) in units.eskimos.iter_mut().enumerate() {
+        if eskimo.drowning {
+            // The drowning gadget owns the rapid one-point-per-frame health
+            // loss. Read its public pool before applying ordinary cold or
+            // starvation effects so this mirror cannot restore stale health.
+            eskimo.health =
+                spring::get_unit_rules_param_f32(eskimo.id, "health").unwrap_or(eskimo.health);
+        }
         eskimo.food = (eskimo.food - 1.0 / 33.0).max(0.0);
         let near_burner = spring::get_unit_position(eskimo.id, false, false)
             .ok()
@@ -67,7 +74,13 @@ pub fn update_eskimos(units: &mut Units, economy: &mut Economy) -> Vec<i32> {
         // These public values drive per-unit HUD effects only. Rotating five
         // lanes keeps every value fresh within five frames without turning a
         // 20-person reinforcement wave into sixty synchronous host calls.
-        if index % 5 == sync_lane {
+        if eskimo.drowning {
+            let health = eskimo.health.max(0.0);
+            let _ = spring::set_unit_rules_param_f32(eskimo.id, "health", health, state::PUBLIC);
+            if index % 5 == sync_lane {
+                set_eskimo_needs(eskimo.id, eskimo.food, eskimo.heat);
+            }
+        } else if index % 5 == sync_lane {
             set_eskimo(eskimo.id, eskimo.health.max(0.0), eskimo.food, eskimo.heat);
         }
     }

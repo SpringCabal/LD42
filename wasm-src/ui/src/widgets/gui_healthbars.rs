@@ -62,7 +62,6 @@ impl Widget<Global> for GuiHealthbarsWidget {
             if !is_eskimo && !is_pirate && !is_drillship {
                 continue;
             }
-
             let Ok(position) = spring::unit_rendering::get_unit_view_position(unit_id, false)
             else {
                 continue;

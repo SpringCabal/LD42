@@ -28,6 +28,7 @@ impl Default for Meters {
 /// Screen state: the scripted intro text and the end-game banner.
 pub struct Hud {
     pub game_end: String,
+    pub end_frame: Option<i32>,
     pub intro: String,
     pub intro_frame: i32,
 }
@@ -36,6 +37,7 @@ impl Default for Hud {
     fn default() -> Self {
         Self {
             game_end: String::new(),
+            end_frame: None,
             intro: String::new(),
             intro_frame: -1_000,
         }

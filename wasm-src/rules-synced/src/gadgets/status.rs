@@ -23,13 +23,14 @@ impl Gadget<Global> for StatusGadget {
         let economy = *ctx.global().economy.access();
         let story = ctx.global().story.access();
         let _ = spring::send_to_unsynced(&alloc::format!(
-            "MYCUBE_STATUS|{:.0}|{:.0}|{:.0}|{}|{}|{}",
+            "MYCUBE_STATUS|{:.0}|{:.0}|{:.0}|{}|{}|{}|{}",
             economy.food,
             economy.heat,
             economy.money,
             ctx.global().units.access().eskimos.len(),
             story.game_end,
             story.intro_event,
+            story.end_frame,
         ));
     }
 }

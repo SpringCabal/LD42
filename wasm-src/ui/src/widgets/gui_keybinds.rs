@@ -233,6 +233,15 @@ impl Widget<Global> for GuiKeybindsWidget {
         ctx: &spring_addons::AddonContext<'_, Global>,
         event: &KeyEvent<'_>,
     ) -> EventResult {
+        if event.ctrl && event.matches("r") {
+            // Match ui_endgame.lua's restart action.  The cheat toggle is
+            // needed because the reload command is protected in the engine;
+            // turn it back off immediately after the rules reload.
+            let _ = spring::send_commands("cheat", "");
+            let _ = spring::send_commands("luarules reload", "");
+            let _ = spring::send_commands("cheat", "");
+            return EventResult::Handled;
+        }
         if event.ctrl && event.matches("q") {
             let _ = spring::log("mycube-ui", 30, "MYCUBE_RETURN_TO_WASM_MENU");
             // `system_control::quit` terminates the engine process. The Lua
