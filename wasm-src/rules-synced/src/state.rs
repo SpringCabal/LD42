@@ -1,10 +1,11 @@
+use alloc::collections::VecDeque;
 use alloc::string::String;
 use alloc::vec::Vec;
 
 use spring::Float3;
+use spring::rules_params::los::PUBLIC;
 use spring_addons::Resource;
 
-pub const PUBLIC: i32 = 32;
 pub const FRAMES_PER_SECOND: i32 = 33;
 
 #[derive(Clone, Copy)]
@@ -116,7 +117,7 @@ pub struct Story {
 /// In-flight terrain deformation jobs.
 #[derive(Default)]
 pub struct Terrain {
-    pub jobs: Vec<TerrainJob>,
+    pub jobs: VecDeque<TerrainJob>,
 }
 
 /// Work deferred out of a nested callin and drained by the reaper gadget.

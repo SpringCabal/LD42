@@ -96,8 +96,11 @@ pub fn update(global: &Global, frame: i32) {
                 t,
                 scenery.is_some_and(|id| {
                     spring::get_unit_rules_param_f32(id, "untargetable") == Ok(1.0)
-                        && !crate::untargetable::allow_command(20, &[id as f32])
-                        && crate::untargetable::allow_command(10, &[100.0, 0.0, 100.0])
+                        && !crate::untargetable::allow_command(crate::cmd::ATTACK, &[id as f32])
+                        && crate::untargetable::allow_command(
+                            crate::cmd::MOVE,
+                            &[100.0, 0.0, 100.0],
+                        )
                 }),
                 "support scenery rejects targeted commands without blocking movement",
             );
@@ -143,9 +146,7 @@ pub fn update(global: &Global, frame: i32) {
                 let health_before = spring::get_unit_rules_param_f32(eskimo.id, "health").ok()?;
                 // Call through the same UnitPreDamaged path the engine uses.
                 // Keep the state mirror in sync with the script health pool.
-                let result = crate::health::unit_pre_damaged(
-                    eskimo.id, def, 0, 999.0, false, 0, 0, eskimo.id, def, 0,
-                );
+                let result = crate::health::unit_pre_damaged(eskimo.id, def);
                 Some((result, eskimo.id, health_before))
             });
             if let Some((result, id, health_before)) = result {
@@ -168,9 +169,7 @@ pub fn update(global: &Global, frame: i32) {
         if frame == 48
             && let Some(eskimo) = state.units.eskimos.first_mut()
         {
-            // Drive the original EATING state across multiple frames. A
-            // one-frame replenishment looks plausible in a short run but
-            // leaves the expedition unable to recover from hunger.
+            // Drive the EATING state across multiple frames.
             eskimo.food = 19.0;
             eskimo.eating = false;
             state.economy.food = 100.0;

@@ -23,9 +23,7 @@ impl Widget<Global> for UiEndgameWidget {
             return;
         }
 
-        // Keep the result readable and separate from gui_resources.lua's
-        // bottom meter panel. The old one-line banner was drawn at y=32,
-        // directly over the Food bar.
+        // A centred card, clear of the resource meters at the bottom.
         let card_width = 460.0;
         let card_height = 220.0;
         let card_x = (width as f32 - card_width) / 2.0;

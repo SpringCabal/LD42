@@ -1,6 +1,6 @@
 use spring_addons::ui::Widget;
 
-use crate::state::Global;
+use crate::state::{Global, current_frame};
 
 pub struct DbgE2eWidget {
     captured: core::cell::Cell<u8>,
@@ -28,10 +28,7 @@ impl Widget<Global> for DbgE2eWidget {
     }
 
     fn update(&self, _ctx: &spring_addons::AddonContext<'_, Global>, _dt: f32) {
-        let Ok(counter) = spring::game::get_game_frame(0) else {
-            return;
-        };
-        let frame = (counter.low16 | (counter.high16 << 16)) as i32;
+        let frame = current_frame();
         let quit_frame = self.quit_frame.get();
         if quit_frame >= 0 && frame >= quit_frame {
             let _ = spring::system_control::quit(0);
@@ -46,7 +43,7 @@ impl Widget<Global> for DbgE2eWidget {
             let _ = spring::send_commands("console", "0");
             self.captured.set(target + 1);
             if target == 4 {
-                let _ = spring::log("mycube-ui", 30, "MYCUBE VISUAL E2E PASSED");
+                crate::log::info("MYCUBE VISUAL E2E PASSED");
                 self.quit_frame.set(frame + 35);
             }
         }

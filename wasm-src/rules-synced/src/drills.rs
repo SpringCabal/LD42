@@ -1,5 +1,6 @@
 //! The autonomous drill controller, ported from `unit_drill.lua`.
 
+use crate::cmd;
 use crate::state::{DrillShip, Terrain, Units};
 use crate::terrain::{self, ICE_HEIGHT, SQUARE_SIZE};
 
@@ -13,19 +14,13 @@ pub fn update_drills(units: &mut Units, terrain: &mut Terrain, frame: i32) {
         return;
     }
 
-    // The Lua gadget drills every active ship. The first WASM pass only
-    // selected one ship every 30 frames, which made most ships look idle and
-    // made the ice disappear far too slowly. SetHeightMapFunc slices the
-    // actual work safely, so keep all ships on the authored cadence.
     for drill_ship in &mut units.drills {
         let id = drill_ship.id;
         let Some(hull) = spring::get_unit_position(id, false, false).ok() else {
             continue;
         };
-        // The ship's origin is the stable gameplay anchor. The original Lua
-        // uses the animated `icemine` piece, but querying the complete piece
-        // map from Core on every metered callin costs more than this scenario
-        // can afford; the hull anchor keeps the drill action reliable.
+        // Lua drills under the animated `icemine` piece; the hull origin is
+        // close enough and avoids a piece-map query per ship.
         terrain::queue_terrain_job(terrain, hull.x, hull.z, 250, 2.0);
 
         // The original drill gadget is autonomous: once it has exhausted the
@@ -41,7 +36,7 @@ pub fn update_drills(units: &mut Units, terrain: &mut Terrain, frame: i32) {
                 spring::get_ground_height(drill_ship.order_x, drill_ship.order_z).unwrap_or(0.0);
             let _ = spring::give_order_to_unit(
                 id,
-                10,
+                cmd::MOVE,
                 &[drill_ship.order_x, y, drill_ship.order_z],
                 0,
                 0,
@@ -56,7 +51,7 @@ pub fn update_drills(units: &mut Units, terrain: &mut Terrain, frame: i32) {
         reset_search(drill_ship, hull.x, hull.z);
         if let Some((x, z)) = find_closest_ice(drill_ship) {
             let y = spring::get_ground_height(x, z).unwrap_or(0.0);
-            let _ = spring::give_order_to_unit(id, 10, &[x, y, z], 0, 0);
+            let _ = spring::give_order_to_unit(id, cmd::MOVE, &[x, y, z], 0, 0);
             drill_ship.has_order = true;
             drill_ship.order_x = x;
             drill_ship.order_z = z;
@@ -88,11 +83,8 @@ fn reset_search(drill: &mut DrillShip, x: f32, z: f32) {
 fn nearby_ice(x: f32, z: f32) -> bool {
     let center_x = terrain::round_i_to_square(x as i32);
     let center_z = terrain::round_i_to_square(z as i32);
-    // Core counts every terrain query as host work.  The old Lua loop could
-    // freely inspect the whole 13x13 neighbourhood, but doing that for every
-    // drill exhausts the per-callin budget once the expedition has expanded.
-    // These five samples still cover the drill hull and its immediate edge;
-    // the bounded outward search below supplies a new move goal otherwise.
+    // Lua inspects the whole 13x13 neighbourhood. Core counts every terrain
+    // query as host work, so sample the hull and its immediate edge only.
     [(0, 0), (-48, 0), (48, 0), (0, -48), (0, 48)]
         .into_iter()
         .any(|(dx, dz)| {
@@ -108,11 +100,9 @@ fn find_closest_ice(drill: &mut DrillShip) -> Option<(f32, f32)> {
     let center_x = drill.search_center_x;
     let center_z = drill.search_center_z;
     let max_radius = max_x.max(max_z);
-    // Match the Lua perimeter search, but retain the cursor between callins.
-    // The old WASM implementation restarted after 32 probes, so ships
-    // spawning in the outer quarters never reached the central ice. 256
-    // coarse probes per check cover the map in a few seconds without
-    // exhausting Core's per-callin host-work budget.
+    // The Lua perimeter search, spread over several checks: the cursor
+    // survives between calls, and each call stops after MAX_ICE_PROBES
+    // height queries to stay within Core's per-callin host-work budget.
     const MAX_ICE_PROBES: usize = 256;
     let mut probes = 0;
     while probes < MAX_ICE_PROBES {

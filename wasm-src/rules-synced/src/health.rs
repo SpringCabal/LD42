@@ -2,24 +2,16 @@
 //!
 //! Spring's engine health is deliberately not the authority for this game.
 
-use crate::state::PUBLIC;
+use spring::rules_params::los::PUBLIC;
 
-pub fn unit_pre_damaged(
-    id: i32,
-    _def: i32,
-    _team: i32,
-    damage: f32,
-    _paralyzer: bool,
-    _weapon: i32,
-    _projectile: i32,
-    _attacker: i32,
-    attacker_def: i32,
-    _attacker_team: i32,
-) -> spring::DamageResult {
-    // This is the original `game_health.lua` contract: use the attacker's
-    // `customParams.damage`, update the script health pool, and suppress the
-    // engine's ordinary weapon damage.  Falling/environmental damage has no
-    // attacker and is likewise suppressed by the Lua implementation.
+/// Returned once the pool is exhausted, so the engine kills the unit.
+const LETHAL_DAMAGE: f32 = 1.0e16;
+
+/// `game_health.lua`'s UnitPreDamaged: subtract the attacker's gameplay
+/// damage from the unit's health pool and suppress the engine damage, unless
+/// the pool has run out. Damage without a known attacker (falling,
+/// environment) is suppressed too.
+pub fn unit_pre_damaged(id: i32, attacker_def: i32) -> spring::DamageResult {
     let attacker_damage = gameplay_damage(attacker_def);
     if attacker_damage == 0.0 {
         return spring::DamageResult {
@@ -30,10 +22,7 @@ pub fn unit_pre_damaged(
     let health = spring::get_unit_rules_param_f32(id, "health").unwrap_or(0.0);
     let remaining = health - attacker_damage;
     let _ = spring::set_unit_rules_param_f32(id, "health", remaining, PUBLIC);
-    // Lua returns a lethal engine hit only after its custom pool reaches zero.
-    // It otherwise returns zero so the engine cannot bypass that pool.
-    let engine_damage = if remaining < 0.0 { 1.0e16 } else { 0.0 };
-    let _ = damage; // The incoming engine damage is intentionally ignored.
+    let engine_damage = if remaining < 0.0 { LETHAL_DAMAGE } else { 0.0 };
     spring::DamageResult {
         new_damage: engine_damage,
         impulse_mult: 1.0,

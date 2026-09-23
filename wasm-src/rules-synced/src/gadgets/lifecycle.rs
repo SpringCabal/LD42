@@ -3,7 +3,9 @@ use core::cell::Cell;
 use spring_addons::rules::{Gadget, UnitDestroyedEvent};
 
 use crate::health;
-use crate::state::{DrillShip, Eskimo, Global, PUBLIC};
+use spring::rules_params::los::PUBLIC;
+
+use crate::state::{DrillShip, Eskimo, Global};
 use crate::unit_scripts;
 use crate::units::set_eskimo;
 

@@ -5,8 +5,8 @@ use spring_addons::ui::Widget;
 use crate::state::{Global, TradePreview};
 
 const TRADE_SIZE: f32 = 300.0;
-const ICE_SAMPLE_SIZE: i32 = 200;
-const MAP_SQUARE_SIZE: i32 = 8;
+/// `TraceScreenRay` hit type for the ground.
+const HIT_GROUND: i32 = 3;
 
 /// Player controls and their on-screen legend, ported from `keybinds.lua`.
 const TRADE_BRUSH_FRAGMENT: &str = r#"
@@ -98,12 +98,12 @@ impl GuiKeybindsWidget {
             ctx.global().interaction.access_mut().preview = None;
             return;
         };
-        if trace.hit_type != 3 {
+        if trace.hit_type != HIT_GROUND {
             ctx.global().interaction.access_mut().preview = None;
             return;
         }
 
-        let value = self.calculate_ice(trace.hit_pos.x, trace.hit_pos.z);
+        let value = crate::ice::ice_value(trace.hit_pos.x, trace.hit_pos.z) as i32;
         ctx.global().interaction.access_mut().preview = Some(TradePreview {
             screen_x,
             screen_y,
@@ -112,28 +112,6 @@ impl GuiKeybindsWidget {
             world_z: trace.hit_pos.z,
             value,
         });
-    }
-
-    fn calculate_ice(&self, x: f32, z: f32) -> i32 {
-        let start_x = Self::round_to_square(x - ICE_SAMPLE_SIZE as f32 / 2.0);
-        let start_z = Self::round_to_square(z - ICE_SAMPLE_SIZE as f32 / 2.0);
-        let mut ice_amount = 0.0;
-        for local_x in (0..=ICE_SAMPLE_SIZE).step_by(MAP_SQUARE_SIZE as usize) {
-            for local_z in (0..=ICE_SAMPLE_SIZE).step_by(MAP_SQUARE_SIZE as usize) {
-                let height =
-                    spring::get_ground_height(start_x + local_x as f32, start_z + local_z as f32)
-                        .unwrap_or(0.0);
-                if height > 0.0 {
-                    ice_amount += height;
-                }
-            }
-        }
-        (ice_amount.sqrt().floor() / 2.0).min(100.0) as i32
-    }
-
-    fn round_to_square(value: f32) -> f32 {
-        let rounded = value.round() as i32;
-        (rounded - rounded.rem_euclid(MAP_SQUARE_SIZE)) as f32
     }
 }
 
@@ -147,10 +125,7 @@ impl Widget<Global> for GuiKeybindsWidget {
     }
 
     fn draw_screen(&self, ctx: &spring_addons::AddonContext<'_, Global>, width: i32, height: i32) {
-        // These are the player-facing strings from the original keybinds.lua
-        // widget. The old Chili colour escapes do not apply to Core text, but
-        // the wording and locations stay deliberately unchanged rather than
-        // adding a port-authored tutorial.
+        // The strings from keybinds.lua, without its Chili colour escapes.
         let _ = spring::gfx::begin_text(false);
         let _ = spring::gfx::color(1.0, 1.0, 1.0, 1.0);
         for (line, text) in [
@@ -197,10 +172,7 @@ impl Widget<Global> for GuiKeybindsWidget {
             return;
         };
 
-        // game_trade.lua draws a 300x300 ground quad with Bitmaps/circle.png
-        // as an alpha mask. A geometry circle is not equivalent: it gives a
-        // different edge and, on WASM, was also being projected at the wrong
-        // height. Keep the authored textured-quad path here.
+        // game_trade.lua's 300x300 ground quad, masked by Bitmaps/circle.png.
         let Some(shader) = self.brush_shader() else {
             return;
         };
@@ -243,9 +215,7 @@ impl Widget<Global> for GuiKeybindsWidget {
             return EventResult::Handled;
         }
         if event.ctrl && event.matches("q") {
-            // Same as the Lua keybind (ctrl+q reloadforce): reload into the
-            // menu in-process.  `quitforce` ended the whole process, which only
-            // looked like a return to the menu when run-wasm.sh relaunched it.
+            // Same as the Lua keybind: reload into the menu in-process.
             let _ = spring::send_commands("reloadforce", "");
             return EventResult::Handled;
         }
@@ -285,8 +255,7 @@ impl Widget<Global> for GuiKeybindsWidget {
             return EventResult::Ignored;
         }
         if !ctx.global().interaction.access().trading {
-            // Normal clicks must reach Spring's selection handler. Returning
-            // Handled here suppressed rectangle selection in the WASM UI.
+            // Leave normal clicks to Spring's selection handler.
             return EventResult::Ignored;
         }
         let Ok(trace) = spring::camera::trace_screen_ray(
@@ -302,7 +271,7 @@ impl Widget<Global> for GuiKeybindsWidget {
         ) else {
             return EventResult::Handled;
         };
-        if trace.hit_type != 3 {
+        if trace.hit_type != HIT_GROUND {
             return EventResult::Handled;
         }
         let position = trace.hit_pos;

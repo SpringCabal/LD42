@@ -8,9 +8,6 @@ const MUSIC_FILE: &str = "sounds/remixed_background.ogg";
 const MUSIC_VOLUME: f32 = 0.15;
 const MUSIC_DURATION: f32 = 91.008;
 const LOOP_BUFFER: f32 = 0.015;
-const LOG_SECTION: &str = "mycube-ui";
-const LOG_INFO: i32 = 30;
-const LOG_WARNING: i32 = 40;
 
 /// The Lua archive's `snd_music.lua` equivalent.
 #[derive(Default)]
@@ -36,17 +33,13 @@ impl SndMusicWidget {
                 self.started.set(true);
                 self.elapsed.set(0.0);
                 self.duration.set(duration);
-                let _ = spring::log(LOG_SECTION, LOG_INFO, "MyCube music stream started");
+                crate::log::info("MyCube music stream started");
                 true
             }
             Ok(false) | Err(_) => {
                 self.started.set(false);
                 if !self.start_failure_logged.replace(true) {
-                    let _ = spring::log(
-                        LOG_SECTION,
-                        LOG_WARNING,
-                        "MyCube music stream could not be started",
-                    );
+                    crate::log::warning("MyCube music stream could not be started");
                 }
                 false
             }

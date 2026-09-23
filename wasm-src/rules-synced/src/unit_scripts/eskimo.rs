@@ -24,7 +24,9 @@ pub(super) enum HumanPart {
 }
 
 impl HumanPart {
-    pub(super) const ALL: [Self; 14] = [
+    pub(super) const COUNT: usize = 14;
+
+    pub(super) const ALL: [Self; Self::COUNT] = [
         Self::Abs,
         Self::ArmLeft,
         Self::ArmRight,
@@ -42,49 +44,39 @@ impl HumanPart {
     ];
 
     pub(super) const fn index(self) -> usize {
+        self as usize
+    }
+
+    /// The model piece this part animates.
+    pub(super) const fn name(self) -> &'static str {
         match self {
-            Self::Abs => 0,
-            Self::ArmLeft => 1,
-            Self::ArmRight => 2,
-            Self::Gun => 3,
-            Self::GunMuzzle => 4,
-            Self::HandLeft => 5,
-            Self::HandRight => 6,
-            Self::Head => 7,
-            Self::KneeLeft => 8,
-            Self::KneeRight => 9,
-            Self::Spear => 10,
-            Self::ThighLeft => 11,
-            Self::ThighRight => 12,
-            Self::Torso => 13,
+            Self::Abs => "Abs",
+            Self::ArmLeft => "ArmLeft",
+            Self::ArmRight => "ArmRight",
+            Self::Gun => "Gun",
+            Self::GunMuzzle => "GunMuzzle",
+            Self::HandLeft => "HandLeft",
+            Self::HandRight => "HandRight",
+            Self::Head => "Head",
+            Self::KneeLeft => "KneeLeft",
+            Self::KneeRight => "KneeRight",
+            Self::Spear => "Spear",
+            Self::ThighLeft => "ThighLeft",
+            Self::ThighRight => "ThighRight",
+            Self::Torso => "Torso",
         }
     }
 }
 
 #[derive(Clone, Copy)]
 pub(super) struct HumanPieces {
-    pub(super) all: [Piece; 14],
+    pub(super) all: [Piece; HumanPart::COUNT],
 }
 
 impl HumanPieces {
     pub(super) fn from_init(ctx: &spring::cus::InitCtx<'_>) -> Self {
         Self {
-            all: [
-                ctx.piece("Abs"),
-                ctx.piece("ArmLeft"),
-                ctx.piece("ArmRight"),
-                ctx.piece("Gun"),
-                ctx.piece("GunMuzzle"),
-                ctx.piece("HandLeft"),
-                ctx.piece("HandRight"),
-                ctx.piece("Head"),
-                ctx.piece("KneeLeft"),
-                ctx.piece("KneeRight"),
-                ctx.piece("Spear"),
-                ctx.piece("ThighLeft"),
-                ctx.piece("ThighRight"),
-                ctx.piece("Torso"),
-            ],
+            all: HumanPart::ALL.map(|part| ctx.piece(part.name())),
         }
     }
 
@@ -96,7 +88,7 @@ impl HumanPieces {
 #[derive(Clone, Copy)]
 pub(super) struct HumanState {
     pub(super) pieces: HumanPieces,
-    pub(super) offsets: [spring::Float3; 14],
+    pub(super) offsets: [spring::Float3; HumanPart::COUNT],
     pub(super) moving: bool,
     pub(super) drowning: bool,
     pub(super) has_gun: bool,
@@ -133,7 +125,7 @@ include!("eskimo_animations.rs");
 pub(super) fn apply_frame(
     ctx: &UnitCtx,
     pieces: HumanPieces,
-    offsets: &[spring::Float3; 14],
+    offsets: &[spring::Float3; HumanPart::COUNT],
     frame: Keyframe,
 ) {
     for command in frame.commands {
@@ -156,7 +148,7 @@ pub(super) fn apply_frame(
 pub(super) async fn run_animation(
     ctx: &UnitCtx,
     pieces: HumanPieces,
-    offsets: &[spring::Float3; 14],
+    offsets: &[spring::Float3; HumanPart::COUNT],
     animation: &'static [Keyframe],
     start: usize,
 ) {
@@ -171,30 +163,7 @@ pub(super) async fn run_animation(
     }
 }
 
-async fn run_aim_animation(
-    ctx: &UnitCtx,
-    pieces: HumanPieces,
-    offsets: &[spring::Float3; 14],
-    animation: &'static [Keyframe],
-) {
-    // The spear table ends with empty keyframes at t=9 and t=10. The pose is
-    // already settled at t=9; waiting through the empty final interval would
-    // make the CUS ready notification miss the engine's firing check by one
-    // frame, unlike the blocking Lua callin.
-    if animation.len() == 3 && animation[1].commands.is_empty() && animation[2].commands.is_empty()
-    {
-        apply_frame(ctx, pieces, offsets, animation[0]);
-        ctx.sleep(spring::cus::Duration::from_millis(
-            (animation[1].time - animation[0].time) as u64 * 33,
-        ))
-        .await;
-        apply_frame(ctx, pieces, offsets, animation[1]);
-        return;
-    }
-    run_animation(ctx, pieces, offsets, animation, 0).await;
-}
-
-fn snapshot(state: &Rc<RefCell<HumanState>>) -> (HumanPieces, [spring::Float3; 14]) {
+fn snapshot(state: &Rc<RefCell<HumanState>>) -> (HumanPieces, [spring::Float3; HumanPart::COUNT]) {
     let state = state.borrow();
     (state.pieces, state.offsets)
 }
@@ -253,7 +222,7 @@ pub(super) async fn play_aim(
     // through the authored time interval before each subsequent keyframe.
     // Starting at index 1 would skip the initial 0->next-keyframe interval,
     // making CUS report the weapon ready too early.
-    run_aim_animation(&ctx, pieces, &offsets, animation).await;
+    run_animation(&ctx, pieces, &offsets, animation, 0).await;
     state.borrow_mut().aim_ready = true;
     state.borrow_mut().aiming = false;
     ctx.set_aim_ready(weapon, true);

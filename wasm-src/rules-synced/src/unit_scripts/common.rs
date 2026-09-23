@@ -178,7 +178,12 @@ pub(super) fn reset_all(ctx: &UnitCtx, pieces: &[Piece]) {
 
 pub(super) fn set_scenery_state(unit: UnitId) {
     let _ = spring::set_unit_neutral(unit.0, true);
-    let _ = spring::set_unit_rules_param_f32(unit.0, "untargetable", 1.0, crate::state::PUBLIC);
+    let _ = spring::set_unit_rules_param_f32(
+        unit.0,
+        "untargetable",
+        1.0,
+        spring::rules_params::los::PUBLIC,
+    );
 }
 
 pub(super) fn play_unit_sound(unit: UnitId, name: &str, volume: f32) {

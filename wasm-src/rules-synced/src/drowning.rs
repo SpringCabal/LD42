@@ -2,7 +2,9 @@
 
 use alloc::vec::Vec;
 
-use crate::state::{PUBLIC, Units};
+use spring::rules_params::los::PUBLIC;
+
+use crate::state::Units;
 
 pub fn update_drowning(units: &mut Units) -> Vec<i32> {
     let ids: Vec<i32> = units

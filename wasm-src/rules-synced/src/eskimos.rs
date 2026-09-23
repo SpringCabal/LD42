@@ -2,6 +2,8 @@
 
 use alloc::vec::Vec;
 
+use spring::rules_params::los::PUBLIC;
+
 use crate::state::{self, Economy, Units};
 use crate::units::{set_eskimo, set_eskimo_needs};
 
@@ -53,9 +55,7 @@ pub fn update_eskimos(units: &mut Units, economy: &mut Economy) -> Vec<i32> {
         if eskimo.heat >= 100.0 {
             eskimo.warm = false;
         }
-        // The authored EATING state begins below 20 and remains active until
-        // the meter passes 80. A single-frame top-up left the port's Eskimos
-        // permanently near starvation.
+        // Eating starts below 20 and continues until the meter passes 80.
         if eskimo.food < 20.0 {
             eskimo.eating = true;
         } else if eskimo.food > 80.0 {
@@ -76,7 +76,7 @@ pub fn update_eskimos(units: &mut Units, economy: &mut Economy) -> Vec<i32> {
         // 20-person reinforcement wave into sixty synchronous host calls.
         if eskimo.drowning {
             let health = eskimo.health.max(0.0);
-            let _ = spring::set_unit_rules_param_f32(eskimo.id, "health", health, state::PUBLIC);
+            let _ = spring::set_unit_rules_param_f32(eskimo.id, "health", health, PUBLIC);
             if index % 5 == sync_lane {
                 set_eskimo_needs(eskimo.id, eskimo.food, eskimo.heat);
             }

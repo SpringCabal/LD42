@@ -25,15 +25,7 @@ impl Gadget<Global> for HealthGadget {
     ) -> Option<spring::DamageResult> {
         Some(health::unit_pre_damaged(
             event.unit_id,
-            event.unit_def_id,
-            event.unit_team,
-            event.damage,
-            event.paralyzer,
-            event.weapon_def_id,
-            event.projectile_id,
-            event.attacker_id,
             event.attacker_def_id,
-            event.attacker_team,
         ))
     }
 }

@@ -1,10 +1,13 @@
 extern crate alloc;
 
+pub mod cmd;
 pub mod drills;
 pub mod drowning;
 pub mod eskimos;
 pub mod gadgets;
 pub mod health;
+#[path = "../../common/ice.rs"]
+pub mod ice;
 #[cfg(feature = "headless-integration")]
 pub mod integration;
 pub mod parachutes;

@@ -133,25 +133,9 @@ impl UnitScript for MyCubeUnitScript {
         let map = spring::get_unit_piece_map(unit.0).unwrap_or_default();
         let all = all_named_pieces(&map);
         let human_pieces = HumanPieces::from_init(ctx);
-        let mut offsets = [spring::Float3::ZERO; 14];
+        let mut offsets = [spring::Float3::ZERO; HumanPart::COUNT];
         for part in HumanPart::ALL {
-            let name = match part {
-                HumanPart::Abs => "Abs",
-                HumanPart::ArmLeft => "ArmLeft",
-                HumanPart::ArmRight => "ArmRight",
-                HumanPart::Gun => "Gun",
-                HumanPart::GunMuzzle => "GunMuzzle",
-                HumanPart::HandLeft => "HandLeft",
-                HumanPart::HandRight => "HandRight",
-                HumanPart::Head => "Head",
-                HumanPart::KneeLeft => "KneeLeft",
-                HumanPart::KneeRight => "KneeRight",
-                HumanPart::Spear => "Spear",
-                HumanPart::ThighLeft => "ThighLeft",
-                HumanPart::ThighRight => "ThighRight",
-                HumanPart::Torso => "Torso",
-            };
-            offsets[part.index()] = piece_position(unit, name);
+            offsets[part.index()] = piece_position(unit, part.name());
         }
         let random = unit.0 as u32 ^ 0x4d59_4355;
         Self {
@@ -347,12 +331,7 @@ impl UnitScript for MyCubeUnitScript {
         }
         self.human.borrow_mut().aiming = true;
         ctx.signal(SIG_AIM);
-        let animation = if has_gun {
-            eskimo::AIM_GUN
-        } else {
-            eskimo::AIM_SPEAR
-        };
-        if core::ptr::eq(animation.as_ptr(), eskimo::AIM_GUN.as_ptr()) {
+        if has_gun {
             ctx.spawn(TaskDefinition::with_state(
                 "mycube-eskimo-aim-gun",
                 Rc::clone(&self.human),
@@ -420,12 +399,7 @@ impl UnitScript for MyCubeUnitScript {
                     "DeathEskimo"
                 };
                 play_unit_sound(ctx.unit(), sound, 9.0);
-                let animation = if shot {
-                    eskimo::DEATH_SHOT
-                } else {
-                    eskimo::DEATH_EXHAUSTED
-                };
-                if core::ptr::eq(animation.as_ptr(), eskimo::DEATH_SHOT.as_ptr()) {
+                if shot {
                     ctx.spawn(TaskDefinition::with_state(
                         "mycube-eskimo-death-shot",
                         Rc::clone(&self.human),
@@ -469,7 +443,11 @@ fn run_spear(
     state: Rc<RefCell<HumanState>>,
     ctx: UnitCtx,
 ) -> impl core::future::Future<Output = ()> {
-    play_aim(state, ctx, eskimo::AIM_SPEAR, WeaponId(0))
+    // The spear table ends with an empty keyframe at t=10 after the pose has
+    // settled at t=9. Lua's blocking AimWeapon is ready at t=9; waiting out
+    // the empty interval would miss the engine's firing check by a frame.
+    let settled = &eskimo::AIM_SPEAR[..eskimo::AIM_SPEAR.len() - 1];
+    play_aim(state, ctx, settled, WeaponId(0))
 }
 
 fn run_death_shot(
