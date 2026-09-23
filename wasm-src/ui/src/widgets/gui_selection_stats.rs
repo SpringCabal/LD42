@@ -1,5 +1,6 @@
 use spring_addons::ui::Widget;
 
+use crate::defs::{self, UnitKind};
 use crate::state::Global;
 
 const BAR_WIDTH: f32 = 100.0;
@@ -46,7 +47,6 @@ impl Widget<Global> for GuiSelectionStatsWidget {
         let Ok(selection) = spring::selection::get_selected_units(0) else {
             return;
         };
-        let eskimo_def = spring::get_unit_def_id_by_name("eskimo").ok();
 
         for (index, unit_id) in selection.into_iter().enumerate() {
             let Ok(def) = spring::units_info::get_unit_def_id(unit_id) else {
@@ -56,7 +56,7 @@ impl Widget<Global> for GuiSelectionStatsWidget {
             // primitives use a bottom origin, so mirror the selected-unit
             // panel into the top-left instead of drawing it at the bottom.
             let y = height as f32 - FIRST_UNIT_Y - UNIT_PANEL_HEIGHT - UNIT_STEP * index as f32;
-            if eskimo_def == Some(def) {
+            if defs::kind(def) == Some(UnitKind::Eskimo) {
                 self.draw_bar(
                     0.0,
                     y,

@@ -1,6 +1,6 @@
 use spring_addons::rules::{Gadget, UnitDestroyedEvent};
 
-use crate::health;
+use crate::defs::{self, UnitKind};
 use spring::rules_params::los::PUBLIC;
 
 use crate::state::{DrillShip, Eskimo, Global};
@@ -30,25 +30,18 @@ impl Gadget<Global> for LifecycleGadget {
         _builder: i32,
     ) {
         unit_scripts::queue_unit_created(id, def);
-        // `game_health.lua` owns a separate, gameplay-facing health pool.
-        // Spring's engine health is deliberately not the authority here.
-        let unit_health = health::gameplay_health(def);
-        let _ = spring::set_unit_rules_param_f32(id, "health", unit_health, PUBLIC);
-        if ["coalburner", "iglu", "lantern"]
-            .iter()
-            .any(|name| spring::get_unit_def_id_by_name(name).ok() == Some(def))
-        {
+        let _ = spring::set_unit_rules_param_f32(id, "health", defs::health(def), PUBLIC);
+        let Some(kind) = defs::kind(def) else {
+            return;
+        };
+        if kind.is_scenery() {
             let _ = spring::set_unit_rules_param_f32(id, "untargetable", 1.0, PUBLIC);
         }
 
-        let named = |name: &str| spring::get_unit_def_id_by_name(name).ok() == Some(def);
         let mut units = ctx.global().units.access_mut();
-        if named("coalburner") {
-            if !units.burners.contains(&id) {
-                units.burners.push(id);
-            }
-        } else if named("eskimo") {
-            if !units.eskimos.iter().any(|unit| unit.id == id) {
+        match kind {
+            UnitKind::Coalburner if !units.burners.contains(&id) => units.burners.push(id),
+            UnitKind::Eskimo if !units.eskimos.iter().any(|unit| unit.id == id) => {
                 units.eskimos.push(Eskimo {
                     id,
                     food: 90.0,
@@ -58,16 +51,12 @@ impl Gadget<Global> for LifecycleGadget {
                 });
                 set_eskimo_needs(id, 90.0, 40.0);
             }
-        } else if named("drillship") {
-            if !units.drills.iter().any(|ship| ship.id == id) {
+            UnitKind::Drillship if !units.drills.iter().any(|ship| ship.id == id) => {
                 units.drills.push(DrillShip::new(id));
             }
-        } else if named("parachut") {
-            if !units.parachutes.contains(&id) {
-                units.parachutes.push(id);
-            }
-        } else if named("pirate") && !units.pirates.contains(&id) {
-            units.pirates.push(id);
+            UnitKind::Parachute if !units.parachutes.contains(&id) => units.parachutes.push(id),
+            UnitKind::Pirate if !units.pirates.contains(&id) => units.pirates.push(id),
+            _ => {}
         }
     }
 

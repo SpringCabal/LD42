@@ -1,4 +1,9 @@
+use alloc::collections::BTreeMap;
+use core::cell::RefCell;
+
 use spring_addons::ui::Widget;
+
+use crate::defs::{self, UnitKind};
 
 use crate::state::Global;
 
@@ -13,11 +18,14 @@ const UNIT_HEIGHT_SCALE: f32 = 1.8;
 /// This keeps the bars attached to the units and, unlike engine bars, uses the
 /// game's public health/food/heat rules parameters.
 #[derive(Default)]
-pub struct GuiHealthbarsWidget;
+pub struct GuiHealthbarsWidget {
+    /// Kind per unit id; `None` for units without bars.
+    tracked: RefCell<BTreeMap<i32, Option<UnitKind>>>,
+}
 
 impl GuiHealthbarsWidget {
     pub fn new() -> Self {
-        Self
+        Self::default()
     }
 
     fn draw_bar(&self, x: f32, y: f32, value: f32, maximum: f32, color: (f32, f32, f32)) {
@@ -46,27 +54,26 @@ impl Widget<Global> for GuiHealthbarsWidget {
     }
 
     fn draw_screen(&self, _ctx: &spring_addons::AddonContext<'_, Global>, width: i32, height: i32) {
-        let Ok(eskimo_def) = spring::get_unit_def_id_by_name("eskimo") else {
-            return;
-        };
-        let pirate_def = spring::get_unit_def_id_by_name("pirate").ok();
-        let drillship_def = spring::get_unit_def_id_by_name("drillship").ok();
-
-        for unit_id in spring::get_all_units().unwrap_or_default() {
-            let Ok(def) = spring::units_info::get_unit_def_id(unit_id) else {
+        let mut units = spring::get_all_units().unwrap_or_default();
+        units.sort_unstable();
+        let mut tracked = self.tracked.borrow_mut();
+        // Resolve each unit's kind once; forget units that are gone.
+        tracked.retain(|id, _| units.binary_search(id).is_ok());
+        for unit_id in units {
+            let entry = *tracked.entry(unit_id).or_insert_with(|| {
+                spring::units_info::get_unit_def_id(unit_id)
+                    .ok()
+                    .and_then(defs::kind)
+            });
+            let Some(kind) = entry else {
                 continue;
             };
-            let is_eskimo = def == eskimo_def;
-            let is_pirate = pirate_def == Some(def);
-            let is_drillship = drillship_def == Some(def);
-            if !is_eskimo && !is_pirate && !is_drillship {
-                continue;
-            }
+            // The unit script sets the radius after creation, so read it here.
+            let radius = spring::units_info::get_unit_radius(unit_id).unwrap_or(20.0);
             let Ok(position) = spring::unit_rendering::get_unit_view_position(unit_id, false)
             else {
                 continue;
             };
-            let radius = spring::units_info::get_unit_radius(unit_id).unwrap_or(20.0);
             let Ok(projected) = spring::camera::world_to_screen_coords(spring::Float3::new(
                 position.x,
                 position.y + UNIT_HEIGHT_SCALE * radius,
@@ -85,14 +92,15 @@ impl Widget<Global> for GuiHealthbarsWidget {
             }
 
             let health = spring::get_unit_rules_param_f32(unit_id, "health").unwrap_or(0.0);
-            if is_eskimo {
-                self.draw_bar(
-                    screen.x,
-                    screen.y + 20.0,
-                    health,
-                    100.0,
-                    self.health_color(health / 100.0),
-                );
+            let max_health = kind.max_health();
+            self.draw_bar(
+                screen.x,
+                screen.y + 20.0,
+                health,
+                max_health,
+                self.health_color(health / max_health),
+            );
+            if kind == UnitKind::Eskimo {
                 let food = spring::get_unit_rules_param_f32(unit_id, "food").unwrap_or(0.0);
                 self.draw_bar(
                     screen.x,
@@ -108,22 +116,6 @@ impl Widget<Global> for GuiHealthbarsWidget {
                     heat,
                     100.0,
                     (0.5, 0.3, 0.1),
-                );
-            } else if is_pirate {
-                self.draw_bar(
-                    screen.x,
-                    screen.y + 20.0,
-                    health,
-                    100.0,
-                    self.health_color(health / 100.0),
-                );
-            } else {
-                self.draw_bar(
-                    screen.x,
-                    screen.y + 20.0,
-                    health,
-                    500.0,
-                    self.health_color(health / 500.0),
                 );
             }
         }

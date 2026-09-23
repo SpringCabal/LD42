@@ -6,6 +6,8 @@ use spring::Float3;
 use spring::rules_params::los::PUBLIC;
 use spring_addons::Resource;
 
+use crate::defs::UnitKind;
+
 pub const FRAMES_PER_SECOND: i32 = 33;
 
 #[derive(Clone, Copy)]
@@ -51,7 +53,7 @@ impl DrillShip {
 
 #[derive(Clone, Copy)]
 pub struct SpawnRequest {
-    pub name: &'static str,
+    pub kind: UnitKind,
     pub position: Float3,
     pub team: i32,
 }
@@ -246,9 +248,10 @@ pub fn add(economy: &mut Economy, resource: &str, amount: f32) {
     *value = (*value + amount).min(100.0);
     publish_resources(economy);
 }
-pub fn spawn(name: &str, position: Float3, team: i32) -> Option<i32> {
-    let id = spring::get_unit_def_id_by_name(name).ok()?;
-    let is_scenery = matches!(name, "coalburner" | "iglu" | "lantern");
+pub fn spawn(kind: UnitKind, position: Float3, team: i32) -> Option<i32> {
+    let id = crate::defs::def_id(kind)?;
+    let name = kind.def_name();
+    let is_scenery = kind.is_scenery();
     let create_team = if is_scenery {
         spring::game::get_gaia_team_id(0).unwrap_or(team)
     } else {

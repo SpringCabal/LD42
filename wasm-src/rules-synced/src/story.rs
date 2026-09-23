@@ -4,13 +4,14 @@ use alloc::{string::String, vec::Vec};
 
 use spring::Float3;
 
+use crate::defs::UnitKind::{self, *};
 use crate::state::{FRAMES_PER_SECOND, SpawnRequest, Story, story_game_end, text_param};
 
 pub fn run_story(state: &mut Story, frame: i32) -> Vec<SpawnRequest> {
     if frame < state.next_step {
         return Vec::new();
     }
-    let (message, units, team, wait): (&str, &[&str], i32, i32) = match state.step {
+    let (message, units, team, wait): (&str, &[UnitKind], i32, i32) = match state.step {
         0 => ("", &INIT[..], 0, 1),
         1 => (
             "The last remaining good people, bundled on a block of ice.",
@@ -63,10 +64,10 @@ pub fn run_story(state: &mut Story, frame: i32) -> Vec<SpawnRequest> {
     let mut requests = Vec::with_capacity(units.len());
     let mut rng = StorySpawnRng::new(state.spawn_rng);
     let mut support_positions = existing_support_positions();
-    for unit in units.iter() {
+    for &unit in units {
         let (x, y, z) = loop {
             let candidate = find_position(unit, &mut rng);
-            if !matches!(*unit, "iglu" | "coalburner")
+            if !is_support(unit)
                 || support_positions.iter().all(|(support_x, support_z)| {
                     let dx = candidate.0 - support_x;
                     let dz = candidate.2 - support_z;
@@ -77,18 +78,18 @@ pub fn run_story(state: &mut Story, frame: i32) -> Vec<SpawnRequest> {
             }
         };
         requests.push(SpawnRequest {
-            name: unit,
+            kind: unit,
             position: Float3::new(x, y, z),
             team,
         });
-        if matches!(*unit, "iglu" | "coalburner") {
+        if is_support(unit) {
             support_positions.push((x, z));
         }
-        if *unit == "iglu" {
+        if unit == Iglu {
             let lantern_x = x + rng.random_int(130, 150) as f32 * rng.sign();
             let lantern_z = z + rng.random_int(130, 150) as f32 * rng.sign();
             requests.push(SpawnRequest {
-                name: "lantern",
+                kind: Lantern,
                 position: Float3::new(
                     lantern_x,
                     spring::get_ground_height(lantern_x, lantern_z).unwrap_or(y),
@@ -96,9 +97,9 @@ pub fn run_story(state: &mut Story, frame: i32) -> Vec<SpawnRequest> {
                 ),
                 team,
             });
-        } else if *unit == "pirate" {
+        } else if unit == Pirate {
             requests.push(SpawnRequest {
-                name: "parachut",
+                kind: Parachute,
                 position: Float3::new(x, y + 100.0, z),
                 team,
             });
@@ -159,14 +160,14 @@ impl StorySpawnRng {
     }
 }
 
-fn find_position(unit: &str, rng: &mut StorySpawnRng) -> (f32, f32, f32) {
+fn find_position(unit: UnitKind, rng: &mut StorySpawnRng) -> (f32, f32, f32) {
     let (map_x, map_z) = map_size();
-    let (x, z) = if unit == "coalburner" {
+    let (x, z) = if unit == Coalburner {
         // The burner is the village's heat anchor.  Keep it at the map
         // centre so the opening expedition always has a usable stove and the
         // support-distance checks place the iglus around it.
         (map_x * 0.5, map_z * 0.5)
-    } else if unit == "drillship" {
+    } else if unit == Drillship {
         (
             map_x * 0.5
                 + rng.random_int((map_x / 4.0) as i32, (map_x / 2.0) as i32) as f32 * rng.sign(),
@@ -180,22 +181,21 @@ fn find_position(unit: &str, rng: &mut StorySpawnRng) -> (f32, f32, f32) {
         )
     };
     let y = spring::get_ground_height(x, z).unwrap_or(0.0);
-    (x, y + if unit == "pirate" { 5000.0 } else { 0.0 }, z)
+    (x, y + if unit == Pirate { 5000.0 } else { 0.0 }, z)
+}
+
+/// Iglus and the coal burner keep IGLU_MIN_DISTANCE from each other.
+fn is_support(kind: UnitKind) -> bool {
+    matches!(kind, Iglu | Coalburner)
 }
 
 fn existing_support_positions() -> Vec<(f32, f32)> {
-    let Some(coalburner) = spring::get_unit_def_id_by_name("coalburner").ok() else {
-        return Vec::new();
-    };
-    let iglu = spring::get_unit_def_id_by_name("iglu").ok();
     spring::get_all_units()
         .unwrap_or_default()
         .into_iter()
         .filter(|unit_id| {
-            let Ok(def) = spring::get_unit_def_id(*unit_id) else {
-                return false;
-            };
-            def.0 == coalburner || iglu == Some(def.0)
+            spring::get_unit_def_id(*unit_id)
+                .is_ok_and(|def| crate::defs::kind(def.0).is_some_and(is_support))
         })
         .filter_map(|unit_id| {
             spring::get_unit_position(unit_id, false, false)
@@ -204,36 +204,15 @@ fn existing_support_positions() -> Vec<(f32, f32)> {
         })
         .collect()
 }
-const INIT: [&str; 16] = [
-    "coalburner",
-    "iglu",
-    "iglu",
-    "iglu",
-    "iglu",
-    "iglu",
-    "eskimo",
-    "eskimo",
-    "eskimo",
-    "eskimo",
-    "eskimo",
-    "eskimo",
-    "eskimo",
-    "eskimo",
-    "eskimo",
-    "eskimo",
+const INIT: [UnitKind; 16] = [
+    Coalburner, Iglu, Iglu, Iglu, Iglu, Iglu, Eskimo, Eskimo, Eskimo, Eskimo, Eskimo, Eskimo,
+    Eskimo, Eskimo, Eskimo, Eskimo,
 ];
-const PIRATE: [&str; 1] = ["pirate"];
-const DRILLS_3: [&str; 3] = ["drillship", "drillship", "drillship"];
-const PIRATE_DRILL: [&str; 2] = ["pirate", "drillship"];
-const RAID: [&str; 4] = ["pirate", "drillship", "pirate", "pirate"];
-const ESKIMOS_10: [&str; 10] = [
-    "eskimo", "eskimo", "eskimo", "eskimo", "eskimo", "eskimo", "eskimo", "eskimo", "eskimo",
-    "eskimo",
+const PIRATE: [UnitKind; 1] = [Pirate];
+const DRILLS_3: [UnitKind; 3] = [Drillship, Drillship, Drillship];
+const PIRATE_DRILL: [UnitKind; 2] = [Pirate, Drillship];
+const RAID: [UnitKind; 4] = [Pirate, Drillship, Pirate, Pirate];
+const ESKIMOS_10: [UnitKind; 10] = [
+    Eskimo, Eskimo, Eskimo, Eskimo, Eskimo, Eskimo, Eskimo, Eskimo, Eskimo, Eskimo,
 ];
-const DRILLS_5: [&str; 5] = [
-    "drillship",
-    "drillship",
-    "drillship",
-    "drillship",
-    "drillship",
-];
+const DRILLS_5: [UnitKind; 5] = [Drillship, Drillship, Drillship, Drillship, Drillship];

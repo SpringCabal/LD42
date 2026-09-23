@@ -1,5 +1,6 @@
 extern crate alloc;
 
+pub mod defs;
 #[path = "../../common/ice.rs"]
 pub mod ice;
 pub mod state;

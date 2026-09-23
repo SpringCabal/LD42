@@ -14,6 +14,8 @@ use alloc::vec::Vec;
 use core::cell::RefCell;
 
 use spring::UnitId;
+
+use crate::defs::{self, UnitKind};
 use spring::cus::core_module::{CoreCusCallResult, CoreCusModule};
 use spring::cus::wasm::WasmCus;
 use spring::cus::{
@@ -44,21 +46,14 @@ enum ScriptKind {
 }
 
 fn script_kind_for_def(def: i32) -> Option<ScriptKind> {
-    let matches = |name: &str| spring::get_unit_def_id_by_name(name).ok() == Some(def);
-    if matches("coalburner") {
-        Some(ScriptKind::Coalburner)
-    } else if matches("drillship") {
-        Some(ScriptKind::Drillship)
-    } else if matches("eskimo") {
-        Some(ScriptKind::Eskimo)
-    } else if matches("pirate") {
-        Some(ScriptKind::Pirate)
-    } else if matches("iglu") || matches("iglu2") {
-        Some(ScriptKind::Iglu)
-    } else if matches("lantern") {
-        Some(ScriptKind::Lantern)
-    } else {
-        None
+    match defs::kind(def)? {
+        UnitKind::Coalburner => Some(ScriptKind::Coalburner),
+        UnitKind::Drillship => Some(ScriptKind::Drillship),
+        UnitKind::Eskimo => Some(ScriptKind::Eskimo),
+        UnitKind::Pirate => Some(ScriptKind::Pirate),
+        UnitKind::Iglu => Some(ScriptKind::Iglu),
+        UnitKind::Lantern => Some(ScriptKind::Lantern),
+        UnitKind::Parachute => None,
     }
 }
 

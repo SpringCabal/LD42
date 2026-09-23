@@ -85,15 +85,13 @@ pub fn update(global: &Global, frame: i32) {
                 state.story.step >= 1,
                 "storyteller dispatched initial scenario",
             );
-            let scenery = spring::get_unit_def_id_by_name("coalburner")
-                .ok()
-                .and_then(|def| {
-                    spring::get_all_units().ok()?.into_iter().find(|id| {
-                        spring::get_unit_def_id(*id)
-                            .ok()
-                            .is_some_and(|candidate| candidate.0 == def)
-                    })
-                });
+            let scenery = crate::defs::def_id(crate::defs::UnitKind::Coalburner).and_then(|def| {
+                spring::get_all_units().ok()?.into_iter().find(|id| {
+                    spring::get_unit_def_id(*id)
+                        .ok()
+                        .is_some_and(|candidate| candidate.0 == def)
+                })
+            });
             check(
                 t,
                 scenery.is_some_and(|id| {
@@ -149,7 +147,7 @@ pub fn update(global: &Global, frame: i32) {
             // engine uses; frame 53 checks the loss survived the Eskimo
             // needs updates in between.
             t.combat = state.units.eskimos.first().and_then(|eskimo| {
-                let def = spring::get_unit_def_id_by_name("eskimo").ok()?;
+                let def = crate::defs::def_id(crate::defs::UnitKind::Eskimo)?;
                 let health_before = spring::get_unit_rules_param_f32(eskimo.id, "health").ok()?;
                 let result = crate::health::unit_pre_damaged(eskimo.id, def);
                 Some((eskimo.id, health_before, result.new_damage))

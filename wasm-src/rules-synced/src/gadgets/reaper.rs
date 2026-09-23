@@ -31,8 +31,8 @@ impl Gadget<Global> for ReaperGadget {
             // Creating a unit raises UnitCreated immediately, and the
             // lifecycle gadget borrows `units` there, so nothing may be
             // borrowed across `spawn`.
-            if state::spawn(request.name, request.position, request.team).is_some() {
-                spawning::count_story_spawn(&mut global.story.access_mut(), request.name);
+            if state::spawn(request.kind, request.position, request.team).is_some() {
+                spawning::count_story_spawn(&mut global.story.access_mut(), request.kind);
             }
         }
         for request in destroys {
