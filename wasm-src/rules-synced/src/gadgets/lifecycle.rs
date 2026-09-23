@@ -7,7 +7,7 @@ use spring::rules_params::los::PUBLIC;
 
 use crate::state::{DrillShip, Eskimo, Global};
 use crate::unit_scripts;
-use crate::units::set_eskimo;
+use crate::units::set_eskimo_needs;
 
 #[derive(Default)]
 pub struct LifecycleGadget {
@@ -67,14 +67,12 @@ impl Gadget<Global> for LifecycleGadget {
             if !units.eskimos.iter().any(|unit| unit.id == id) {
                 units.eskimos.push(Eskimo {
                     id,
-                    health: unit_health,
                     food: 90.0,
                     heat: 40.0,
                     eating: false,
                     warm: false,
-                    drowning: false,
                 });
-                set_eskimo(id, unit_health, 90.0, 40.0);
+                set_eskimo_needs(id, 90.0, 40.0);
             }
         } else if named("drillship") {
             if !units.drills.iter().any(|ship| ship.id == id) {

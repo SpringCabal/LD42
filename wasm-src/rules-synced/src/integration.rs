@@ -15,6 +15,8 @@ struct Tracker {
     failed: u32,
     done: bool,
     trade_before: Option<(f32, f32, f32)>,
+    /// Unit id, health before the hit, and engine damage returned.
+    combat: Option<(i32, f32, f32)>,
 }
 thread_local! { static TRACKER: RefCell<Tracker> = RefCell::new(Tracker::default()); }
 
@@ -114,7 +116,9 @@ pub fn update(global: &Global, frame: i32) {
             );
             check(
                 t,
-                state.units.eskimos.iter().all(|unit| unit.health > 0.0),
+                state.units.eskimos.iter().all(|unit| {
+                    spring::get_unit_rules_param_f32(unit.id, "health").is_ok_and(|hp| hp > 0.0)
+                }),
                 "initial expedition survives early hunger/heat tick",
             );
             check(
@@ -141,30 +145,27 @@ pub fn update(global: &Global, frame: i32) {
             );
         }
         if frame == 47 {
-            let result = state.units.eskimos.first().and_then(|eskimo| {
+            // Hit the first Eskimo through the same UnitPreDamaged path the
+            // engine uses; frame 53 checks the loss survived the Eskimo
+            // needs updates in between.
+            t.combat = state.units.eskimos.first().and_then(|eskimo| {
                 let def = spring::get_unit_def_id_by_name("eskimo").ok()?;
                 let health_before = spring::get_unit_rules_param_f32(eskimo.id, "health").ok()?;
-                // Call through the same UnitPreDamaged path the engine uses.
-                // Keep the state mirror in sync with the script health pool.
                 let result = crate::health::unit_pre_damaged(eskimo.id, def);
-                Some((result, eskimo.id, health_before))
+                Some((eskimo.id, health_before, result.new_damage))
             });
-            if let Some((result, id, health_before)) = result {
-                if let Some(eskimo) = state.units.eskimos.iter_mut().find(|unit| unit.id == id) {
-                    eskimo.health -= 10.0;
-                }
-                let health = spring::get_unit_rules_param_f32(id, "health").ok();
-                check(
-                    t,
-                    result.new_damage == 0.0
-                        && health.is_some_and(|remaining| {
+        }
+        if frame == 53 {
+            check(
+                t,
+                t.combat.is_some_and(|(id, health_before, engine_damage)| {
+                    engine_damage == 0.0
+                        && spring::get_unit_rules_param_f32(id, "health").is_ok_and(|remaining| {
                             (remaining - (health_before - 10.0)).abs() < 0.01
-                        }),
-                    "combat uses custom attacker damage and script health pool",
-                );
-            } else {
-                check(t, false, "combat test can resolve the initial eskimo");
-            }
+                        })
+                }),
+                "combat uses custom attacker damage and script health pool",
+            );
         }
         if frame == 48
             && let Some(eskimo) = state.units.eskimos.first_mut()

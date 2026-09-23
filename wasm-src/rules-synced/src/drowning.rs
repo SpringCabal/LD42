@@ -6,7 +6,7 @@ use spring::rules_params::los::PUBLIC;
 
 use crate::state::Units;
 
-pub fn update_drowning(units: &mut Units) -> Vec<i32> {
+pub fn update_drowning(units: &Units) -> Vec<i32> {
     let ids: Vec<i32> = units
         .eskimos
         .iter()
@@ -25,9 +25,6 @@ pub fn update_drowning(units: &mut Units) -> Vec<i32> {
             // frame. The Lua function itself is idempotent, and repeating the
             // call matters here: a map-authored unit can reach this gadget
             // before its deferred CUS instance has been attached.
-            if let Some(eskimo) = units.eskimos.iter_mut().find(|eskimo| eskimo.id == id) {
-                eskimo.drowning = true;
-            }
             let _ = spring::set_unit_rules_param_f32(id, "drowning", 1.0, PUBLIC);
             // Lua invokes StartDrowning from this gadget callin. Calling
             // back through Spring.UnitScript here would re-enter this same
@@ -41,9 +38,6 @@ pub fn update_drowning(units: &mut Units) -> Vec<i32> {
                 dead.push(id);
             } else {
                 let _ = spring::set_unit_rules_param_f32(id, "health", health, PUBLIC);
-                if let Some(eskimo) = units.eskimos.iter_mut().find(|eskimo| eskimo.id == id) {
-                    eskimo.health = health;
-                }
             }
         }
     }

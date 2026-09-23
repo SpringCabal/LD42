@@ -11,7 +11,6 @@ pub const FRAMES_PER_SECOND: i32 = 33;
 #[derive(Clone, Copy)]
 pub struct Eskimo {
     pub id: i32,
-    pub health: f32,
     pub food: f32,
     pub heat: f32,
     // unit_eskimos.lua carries these states between frames. They are not
@@ -19,8 +18,6 @@ pub struct Eskimo {
     // is retained at the resource-cap threshold.
     pub eating: bool,
     pub warm: bool,
-    // Water starts the authored flounder/death sequence.
-    pub drowning: bool,
 }
 
 /// Runtime state matching the Lua drill gadget's per-ship table. The search

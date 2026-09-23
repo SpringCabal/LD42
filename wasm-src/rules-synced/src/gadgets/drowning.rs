@@ -19,7 +19,7 @@ impl Gadget<Global> for DrowningGadget {
     }
 
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, _frame: i32) {
-        let dead = drowning::update_drowning(&mut ctx.global().units.access_mut());
+        let dead = drowning::update_drowning(&ctx.global().units.access());
         ctx.global()
             .pending
             .access_mut()

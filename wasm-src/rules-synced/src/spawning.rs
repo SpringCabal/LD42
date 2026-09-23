@@ -1,7 +1,7 @@
 //! Storyteller spawn application, ported from `storyteller.lua`.
 
 use crate::state::{DrillShip, Eskimo, Story, Units};
-use crate::units::set_eskimo;
+use crate::units::set_eskimo_needs;
 
 pub fn register_spawned(units: &mut Units, story: &mut Story, id: i32, name: &str) {
     match name {
@@ -11,14 +11,12 @@ pub fn register_spawned(units: &mut Units, story: &mut Story, id: i32, name: &st
             if !units.eskimos.iter().any(|unit| unit.id == id) {
                 units.eskimos.push(Eskimo {
                     id,
-                    health: 100.0,
                     food: 90.0,
                     heat: 40.0,
                     eating: false,
                     warm: false,
-                    drowning: false,
                 });
-                set_eskimo(id, 100.0, 90.0, 40.0);
+                set_eskimo_needs(id, 90.0, 40.0);
             }
         }
         "drillship" => {
