@@ -43,7 +43,11 @@ impl Gadget<Global> for LifecycleGadget {
 
         let named = |name: &str| spring::get_unit_def_id_by_name(name).ok() == Some(def);
         let mut units = ctx.global().units.access_mut();
-        if named("eskimo") {
+        if named("coalburner") {
+            if !units.burners.contains(&id) {
+                units.burners.push(id);
+            }
+        } else if named("eskimo") {
             if !units.eskimos.iter().any(|unit| unit.id == id) {
                 units.eskimos.push(Eskimo {
                     id,

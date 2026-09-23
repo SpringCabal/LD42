@@ -28,15 +28,11 @@ impl Gadget<Global> for ReaperGadget {
             )
         };
         for request in spawns {
-            // `spawn` synchronously re-enters UnitCreated, so nothing is
-            // borrowed across it.
-            if let Some(id) = state::spawn(request.name, request.position, request.team) {
-                spawning::register_spawned(
-                    &mut global.units.access_mut(),
-                    &mut global.story.access_mut(),
-                    id,
-                    request.name,
-                );
+            // Creating a unit raises UnitCreated immediately, and the
+            // lifecycle gadget borrows `units` there, so nothing may be
+            // borrowed across `spawn`.
+            if state::spawn(request.name, request.position, request.team).is_some() {
+                spawning::count_story_spawn(&mut global.story.access_mut(), request.name);
             }
         }
         for request in destroys {

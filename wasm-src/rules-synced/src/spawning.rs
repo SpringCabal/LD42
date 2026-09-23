@@ -1,42 +1,14 @@
-//! Storyteller spawn application, ported from `storyteller.lua`.
+//! Storyteller spawn bookkeeping, ported from `storyteller.lua`.
 
-use crate::state::{DrillShip, Eskimo, Story, Units};
-use crate::units::set_eskimo_needs;
+use crate::state::Story;
 
-pub fn register_spawned(units: &mut Units, story: &mut Story, id: i32, name: &str) {
+/// Count a unit the story spawned. The lifecycle gadget registers it.
+pub fn count_story_spawn(story: &mut Story, name: &str) {
     match name {
-        "coalburner" if !units.burners.contains(&id) => units.burners.push(id),
-        "eskimo" => {
-            story.story_eskimos += 1;
-            if !units.eskimos.iter().any(|unit| unit.id == id) {
-                units.eskimos.push(Eskimo {
-                    id,
-                    food: 90.0,
-                    heat: 40.0,
-                    eating: false,
-                    warm: false,
-                });
-                set_eskimo_needs(id, 90.0, 40.0);
-            }
-        }
-        "drillship" => {
-            story.story_drills += 1;
-            if !units.drills.iter().any(|ship| ship.id == id) {
-                units.drills.push(DrillShip::new(id));
-            }
-        }
-        "parachut" => {
-            story.story_parachutes += 1;
-            if !units.parachutes.contains(&id) {
-                units.parachutes.push(id);
-            }
-        }
-        "pirate" => {
-            story.story_pirates += 1;
-            if !units.pirates.contains(&id) {
-                units.pirates.push(id);
-            }
-        }
+        "eskimo" => story.story_eskimos += 1,
+        "drillship" => story.story_drills += 1,
+        "parachut" => story.story_parachutes += 1,
+        "pirate" => story.story_pirates += 1,
         _ => {}
     }
 }
