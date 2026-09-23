@@ -44,24 +44,6 @@ impl Default for Hud {
     }
 }
 
-/// The unsynced preview of the ice trade under the cursor.
-#[derive(Clone, Copy, Debug)]
-pub struct TradePreview {
-    pub screen_x: i32,
-    pub screen_y: i32,
-    pub world_x: f32,
-    pub world_y: f32,
-    pub world_z: f32,
-    pub value: i32,
-}
-
-/// Whether the player is placing an ice-trade order.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct Interaction {
-    pub trading: bool,
-    pub preview: Option<TradePreview>,
-}
-
 pub fn current_frame() -> i32 {
     spring::game::frame().map_or(0, |frame| frame as i32)
 }
@@ -71,5 +53,4 @@ pub fn current_frame() -> i32 {
 pub struct Global {
     pub meters: Resource<Meters>,
     pub hud: Resource<Hud>,
-    pub interaction: Resource<Interaction>,
 }

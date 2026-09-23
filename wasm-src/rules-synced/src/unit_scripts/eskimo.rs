@@ -74,9 +74,9 @@ pub(super) struct HumanPieces {
 }
 
 impl HumanPieces {
-    pub(super) fn from_init(ctx: &spring::cus::InitCtx<'_>) -> Self {
+    pub(super) fn from_map(map: &super::common::PieceMap) -> Self {
         Self {
-            all: HumanPart::ALL.map(|part| ctx.piece(part.name())),
+            all: HumanPart::ALL.map(|part| super::common::piece_in(map, part.name())),
         }
     }
 

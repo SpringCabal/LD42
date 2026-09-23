@@ -1,0 +1,115 @@
+//! Scripts for the village scenery: the coal burner
+//! (`scripts/coalburnerscript.lua`) and the iglus (`scripts/igluscript.lua`).
+
+use alloc::vec::Vec;
+
+use spring::cus::{Angle, AngularSpeed, Axis, Piece, SfxFlags, UnitCtx};
+
+use super::common::{
+    PieceMap, all_named_pieces, hide_all, matching_pieces, piece_in, random_unit, show_all,
+};
+
+pub(super) struct CoalburnerScript {
+    all: Vec<Piece>,
+    heaters: Vec<Piece>,
+    firecycle: Vec<Piece>,
+    inards: Piece,
+}
+
+impl CoalburnerScript {
+    pub(super) fn new(map: &PieceMap) -> Self {
+        Self {
+            all: all_named_pieces(map),
+            heaters: matching_pieces(map, "Heater"),
+            firecycle: matching_pieces(map, "firecycle"),
+            inards: piece_in(map, "Inards"),
+        }
+    }
+
+    pub(super) fn create(&mut self, ctx: &UnitCtx) {
+        hide_all(ctx, &self.all);
+        self.set_heat(ctx, 0.0);
+    }
+
+    pub(super) fn set_heat(&mut self, ctx: &UnitCtx, factor: f32) {
+        hide_all(ctx, &self.heaters);
+        hide_all(ctx, &self.firecycle);
+        ctx.hide(self.inards);
+        let factor = factor.clamp(0.0, 1.0);
+        let index = ((factor * 4.0 + 1.0) as usize).clamp(1, 4);
+        if index == 1 {
+            ctx.show(self.inards);
+        }
+        if let Some(piece) = self.heaters.get(index - 1) {
+            ctx.show(*piece);
+        }
+        if factor > 0.25 {
+            show_all(ctx, &self.firecycle);
+            for (index, piece) in self.firecycle.iter().enumerate() {
+                let speed = if index == 0 { -150.0 } else { 150.0 };
+                ctx.spin(
+                    *piece,
+                    Axis::X,
+                    AngularSpeed::radians_per_second(speed),
+                    AngularSpeed::radians_per_second(0.0),
+                );
+            }
+        }
+    }
+}
+
+pub(super) struct IgluScript {
+    all: Vec<Piece>,
+    build: Vec<Piece>,
+    xy_deco: Vec<Piece>,
+    y_deco: Vec<Piece>,
+    random: u32,
+}
+
+impl IgluScript {
+    pub(super) fn new(map: &PieceMap, random: u32) -> Self {
+        Self {
+            all: all_named_pieces(map),
+            build: matching_pieces(map, "Build"),
+            xy_deco: matching_pieces(map, "XY"),
+            y_deco: matching_pieces(map, "Y"),
+            random,
+        }
+    }
+
+    /// `buildUnit`: show a random subset of the blocks and decorations.
+    pub(super) fn create(&mut self, ctx: &UnitCtx) {
+        hide_all(ctx, &self.all);
+        if let Some(piece) = self.build.first() {
+            ctx.show(*piece);
+        }
+        for (index, piece) in self.build.iter().enumerate().skip(1) {
+            if random_unit(&mut self.random) > 0.5 {
+                ctx.show(*piece);
+            }
+            if index % 2 == 0 {
+                let angle = random_unit(&mut self.random) * core::f32::consts::TAU;
+                ctx.turn_now(*piece, Axis::Y, Angle::radians(angle));
+            }
+        }
+        for piece in self.xy_deco.iter().chain(self.y_deco.iter()) {
+            if random_unit(&mut self.random) > 0.5 {
+                ctx.show(*piece);
+                let angle = random_unit(&mut self.random) * core::f32::consts::TAU;
+                ctx.turn_now(*piece, Axis::Y, Angle::radians(angle));
+            }
+        }
+    }
+
+    /// Every piece falls or shatters.
+    pub(super) fn killed(&mut self, ctx: &UnitCtx) {
+        for piece in self.all.iter().copied() {
+            let effect = if random_unit(&mut self.random) > 0.5 {
+                SfxFlags::FALL
+            } else {
+                SfxFlags::SHATTER
+            };
+            ctx.explode(piece, SfxFlags(effect.0 | SfxFlags::NO_HEATCLOUD.0));
+        }
+    }
+}

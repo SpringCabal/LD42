@@ -1,12 +1,15 @@
-//! My Cube's authored unit scripts, implemented with the portable CUS API.
+//! My Cube's unit scripts, implemented with the portable CUS API.
 //!
-//! The animation tables in `eskimo_animations.rs` are generated from the
-//! original Lua keyframes.  The gameplay gadgets remain the authority for
-//! health, drowning, drilling and spawning; this module owns the visual and
-//! engine-facing unit-script callbacks that used to be supplied by Lua.
+//! The gameplay gadgets remain the authority for health, drowning, drilling
+//! and spawning; the scripts here animate the units and answer the
+//! engine's unit-script callins. `MyCubeCusModule` attaches a script to each
+//! unit and forwards the engine's calls to it.
 
 mod common;
 mod eskimo;
+mod human;
+mod scenery;
+mod ship;
 
 use alloc::collections::BTreeMap;
 use alloc::rc::Rc;
@@ -14,65 +17,32 @@ use alloc::vec::Vec;
 use core::cell::RefCell;
 
 use spring::UnitId;
-
-use crate::defs::{self, UnitKind};
 use spring::cus::core_module::{CoreCusCallResult, CoreCusModule};
 use spring::cus::wasm::WasmCus;
 use spring::cus::{
-    Angle, AngularSpeed, Axis, CusHandle, CusInstance, CusRegistry, InitCtx, Piece,
-    ScriptCapabilities, TaskDefinition, UnitCtx, UnitScript, UnitScriptCall, WeaponId, WreckLevel,
+    CusHandle, CusInstance, CusRegistry, InitCtx, Piece, ScriptCapabilities, UnitCtx, UnitScript,
+    UnitScriptCall, WeaponId, WreckLevel,
 };
 
-use self::common::{
-    EnginePieces, SIG_AIM, SIG_IDLE, SIG_SHIP, SIG_WALK, all_named_pieces, explode_flags, hide_all,
-    matching_pieces, piece_by_name, piece_position, play_unit_sound, random_unit, reset_all,
-    set_scenery_state, show_all, turn,
-};
-use self::eskimo::{
-    HumanPart, HumanPieces, HumanState, apply_idle_frame, idle_task, play_aim, play_death,
-    play_drown, play_shoot, play_throw, play_walk,
-};
+use self::common::set_scenery_state;
+use self::human::HumanScript;
+use self::scenery::{CoalburnerScript, IgluScript};
+use self::ship::ShipScript;
+use crate::defs::{self, UnitKind};
 
 const RAW_START_DROWNING: i32 = 1;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum ScriptKind {
-    Coalburner,
-    Drillship,
-    Eskimo,
-    Pirate,
-    Iglu,
-    Lantern,
-}
+/// Seeds each script's animation randomness from its unit id.
+const RANDOM_SEED: u32 = 0x4d59_4355;
 
-fn script_kind_for_def(def: i32) -> Option<ScriptKind> {
-    match defs::kind(def)? {
-        UnitKind::Coalburner => Some(ScriptKind::Coalburner),
-        UnitKind::Drillship => Some(ScriptKind::Drillship),
-        UnitKind::Eskimo => Some(ScriptKind::Eskimo),
-        UnitKind::Pirate => Some(ScriptKind::Pirate),
-        UnitKind::Iglu => Some(ScriptKind::Iglu),
-        UnitKind::Lantern => Some(ScriptKind::Lantern),
-        UnitKind::Parachute => None,
-    }
-}
-
-fn capabilities(kind: ScriptKind) -> ScriptCapabilities {
-    let mut bits = ScriptCapabilities::KILLED;
+fn capabilities(kind: UnitKind) -> ScriptCapabilities {
+    let mut bits = ScriptCapabilities::KILLED | ScriptCapabilities::CREATE;
     match kind {
-        ScriptKind::Coalburner => {
-            bits |= ScriptCapabilities::CREATE
-                | ScriptCapabilities::ACTIVATE
-                | ScriptCapabilities::DEACTIVATE;
+        UnitKind::Coalburner | UnitKind::Drillship | UnitKind::Iglu => {
+            bits |= ScriptCapabilities::ACTIVATE | ScriptCapabilities::DEACTIVATE;
         }
-        ScriptKind::Drillship => {
-            bits |= ScriptCapabilities::CREATE
-                | ScriptCapabilities::ACTIVATE
-                | ScriptCapabilities::DEACTIVATE;
-        }
-        ScriptKind::Eskimo | ScriptKind::Pirate => {
+        UnitKind::Eskimo | UnitKind::Pirate => {
             bits |= ScriptCapabilities::RAW_CALL
-                | ScriptCapabilities::CREATE
                 | ScriptCapabilities::START_MOVING
                 | ScriptCapabilities::STOP_MOVING
                 | ScriptCapabilities::QUERY_WEAPON
@@ -80,14 +50,7 @@ fn capabilities(kind: ScriptKind) -> ScriptCapabilities {
                 | ScriptCapabilities::AIM_FROM_WEAPON
                 | ScriptCapabilities::SHOT;
         }
-        ScriptKind::Iglu => {
-            bits |= ScriptCapabilities::CREATE
-                | ScriptCapabilities::ACTIVATE
-                | ScriptCapabilities::DEACTIVATE;
-        }
-        ScriptKind::Lantern => {
-            bits |= ScriptCapabilities::CREATE;
-        }
+        UnitKind::Lantern | UnitKind::Parachute => {}
     }
     ScriptCapabilities::new(bits)
 }
@@ -96,180 +59,98 @@ fn instance_id(unit: UnitId) -> u32 {
     0x4d43_0000u32.wrapping_add(unit.0 as u32)
 }
 
-#[derive(Clone)]
-struct ShipState {
-    active: bool,
-    minetime: u32,
-    random: u32,
-    mine: Piece,
+enum MyCubeUnitScript {
+    Coalburner(CoalburnerScript),
+    Drillship(ShipScript),
+    Human(HumanScript),
+    Iglu(IgluScript),
+    Lantern,
+    /// A unit without a script (parachutes, unknown defs).
+    None,
 }
 
-struct MyCubeUnitScript {
-    kind: Option<ScriptKind>,
-    all: Vec<Piece>,
-    coal_heaters: Vec<Piece>,
-    coal_firecycle: Vec<Piece>,
-    coal_inards: Piece,
-    iglu_build: Vec<Piece>,
-    iglu_xy_deco: Vec<Piece>,
-    iglu_y_deco: Vec<Piece>,
-    ship_body: Vec<Piece>,
-    ship_turret: Vec<Piece>,
-    ship_drill: Vec<Piece>,
-    ship_deco: Vec<Piece>,
-    human: Rc<RefCell<HumanState>>,
-    ship: Rc<RefCell<ShipState>>,
-    random: u32,
+impl MyCubeUnitScript {
+    fn for_kind(kind: Option<UnitKind>, unit: UnitId, map: &common::PieceMap) -> Self {
+        let random = unit.0 as u32 ^ RANDOM_SEED;
+        match kind {
+            Some(UnitKind::Coalburner) => Self::Coalburner(CoalburnerScript::new(map)),
+            Some(UnitKind::Drillship) => Self::Drillship(ShipScript::new(map, random)),
+            Some(UnitKind::Eskimo) => Self::Human(HumanScript::new(unit, map, false, random)),
+            Some(UnitKind::Pirate) => Self::Human(HumanScript::new(unit, map, true, random)),
+            Some(UnitKind::Iglu) => Self::Iglu(IgluScript::new(map, random)),
+            Some(UnitKind::Lantern) => Self::Lantern,
+            Some(UnitKind::Parachute) | None => Self::None,
+        }
+    }
 }
 
 impl UnitScript for MyCubeUnitScript {
     fn new(ctx: &mut InitCtx<'_>) -> Self {
         let unit = ctx.unit();
+        let kind = spring::get_unit_def_id(unit.0)
+            .ok()
+            .and_then(|def| defs::kind(def.0));
         let map = spring::get_unit_piece_map(unit.0).unwrap_or_default();
-        let all = all_named_pieces(&map);
-        let human_pieces = HumanPieces::from_init(ctx);
-        let mut offsets = [spring::Float3::ZERO; HumanPart::COUNT];
-        for part in HumanPart::ALL {
-            offsets[part.index()] = piece_position(unit, part.name());
-        }
-        let random = unit.0 as u32 ^ 0x4d59_4355;
-        Self {
-            kind: None,
-            all,
-            coal_heaters: matching_pieces(&map, "Heater"),
-            coal_firecycle: matching_pieces(&map, "firecycle"),
-            coal_inards: piece_by_name(unit, "Inards"),
-            iglu_build: matching_pieces(&map, "Build"),
-            iglu_xy_deco: matching_pieces(&map, "XY"),
-            iglu_y_deco: matching_pieces(&map, "Y"),
-            ship_body: matching_pieces(&map, "Boatbody"),
-            ship_turret: matching_pieces(&map, "Turret"),
-            ship_drill: matching_pieces(&map, "icedrill"),
-            ship_deco: matching_pieces(&map, "Deco"),
-            human: Rc::new(RefCell::new(HumanState {
-                pieces: human_pieces,
-                offsets,
-                moving: false,
-                drowning: false,
-                has_gun: false,
-                aiming: false,
-                aim_ready: false,
-                throwing: false,
-                death_pending: false,
-                random,
-            })),
-            ship: Rc::new(RefCell::new(ShipState {
-                active: false,
-                minetime: 0,
-                random: random ^ 0x9e37_79b9,
-                mine: piece_by_name(unit, "icemine"),
-            })),
-            random,
-        }
+        Self::for_kind(kind, unit, &map)
     }
 
     fn create(&mut self, ctx: &UnitCtx) {
-        match self.kind {
-            Some(ScriptKind::Coalburner) => {
+        match self {
+            Self::Coalburner(script) => {
                 set_scenery_state(ctx.unit());
-                hide_all(ctx, &self.all);
-                self.set_heat(ctx, 0.0);
+                script.create(ctx);
             }
-            Some(ScriptKind::Iglu) => {
+            Self::Iglu(script) => {
                 set_scenery_state(ctx.unit());
-                self.build_iglu(ctx);
+                script.create(ctx);
             }
-            Some(ScriptKind::Lantern) => {
-                set_scenery_state(ctx.unit());
-            }
-            Some(ScriptKind::Drillship) => self.create_ship(ctx),
-            Some(ScriptKind::Eskimo | ScriptKind::Pirate) => self.create_human(ctx),
-            None => {}
+            Self::Lantern => set_scenery_state(ctx.unit()),
+            Self::Drillship(script) => script.create(ctx),
+            Self::Human(script) => script.create(ctx),
+            Self::None => {}
         }
     }
 
     fn raw_call(&mut self, ctx: &UnitCtx, function: i32) {
-        if !matches!(self.kind, Some(ScriptKind::Eskimo | ScriptKind::Pirate))
-            || function != RAW_START_DROWNING
+        if let Self::Human(script) = self
+            && function == RAW_START_DROWNING
         {
-            return;
+            script.start_drowning(ctx);
         }
-        {
-            let mut state = self.human.borrow_mut();
-            if state.drowning {
-                return;
-            }
-            state.drowning = true;
-            state.moving = false;
-            state.aiming = false;
-            state.aim_ready = false;
-        }
-        ctx.signal(SIG_AIM);
-        ctx.signal(SIG_IDLE);
-        ctx.signal(SIG_WALK);
-        ctx.spawn(TaskDefinition::with_state(
-            "mycube-eskimo-drown",
-            Rc::clone(&self.human),
-            play_drown,
-        ));
     }
 
     fn start_moving(&mut self, ctx: &UnitCtx, _reversing: bool) {
-        if !matches!(self.kind, Some(ScriptKind::Eskimo | ScriptKind::Pirate)) {
-            return;
+        if let Self::Human(script) = self {
+            script.start_moving(ctx);
         }
-        if self.human.borrow().drowning {
-            return;
-        }
-        self.human.borrow_mut().moving = true;
-        ctx.signal(SIG_WALK);
-        ctx.spawn(TaskDefinition::with_state(
-            "mycube-eskimo-walk",
-            Rc::clone(&self.human),
-            play_walk,
-        ));
     }
 
     fn stop_moving(&mut self, ctx: &UnitCtx) {
-        if !matches!(self.kind, Some(ScriptKind::Eskimo | ScriptKind::Pirate)) {
-            return;
+        if let Self::Human(script) = self {
+            script.stop_moving(ctx);
         }
-        if self.human.borrow().drowning {
-            return;
-        }
-        self.human.borrow_mut().moving = false;
-        ctx.signal(SIG_WALK);
-        ctx.spawn(idle_task(&self.human));
     }
 
     fn activate(&mut self, ctx: &UnitCtx) {
-        match self.kind {
-            Some(ScriptKind::Coalburner) => self.set_heat(ctx, 1.0),
-            Some(ScriptKind::Drillship) => self.set_drill_active(ctx, true),
-            Some(ScriptKind::Iglu) | Some(ScriptKind::Lantern) => {}
+        match self {
+            Self::Coalburner(script) => script.set_heat(ctx, 1.0),
+            Self::Drillship(script) => script.set_active(ctx, true),
             _ => {}
         }
     }
 
     fn deactivate(&mut self, ctx: &UnitCtx) {
-        match self.kind {
-            Some(ScriptKind::Coalburner) => self.set_heat(ctx, 0.0),
-            Some(ScriptKind::Drillship) => self.set_drill_active(ctx, false),
-            Some(ScriptKind::Iglu) | Some(ScriptKind::Lantern) => {}
+        match self {
+            Self::Coalburner(script) => script.set_heat(ctx, 0.0),
+            Self::Drillship(script) => script.set_active(ctx, false),
             _ => {}
         }
     }
 
     fn query_weapon(&mut self, _ctx: &UnitCtx, _weapon: WeaponId) -> Piece {
-        if matches!(self.kind, Some(ScriptKind::Eskimo | ScriptKind::Pirate)) {
-            let state = self.human.borrow();
-            if state.has_gun {
-                state.pieces.get(HumanPart::GunMuzzle)
-            } else {
-                state.pieces.get(HumanPart::Head)
-            }
-        } else {
-            Piece::INVALID
+        match self {
+            Self::Human(script) => script.query_weapon(),
+            _ => Piece::INVALID,
         }
     }
 
@@ -284,394 +165,35 @@ impl UnitScript for MyCubeUnitScript {
         _heading: f32,
         _pitch: f32,
     ) -> Option<bool> {
-        if !matches!(self.kind, Some(ScriptKind::Eskimo | ScriptKind::Pirate)) {
-            return Some(false);
+        match self {
+            Self::Human(script) => script.aim_weapon(ctx, weapon),
+            _ => Some(false),
         }
-        let has_gun = self.human.borrow().has_gun;
-        // CUS receives Spring's zero-based weapon index. The Lua adapter adds
-        // one before calling AimWeapon, so the spear is 0 and the gun is 1.
-        let valid = (has_gun && weapon.0 == 1) || (!has_gun && weapon.0 == 0);
-        if !valid {
-            // The CUS bridge can enter the first weapon's callback while the
-            // Lua bridge enters both callbacks for a pirate.  Keep the spear
-            // pending, but start the pirate's gun animation from that callback
-            // so the gun's own ready state and pose remain identical to Lua.
-            if has_gun && weapon.0 == 0 {
-                let can_start = {
-                    let state = self.human.borrow();
-                    !state.drowning && !state.throwing && !state.aim_ready && !state.aiming
-                };
-                if can_start {
-                    self.human.borrow_mut().aiming = true;
-                    ctx.signal(SIG_AIM);
-                    ctx.spawn(TaskDefinition::with_state(
-                        "mycube-eskimo-aim-gun",
-                        Rc::clone(&self.human),
-                        run_gun,
-                    ));
-                }
-            }
-            // Lua's AimWeapon returns nil for the unit's inactive weapon;
-            // leaving the CUS call incomplete preserves that behavior.
-            return None;
-        }
-        if self.human.borrow().drowning || self.human.borrow().throwing {
-            return Some(false);
-        }
-        if self.human.borrow().aim_ready {
-            return Some(true);
-        }
-        if self.human.borrow().aiming {
-            return None;
-        }
-        self.human.borrow_mut().aiming = true;
-        ctx.signal(SIG_AIM);
-        if has_gun {
-            ctx.spawn(TaskDefinition::with_state(
-                "mycube-eskimo-aim-gun",
-                Rc::clone(&self.human),
-                run_gun,
-            ));
-        } else {
-            ctx.spawn(TaskDefinition::with_state(
-                "mycube-eskimo-aim-spear",
-                Rc::clone(&self.human),
-                run_spear,
-            ));
-        }
-        // Keep the weapon pending while the animation task drives it to the
-        // ready state. Lua's AimWeapon call is a blocking coroutine, so the
-        // native weapon must wait for set_aim_ready(true).
-        None
     }
 
     fn shot(&mut self, ctx: &UnitCtx, _weapon: WeaponId) {
-        if !matches!(self.kind, Some(ScriptKind::Eskimo | ScriptKind::Pirate)) {
-            return;
-        }
-        if self.human.borrow().drowning {
-            return;
-        }
-        let has_gun = self.human.borrow().has_gun;
-        {
-            let mut state = self.human.borrow_mut();
-            state.aim_ready = false;
-            state.throwing = !has_gun;
-        }
-        if has_gun {
-            ctx.spawn(TaskDefinition::with_state(
-                "mycube-eskimo-shoot",
-                Rc::clone(&self.human),
-                play_shoot,
-            ));
-        } else {
-            ctx.spawn(TaskDefinition::with_state(
-                "mycube-eskimo-throw",
-                Rc::clone(&self.human),
-                play_throw,
-            ));
+        if let Self::Human(script) = self {
+            script.shot(ctx);
         }
     }
 
     fn killed(&mut self, ctx: &UnitCtx, _recent_damage: f32, _max_health: f32) -> WreckLevel {
-        match self.kind {
-            Some(ScriptKind::Eskimo | ScriptKind::Pirate) => {
-                let shot = {
-                    let mut state = self.human.borrow_mut();
-                    state.aiming = false;
-                    state.aim_ready = false;
-                    state.death_pending = true;
-                    random_unit(&mut state.random) > 0.5
-                };
-                ctx.signal(SIG_AIM);
-                ctx.signal(SIG_IDLE);
-                ctx.signal(SIG_WALK);
-                let sound = if self.kind == Some(ScriptKind::Pirate) {
-                    // Match scripts/eskimo.lua: deathSound is the custom
-                    // parameter's SoundItem name, not the raw file path.
-                    "DeathPirate"
-                } else {
-                    "DeathEskimo"
-                };
-                play_unit_sound(ctx.unit(), sound, 9.0);
-                if shot {
-                    ctx.spawn(TaskDefinition::with_state(
-                        "mycube-eskimo-death-shot",
-                        Rc::clone(&self.human),
-                        run_death_shot,
-                    ));
-                } else {
-                    ctx.spawn(TaskDefinition::with_state(
-                        "mycube-eskimo-death-exhausted",
-                        Rc::clone(&self.human),
-                        run_death_exhausted,
-                    ));
-                }
-                if shot {
-                    WreckLevel::Two
-                } else {
-                    WreckLevel::One
-                }
-            }
-            Some(ScriptKind::Iglu) => {
-                self.explode_iglu(ctx);
+        match self {
+            Self::Human(script) => script.killed(ctx),
+            Self::Iglu(script) => {
+                script.killed(ctx);
                 WreckLevel::One
             }
-            Some(ScriptKind::Coalburner | ScriptKind::Drillship | ScriptKind::Lantern) => {
-                WreckLevel::One
-            }
-            None => WreckLevel::None,
+            Self::Coalburner(_) | Self::Drillship(_) | Self::Lantern => WreckLevel::One,
+            Self::None => WreckLevel::None,
         }
     }
 
     fn killed_pending(&self) -> bool {
-        matches!(self.kind, Some(ScriptKind::Eskimo | ScriptKind::Pirate))
-            && self.human.borrow().death_pending
-    }
-}
-
-fn run_gun(state: Rc<RefCell<HumanState>>, ctx: UnitCtx) -> impl core::future::Future<Output = ()> {
-    play_aim(state, ctx, eskimo::AIM_GUN, WeaponId(1))
-}
-
-fn run_spear(
-    state: Rc<RefCell<HumanState>>,
-    ctx: UnitCtx,
-) -> impl core::future::Future<Output = ()> {
-    // The spear table ends with an empty keyframe at t=10 after the pose has
-    // settled at t=9. Lua's blocking AimWeapon is ready at t=9; waiting out
-    // the empty interval would miss the engine's firing check by a frame.
-    let settled = &eskimo::AIM_SPEAR[..eskimo::AIM_SPEAR.len() - 1];
-    play_aim(state, ctx, settled, WeaponId(0))
-}
-
-fn run_death_shot(
-    state: Rc<RefCell<HumanState>>,
-    ctx: UnitCtx,
-) -> impl core::future::Future<Output = ()> {
-    play_death(state, ctx, eskimo::DEATH_SHOT, WreckLevel::Two)
-}
-
-fn run_death_exhausted(
-    state: Rc<RefCell<HumanState>>,
-    ctx: UnitCtx,
-) -> impl core::future::Future<Output = ()> {
-    play_death(state, ctx, eskimo::DEATH_EXHAUSTED, WreckLevel::One)
-}
-
-impl MyCubeUnitScript {
-    fn create_human(&mut self, ctx: &UnitCtx) {
-        let _ = spring::set_unit_mid_and_aim_pos(
-            ctx.unit().0,
-            spring::Float3::new(0.0, 30.0, 0.0),
-            spring::Float3::new(0.0, 30.0, 0.0),
-            true,
-        );
-        let _ = spring::set_unit_radius_and_height(ctx.unit().0, 20.0, 40.0);
-        let has_gun = self.kind == Some(ScriptKind::Pirate);
-        {
-            let mut state = self.human.borrow_mut();
-            state.has_gun = has_gun;
+        match self {
+            Self::Human(script) => script.killed_pending(),
+            _ => false,
         }
-        let pieces = self.human.borrow().pieces;
-        ctx.hide(pieces.get(HumanPart::Spear));
-        ctx.hide(pieces.get(HumanPart::Gun));
-        if has_gun {
-            ctx.show(pieces.get(HumanPart::Gun));
-        }
-        apply_idle_frame(ctx, &self.human);
-        ctx.spawn(idle_task(&self.human));
-    }
-
-    fn set_heat(&mut self, ctx: &UnitCtx, factor: f32) {
-        hide_all(ctx, &self.coal_heaters);
-        hide_all(ctx, &self.coal_firecycle);
-        ctx.hide(self.coal_inards);
-        let factor = factor.clamp(0.0, 1.0);
-        let index = ((factor * 4.0 + 1.0) as usize).clamp(1, 4);
-        if index == 1 {
-            ctx.show(self.coal_inards);
-        }
-        if let Some(piece) = self.coal_heaters.get(index - 1) {
-            ctx.show(*piece);
-        }
-        if factor > 0.25 {
-            show_all(ctx, &self.coal_firecycle);
-            for (index, piece) in self.coal_firecycle.iter().enumerate() {
-                let speed = if index == 0 { -150.0 } else { 150.0 };
-                ctx.spin(
-                    *piece,
-                    Axis::X,
-                    AngularSpeed::radians_per_second(speed),
-                    AngularSpeed::radians_per_second(0.0),
-                );
-            }
-        }
-    }
-
-    fn build_iglu(&mut self, ctx: &UnitCtx) {
-        hide_all(ctx, &self.all);
-        if let Some(piece) = self.iglu_build.first() {
-            ctx.show(*piece);
-        }
-        for (index, piece) in self.iglu_build.iter().enumerate().skip(1) {
-            if random_unit(&mut self.random) > 0.5 {
-                ctx.show(*piece);
-            }
-            if index % 2 == 0 {
-                ctx.turn_now(
-                    *piece,
-                    Axis::Y,
-                    Angle::radians(random_unit(&mut self.random) * 6.2831855),
-                );
-            }
-        }
-        for piece in self.iglu_xy_deco.iter().chain(self.iglu_y_deco.iter()) {
-            if random_unit(&mut self.random) > 0.5 {
-                ctx.show(*piece);
-                ctx.turn_now(
-                    *piece,
-                    Axis::Y,
-                    Angle::radians(random_unit(&mut self.random) * 6.2831855),
-                );
-            }
-        }
-    }
-
-    fn explode_iglu(&mut self, ctx: &UnitCtx) {
-        for piece in self.all.iter().copied() {
-            let flags = if random_unit(&mut self.random) > 0.5 {
-                explode_flags(spring::cus::SfxFlags::FALL.0 | spring::cus::SfxFlags::NO_HEATCLOUD.0)
-            } else {
-                explode_flags(
-                    spring::cus::SfxFlags::SHATTER.0 | spring::cus::SfxFlags::NO_HEATCLOUD.0,
-                )
-            };
-            ctx.explode(piece, flags);
-        }
-    }
-
-    fn create_ship(&mut self, ctx: &UnitCtx) {
-        let _ = spring::set_unit_mid_and_aim_pos(
-            ctx.unit().0,
-            spring::Float3::new(0.0, 30.0, 0.0),
-            spring::Float3::new(0.0, 30.0, 0.0),
-            true,
-        );
-        let _ = spring::set_unit_radius_and_height(ctx.unit().0, 80.0, 60.0);
-        reset_all(ctx, &self.all);
-        hide_all(ctx, &self.all);
-        show_all(ctx, &self.ship_body);
-        if let Some(piece) = self.ship_turret.first() {
-            ctx.show(*piece);
-        }
-        show_all(ctx, &self.ship_drill);
-        self.stop_drill(ctx, 0.0);
-        for piece in &self.ship_deco {
-            if random_unit(&mut self.random) > 0.5 {
-                ctx.show(*piece);
-            }
-        }
-        // drillship.lua declares activateWhenBuilt=true.  The engine may send
-        // Activate before the queued Rust CUS backend is attached, so the
-        // normal replay hook is not sufficient on its own.  Start the same
-        // authored drilling state from Create; a later Activate is idempotent
-        // and will replace the signalled mining task.
-        self.set_drill_active(ctx, true);
-    }
-
-    fn set_drill_active(&mut self, ctx: &UnitCtx, active: bool) {
-        self.ship.borrow_mut().active = active;
-        ctx.signal(SIG_SHIP);
-        if active {
-            self.start_drill(ctx);
-            ctx.spawn(TaskDefinition::with_state(
-                "mycube-drillship-mining",
-                Rc::clone(&self.ship),
-                mine_task,
-            ));
-        } else {
-            self.stop_drill(ctx, 1.0);
-        }
-    }
-
-    fn start_drill(&mut self, ctx: &UnitCtx) {
-        for piece in &self.ship_drill {
-            ctx.turn(
-                *piece,
-                Axis::X,
-                Angle::radians(0.0),
-                AngularSpeed::radians_per_second(1.0),
-            );
-            ctx.turn(
-                *piece,
-                Axis::Y,
-                Angle::radians(0.0),
-                AngularSpeed::radians_per_second(1.0),
-            );
-            ctx.turn(
-                *piece,
-                Axis::Z,
-                Angle::radians(0.0),
-                AngularSpeed::radians_per_second(1.0),
-            );
-        }
-        if let Some(piece) = self.ship_drill.get(5) {
-            ctx.turn(
-                *piece,
-                Axis::X,
-                Angle::degrees(10.0 + random_unit(&mut self.random) * 20.0),
-                AngularSpeed::radians_per_second(1.0),
-            );
-        }
-        if let Some(piece) = self.ship_drill.get(6) {
-            ctx.spin(
-                *piece,
-                Axis::Z,
-                AngularSpeed::degrees_per_second(-142.0),
-                AngularSpeed::radians_per_second(1.0),
-            );
-        }
-    }
-
-    fn stop_drill(&mut self, ctx: &UnitCtx, speed: f32) {
-        if let Some(piece) = self.ship_drill.get(1) {
-            turn(ctx, *piece, Axis::X, 70.0_f32.to_radians(), speed);
-        }
-        if let Some(piece) = self.ship_drill.get(3) {
-            turn(ctx, *piece, Axis::X, (-160.0_f32).to_radians(), speed);
-        }
-        if let Some(piece) = self.ship_drill.get(5) {
-            turn(ctx, *piece, Axis::X, (-80.0_f32).to_radians(), speed);
-        }
-        if let Some(piece) = self.ship_drill.get(6) {
-            ctx.stop_spin(*piece, Axis::Z, AngularSpeed::radians_per_second(speed));
-        }
-    }
-}
-
-async fn mine_task(state: Rc<RefCell<ShipState>>, ctx: UnitCtx) {
-    ctx.set_signal_mask(SIG_SHIP);
-    loop {
-        if !state.borrow().active {
-            return;
-        }
-        ctx.sleep(spring::cus::Duration::from_millis(500)).await;
-        if !state.borrow().active {
-            return;
-        }
-        let mut state = state.borrow_mut();
-        ctx.explode(
-            state.mine,
-            explode_flags(
-                spring::cus::SfxFlags::SHATTER.0
-                    | spring::cus::SfxFlags::FALL.0
-                    | spring::cus::SfxFlags::NO_HEATCLOUD.0,
-            ),
-        );
-        state.minetime = state.minetime.saturating_add(500);
-        let _ = state.random;
-        play_unit_sound(ctx.unit(), "sounds/icedrill.ogg", 1.0);
     }
 }
 
@@ -718,7 +240,7 @@ impl MyCubeCusModule {
     fn attach_pending(&mut self) {
         let pending = PENDING_UNITS.with(|units| core::mem::take(&mut *units.borrow_mut()));
         for (unit_id, def) in pending {
-            let Some(kind) = script_kind_for_def(def) else {
+            let Some(kind) = defs::kind(def).filter(|kind| *kind != UnitKind::Parachute) else {
                 continue;
             };
             let unit = UnitId(unit_id);
@@ -730,19 +252,12 @@ impl MyCubeCusModule {
                 retry_if_alive(unit_id, def);
                 continue;
             };
-            let root = spring::get_unit_root_piece(unit_id)
-                .ok()
-                .and_then(|piece| piece.checked_sub(1))
-                .map(Piece)
-                .unwrap_or(Piece::INVALID);
-            let resolver = EnginePieces { map: pieces, root };
+            let script = MyCubeUnitScript::for_kind(Some(kind), unit, &pieces);
             let host = WasmCus::new(unit, instance);
             let engine = Rc::new(RefCell::new(host.engine()));
-            let instance_state = CusInstance::construct(unit, &resolver, engine);
-            let handle = self.registry.attach(instance_state);
-            let _ = self.registry.with(handle, |instance| {
-                instance.with_state(|script| script.kind = Some(kind));
-            });
+            let handle = self
+                .registry
+                .attach(CusInstance::attach(unit, script, engine));
             // The engine invokes Create synchronously from WasmCus::attach.
             // Register the instance first so that callin can find its handle.
             self.handles.insert(instance, handle);

@@ -17,6 +17,7 @@ pub fn setup(handler: &mut WidgetHandler<Global>) {
             GuiResourcesWidget::new(),
             UiFloatingTextWidget::new(),
             GuiKeybindsWidget::new(),
+            GuiTradeWidget::new(),
             UiEndgameWidget::new(),
         ]
     );

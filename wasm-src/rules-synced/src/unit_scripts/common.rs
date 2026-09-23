@@ -1,92 +1,62 @@
 use alloc::vec::Vec;
 
 use spring::UnitId;
-use spring::cus::{Angle, AngularSpeed, Axis, Piece, PieceResolver, UnitCtx};
+use spring::cus::{Angle, AngularSpeed, Axis, Piece, UnitCtx};
 
 pub(super) const SIG_WALK: spring::cus::SignalMask = spring::cus::SignalMask::new(1);
 pub(super) const SIG_IDLE: spring::cus::SignalMask = spring::cus::SignalMask::new(2);
 pub(super) const SIG_AIM: spring::cus::SignalMask = spring::cus::SignalMask::new(4);
 pub(super) const SIG_SHIP: spring::cus::SignalMask = spring::cus::SignalMask::new(8);
 
-pub(super) struct EnginePieces {
-    pub(super) map: Vec<spring::owned::units_pieces::PieceMapEntry>,
-    pub(super) root: Piece,
+pub(super) type PieceMap = [spring::owned::units_pieces::PieceMapEntry];
+
+/// A piece by model name, or `Piece::INVALID`.
+pub(super) fn piece_in(map: &PieceMap, name: &str) -> Piece {
+    map.iter()
+        .find(|entry| entry.name == name)
+        .map_or(Piece::INVALID, |entry| Piece(entry.piece_num - 1))
 }
 
-impl PieceResolver for EnginePieces {
-    fn piece(&self, name: &str) -> Piece {
-        if name == "__mycube_model_root" {
-            return self.root;
-        }
-        self.map
-            .iter()
-            .find(|entry| entry.name == name)
-            .map_or(Piece::INVALID, |entry| Piece(entry.piece_num - 1))
-    }
-}
-
-pub(super) fn piece_by_name(unit: UnitId, name: &str) -> Piece {
-    spring::get_unit_piece_map(unit.0)
-        .ok()
-        .and_then(|pieces| {
-            pieces
-                .into_iter()
-                .find(|piece| piece.name == name)
-                .map(|piece| Piece(piece.piece_num - 1))
-        })
-        .unwrap_or(Piece::INVALID)
-}
-
-pub(super) fn piece_position(unit: UnitId, name: &str) -> spring::Float3 {
-    let map = match spring::get_unit_piece_map(unit.0) {
-        Ok(map) => map,
-        Err(_) => return spring::Float3::ZERO,
+/// The rest positions (model-space offsets) of the named pieces, from one
+/// walk of the piece tree. Missing pieces get `ZERO`.
+pub(super) fn piece_positions<const N: usize>(
+    unit: UnitId,
+    map: &PieceMap,
+    names: [&str; N],
+) -> [spring::Float3; N] {
+    let mut positions = [spring::Float3::ZERO; N];
+    let Ok(root) = spring::get_unit_root_piece(unit.0) else {
+        return positions;
     };
-    let target = match map.iter().find(|entry| entry.name == name) {
-        Some(entry) => entry.piece_num,
-        None => return spring::Float3::ZERO,
-    };
-    let root = match spring::get_unit_root_piece(unit.0) {
-        Ok(root) => root,
-        Err(_) => return spring::Float3::ZERO,
-    };
-
-    fn add(left: spring::Float3, right: spring::Float3) -> spring::Float3 {
-        spring::Float3 {
-            x: left.x + right.x,
-            y: left.y + right.y,
-            z: left.z + right.z,
-        }
-    }
-
-    fn find_offset(
-        unit: UnitId,
-        piece_num: i32,
-        target: i32,
-        parent_offset: spring::Float3,
-        map: &[spring::owned::units_pieces::PieceMapEntry],
-    ) -> Option<spring::Float3> {
-        let result = spring::get_unit_piece_info(unit.0, piece_num).ok()?;
+    let mut stack = alloc::vec![(root, spring::Float3::ZERO)];
+    while let Some((piece_num, parent_offset)) = stack.pop() {
+        let Ok(result) = spring::get_unit_piece_info(unit.0, piece_num) else {
+            continue;
+        };
         if !result.exists {
-            return None;
+            continue;
         }
-        let offset = add(parent_offset, result.info.offset);
-        if piece_num == target {
-            return Some(offset);
-        }
-        for child_name in result.info.children {
-            let child_num = map
+        let info = result.info;
+        let offset = spring::Float3::new(
+            parent_offset.x + info.offset.x,
+            parent_offset.y + info.offset.y,
+            parent_offset.z + info.offset.z,
+        );
+        for (index, name) in names.iter().enumerate() {
+            if map
                 .iter()
-                .find(|entry| entry.name == child_name)
-                .map(|entry| entry.piece_num)?;
-            if let Some(child_offset) = find_offset(unit, child_num, target, offset, map) {
-                return Some(child_offset);
+                .any(|entry| entry.piece_num == piece_num && entry.name == *name)
+            {
+                positions[index] = offset;
             }
         }
-        None
+        for child_name in &info.children {
+            if let Some(child) = map.iter().find(|entry| entry.name == *child_name) {
+                stack.push((child.piece_num, offset));
+            }
+        }
     }
-
-    find_offset(unit, root, target, spring::Float3::ZERO, &map).unwrap_or(spring::Float3::ZERO)
+    positions
 }
 
 pub(super) fn turn(ctx: &UnitCtx, piece: Piece, axis: Axis, target: f32, speed: f32) {
@@ -110,10 +80,6 @@ pub(super) fn move_piece(ctx: &UnitCtx, piece: Piece, axis: Axis, target: f32, s
     }
 }
 
-pub(super) fn explode_flags(flags: i32) -> spring::cus::SfxFlags {
-    spring::cus::SfxFlags(flags)
-}
-
 pub(super) fn random_next(state: &mut u32) -> u32 {
     // The old Lua helpers use Spring's synced random stream.  A per-script
     // deterministic stream gives the same important property for CUS tasks:
@@ -126,14 +92,11 @@ pub(super) fn random_unit(state: &mut u32) -> f32 {
     (random_next(state) as f32) / (u32::MAX as f32)
 }
 
-pub(super) fn all_named_pieces(map: &[spring::owned::units_pieces::PieceMapEntry]) -> Vec<Piece> {
+pub(super) fn all_named_pieces(map: &PieceMap) -> Vec<Piece> {
     map.iter().map(|entry| Piece(entry.piece_num - 1)).collect()
 }
 
-pub(super) fn matching_pieces(
-    map: &[spring::owned::units_pieces::PieceMapEntry],
-    prefix: &str,
-) -> Vec<Piece> {
+pub(super) fn matching_pieces(map: &PieceMap, prefix: &str) -> Vec<Piece> {
     let mut matches = map
         .iter()
         .filter(|entry| entry.name.starts_with(prefix))
