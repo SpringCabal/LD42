@@ -6,9 +6,7 @@ use core::cell::RefCell;
 use spring::UnitId;
 use spring::cus::{Piece, TaskDefinition, UnitCtx, WeaponId, WreckLevel};
 
-use super::common::{
-    PieceMap, SIG_AIM, SIG_IDLE, SIG_WALK, piece_positions, play_unit_sound, random_unit,
-};
+use super::common::{PieceMap, SIG_AIM, SIG_IDLE, SIG_WALK, piece_positions, play_unit_sound};
 use super::eskimo::{
     self, HumanPart, HumanPieces, HumanState, apply_idle_frame, idle_task, play_aim, play_death,
     play_drown, play_shoot, play_throw, play_walk,
@@ -20,7 +18,7 @@ pub(super) struct HumanScript {
 }
 
 impl HumanScript {
-    pub(super) fn new(unit: UnitId, map: &PieceMap, pirate: bool, random: u32) -> Self {
+    pub(super) fn new(unit: UnitId, map: &PieceMap, pirate: bool) -> Self {
         let pieces = HumanPieces::from_map(map);
         let offsets = piece_positions(unit, map, HumanPart::ALL.map(HumanPart::name));
         Self {
@@ -35,7 +33,6 @@ impl HumanScript {
                 aim_ready: false,
                 throwing: false,
                 death_pending: false,
-                random,
             })),
         }
     }
@@ -178,7 +175,7 @@ impl HumanScript {
             state.aiming = false;
             state.aim_ready = false;
             state.death_pending = true;
-            random_unit(&mut state.random) > 0.5
+            spring::random::synced::float() > 0.5
         };
         ctx.signal(SIG_AIM);
         ctx.signal(SIG_IDLE);

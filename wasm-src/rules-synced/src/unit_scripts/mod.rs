@@ -32,9 +32,6 @@ use crate::defs::{self, UnitKind};
 
 const RAW_START_DROWNING: i32 = 1;
 
-/// Seeds each script's animation randomness from its unit id.
-const RANDOM_SEED: u32 = 0x4d59_4355;
-
 fn capabilities(kind: UnitKind) -> ScriptCapabilities {
     let mut bits = ScriptCapabilities::KILLED | ScriptCapabilities::CREATE;
     match kind {
@@ -71,13 +68,12 @@ enum MyCubeUnitScript {
 
 impl MyCubeUnitScript {
     fn for_kind(kind: Option<UnitKind>, unit: UnitId, map: &common::PieceMap) -> Self {
-        let random = unit.0 as u32 ^ RANDOM_SEED;
         match kind {
             Some(UnitKind::Coalburner) => Self::Coalburner(CoalburnerScript::new(map)),
-            Some(UnitKind::Drillship) => Self::Drillship(ShipScript::new(map, random)),
-            Some(UnitKind::Eskimo) => Self::Human(HumanScript::new(unit, map, false, random)),
-            Some(UnitKind::Pirate) => Self::Human(HumanScript::new(unit, map, true, random)),
-            Some(UnitKind::Iglu) => Self::Iglu(IgluScript::new(map, random)),
+            Some(UnitKind::Drillship) => Self::Drillship(ShipScript::new(map)),
+            Some(UnitKind::Eskimo) => Self::Human(HumanScript::new(unit, map, false)),
+            Some(UnitKind::Pirate) => Self::Human(HumanScript::new(unit, map, true)),
+            Some(UnitKind::Iglu) => Self::Iglu(IgluScript::new(map)),
             Some(UnitKind::Lantern) => Self::Lantern,
             Some(UnitKind::Parachute) | None => Self::None,
         }

@@ -96,7 +96,6 @@ pub(super) struct HumanState {
     pub(super) aim_ready: bool,
     pub(super) throwing: bool,
     pub(super) death_pending: bool,
-    pub(super) random: u32,
 }
 
 #[derive(Clone, Copy)]

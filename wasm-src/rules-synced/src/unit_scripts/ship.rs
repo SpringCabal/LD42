@@ -7,8 +7,8 @@ use core::cell::RefCell;
 use spring::cus::{Angle, AngularSpeed, Axis, Piece, SfxFlags, TaskDefinition, UnitCtx};
 
 use super::common::{
-    PieceMap, SIG_SHIP, all_named_pieces, hide_all, matching_pieces, piece_in, play_unit_sound,
-    random_unit, reset_all, show_all, turn,
+    PieceMap, SIG_SHIP, all_named_pieces, coin_flip, hide_all, matching_pieces, piece_in,
+    play_unit_sound, reset_all, show_all, turn,
 };
 
 struct MiningState {
@@ -23,11 +23,10 @@ pub(super) struct ShipScript {
     drill: Vec<Piece>,
     deco: Vec<Piece>,
     mining: Rc<RefCell<MiningState>>,
-    random: u32,
 }
 
 impl ShipScript {
-    pub(super) fn new(map: &PieceMap, random: u32) -> Self {
+    pub(super) fn new(map: &PieceMap) -> Self {
         Self {
             all: all_named_pieces(map),
             body: matching_pieces(map, "Boatbody"),
@@ -38,7 +37,6 @@ impl ShipScript {
                 active: false,
                 mine: piece_in(map, "icemine"),
             })),
-            random,
         }
     }
 
@@ -59,7 +57,7 @@ impl ShipScript {
         show_all(ctx, &self.drill);
         self.stop_drill(ctx, 0.0);
         for piece in &self.deco {
-            if random_unit(&mut self.random) > 0.5 {
+            if coin_flip() {
                 ctx.show(*piece);
             }
         }
@@ -94,7 +92,7 @@ impl ShipScript {
             }
         }
         if let Some(piece) = self.drill.get(5) {
-            let angle = 10.0 + random_unit(&mut self.random) * 20.0;
+            let angle = spring::random::synced::int(10, 30) as f32;
             ctx.turn(*piece, Axis::X, Angle::degrees(angle), speed);
         }
         if let Some(piece) = self.drill.get(6) {
@@ -137,6 +135,10 @@ async fn mine_task(state: Rc<RefCell<MiningState>>, ctx: UnitCtx) {
         };
         if !active {
             return;
+        }
+        // shipscript.lua chips ice on half of the ticks.
+        if spring::random::synced::int(1, 50) <= 25 {
+            continue;
         }
         ctx.explode(
             mine,

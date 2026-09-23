@@ -6,7 +6,7 @@ use alloc::vec::Vec;
 use spring::cus::{Angle, AngularSpeed, Axis, Piece, SfxFlags, UnitCtx};
 
 use super::common::{
-    PieceMap, all_named_pieces, hide_all, matching_pieces, piece_in, random_unit, show_all,
+    PieceMap, all_named_pieces, coin_flip, hide_all, matching_pieces, piece_in, show_all,
 };
 
 pub(super) struct CoalburnerScript {
@@ -63,17 +63,15 @@ pub(super) struct IgluScript {
     build: Vec<Piece>,
     xy_deco: Vec<Piece>,
     y_deco: Vec<Piece>,
-    random: u32,
 }
 
 impl IgluScript {
-    pub(super) fn new(map: &PieceMap, random: u32) -> Self {
+    pub(super) fn new(map: &PieceMap) -> Self {
         Self {
             all: all_named_pieces(map),
             build: matching_pieces(map, "Build"),
             xy_deco: matching_pieces(map, "XY"),
             y_deco: matching_pieces(map, "Y"),
-            random,
         }
     }
 
@@ -84,19 +82,19 @@ impl IgluScript {
             ctx.show(*piece);
         }
         for (index, piece) in self.build.iter().enumerate().skip(1) {
-            if random_unit(&mut self.random) > 0.5 {
+            if coin_flip() {
                 ctx.show(*piece);
             }
             if index % 2 == 0 {
-                let angle = random_unit(&mut self.random) * core::f32::consts::TAU;
-                ctx.turn_now(*piece, Axis::Y, Angle::radians(angle));
+                let angle = spring::random::synced::int(-360, 360) as f32;
+                ctx.turn_now(*piece, Axis::Y, Angle::degrees(angle));
             }
         }
         for piece in self.xy_deco.iter().chain(self.y_deco.iter()) {
-            if random_unit(&mut self.random) > 0.5 {
+            if coin_flip() {
                 ctx.show(*piece);
-                let angle = random_unit(&mut self.random) * core::f32::consts::TAU;
-                ctx.turn_now(*piece, Axis::Y, Angle::radians(angle));
+                let angle = spring::random::synced::int(-360, 360) as f32;
+                ctx.turn_now(*piece, Axis::Y, Angle::degrees(angle));
             }
         }
     }
@@ -104,7 +102,7 @@ impl IgluScript {
     /// Every piece falls or shatters.
     pub(super) fn killed(&mut self, ctx: &UnitCtx) {
         for piece in self.all.iter().copied() {
-            let effect = if random_unit(&mut self.random) > 0.5 {
+            let effect = if coin_flip() {
                 SfxFlags::FALL
             } else {
                 SfxFlags::SHATTER

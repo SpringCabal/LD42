@@ -58,11 +58,10 @@ pub fn run_story(state: &mut Story, frame: i32) -> Vec<SpawnRequest> {
         state.intro_event = String::from(message);
     }
     let mut requests = Vec::with_capacity(units.len());
-    let mut rng = StorySpawnRng::new(state.spawn_rng);
     let mut support_positions = existing_support_positions();
     for &unit in units {
         let (x, y, z) = loop {
-            let candidate = find_position(unit, &mut rng);
+            let candidate = find_position(unit);
             if !is_support(unit)
                 || support_positions.iter().all(|(support_x, support_z)| {
                     let dx = candidate.0 - support_x;
@@ -82,8 +81,8 @@ pub fn run_story(state: &mut Story, frame: i32) -> Vec<SpawnRequest> {
             support_positions.push((x, z));
         }
         if unit == Iglu {
-            let lantern_x = x + rng.random_int(130, 150) as f32 * rng.sign();
-            let lantern_z = z + rng.random_int(130, 150) as f32 * rng.sign();
+            let lantern_x = x + random_int(130, 150) as f32 * random_sign();
+            let lantern_z = z + random_int(130, 150) as f32 * random_sign();
             requests.push(SpawnRequest {
                 kind: Lantern,
                 position: Float3::new(
@@ -101,7 +100,6 @@ pub fn run_story(state: &mut Story, frame: i32) -> Vec<SpawnRequest> {
             });
         }
     }
-    state.spawn_rng = rng.state;
     state.step += 1;
     state.next_step = frame.saturating_add(wait.saturating_mul(FRAMES_PER_SECOND));
     requests
@@ -120,60 +118,38 @@ fn map_size() -> (f32, f32) {
         .unwrap_or((8192.0, 8192.0))
 }
 
-/// The Lua storyteller deliberately uses the engine RNG for every position.
-/// Core-Wasm cannot share Lua's RNG state, so preserve the same draw order and
-/// inclusive ranges with a deterministic synced stream.
-struct StorySpawnRng {
-    state: u32,
+/// `math.random(min, max)` from the synced stream Lua's storyteller uses.
+fn random_int(min: i32, max: i32) -> i32 {
+    spring::random::synced::int(min, max)
 }
 
-impl StorySpawnRng {
-    fn new(seed: u32) -> Self {
-        Self {
-            state: if seed == 0 { 0x4d59_4355 } else { seed },
-        }
-    }
-
-    fn next_u32(&mut self) -> u32 {
-        self.state = self
-            .state
-            .wrapping_mul(1_664_525)
-            .wrapping_add(1_013_904_223);
-        self.state
-    }
-
-    fn next_f32(&mut self) -> f32 {
-        (self.next_u32() >> 8) as f32 / 16_777_216.0
-    }
-
-    fn random_int(&mut self, min: i32, max: i32) -> i32 {
-        let range = (max - min + 1) as u32;
-        min + (self.next_u32() % range) as i32
-    }
-
-    fn sign(&mut self) -> f32 {
-        if self.next_f32() < 0.5 { -1.0 } else { 1.0 }
+/// `math.sgn(math.random() - 0.5)`.
+fn random_sign() -> f32 {
+    if spring::random::synced::float() < 0.5 {
+        -1.0
+    } else {
+        1.0
     }
 }
 
-fn find_position(unit: UnitKind, rng: &mut StorySpawnRng) -> (f32, f32, f32) {
+fn find_position(unit: UnitKind) -> (f32, f32, f32) {
     let (map_x, map_z) = map_size();
     let (x, z) = if unit == Coalburner {
-        // The burner is the village's heat anchor.  Keep it at the map
-        // centre so the opening expedition always has a usable stove and the
-        // support-distance checks place the iglus around it.
+        // Unlike storyteller.lua, which places the burner at random like an
+        // iglu, keep the village's only stove at the map centre so the
+        // iglus are placed around it. This skips the Lua's two draws.
         (map_x * 0.5, map_z * 0.5)
     } else if unit == Drillship {
         (
             map_x * 0.5
-                + rng.random_int((map_x / 4.0) as i32, (map_x / 2.0) as i32) as f32 * rng.sign(),
+                + random_int((map_x / 4.0) as i32, (map_x / 2.0) as i32) as f32 * random_sign(),
             map_z * 0.5
-                + rng.random_int((map_z / 4.0) as i32, (map_z / 2.0) as i32) as f32 * rng.sign(),
+                + random_int((map_z / 4.0) as i32, (map_z / 2.0) as i32) as f32 * random_sign(),
         )
     } else {
         (
-            map_x * 0.5 + rng.random_int(-(map_x / 8.0) as i32, (map_x / 8.0) as i32) as f32,
-            map_z * 0.5 + rng.random_int(-(map_z / 8.0) as i32, (map_z / 8.0) as i32) as f32,
+            map_x * 0.5 + random_int(-(map_x / 8.0) as i32, (map_x / 8.0) as i32) as f32,
+            map_z * 0.5 + random_int(-(map_z / 8.0) as i32, (map_z / 8.0) as i32) as f32,
         )
     };
     let y = spring::get_ground_height(x, z).unwrap_or(0.0);

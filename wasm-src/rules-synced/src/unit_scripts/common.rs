@@ -80,16 +80,9 @@ pub(super) fn move_piece(ctx: &UnitCtx, piece: Piece, axis: Axis, target: f32, s
     }
 }
 
-pub(super) fn random_next(state: &mut u32) -> u32 {
-    // The old Lua helpers use Spring's synced random stream.  A per-script
-    // deterministic stream gives the same important property for CUS tasks:
-    // animation choices do not depend on host-side timing.
-    *state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
-    *state
-}
-
-pub(super) fn random_unit(state: &mut u32) -> f32 {
-    (random_next(state) as f32) / (u32::MAX as f32)
+/// Lua's `math.random(0, 1) == 1`: a synced coin flip.
+pub(super) fn coin_flip() -> bool {
+    spring::random::synced::int(0, 1) == 1
 }
 
 pub(super) fn all_named_pieces(map: &PieceMap) -> Vec<Piece> {
