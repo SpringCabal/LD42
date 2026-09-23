@@ -209,14 +209,14 @@ impl Widget<Global> for GuiKeybindsWidget {
             // Match ui_endgame.lua's restart action.  The cheat toggle is
             // needed because the reload command is protected in the engine;
             // turn it back off immediately after the rules reload.
-            let _ = spring::send_commands("cheat", "");
-            let _ = spring::send_commands("luarules reload", "");
-            let _ = spring::send_commands("cheat", "");
+            let _ = spring::send_command("cheat");
+            let _ = spring::send_command("luarules reload");
+            let _ = spring::send_command("cheat");
             return EventResult::Handled;
         }
         if event.ctrl && event.matches("q") {
             // Same as the Lua keybind: reload into the menu in-process.
-            let _ = spring::send_commands("reloadforce", "");
+            let _ = spring::send_command("reloadforce");
             return EventResult::Handled;
         }
         let message = if event.matches("1") {

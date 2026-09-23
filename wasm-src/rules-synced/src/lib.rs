@@ -1,6 +1,5 @@
 extern crate alloc;
 
-pub mod cmd;
 pub mod drills;
 pub mod drowning;
 pub mod eskimos;

@@ -2,7 +2,6 @@ extern crate alloc;
 
 #[path = "../../common/ice.rs"]
 pub mod ice;
-pub mod log;
 pub mod state;
 pub mod widgets;
 

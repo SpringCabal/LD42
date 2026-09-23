@@ -98,9 +98,9 @@ pub fn update(global: &Global, frame: i32) {
                 t,
                 scenery.is_some_and(|id| {
                     spring::get_unit_rules_param_f32(id, "untargetable") == Ok(1.0)
-                        && !crate::untargetable::allow_command(crate::cmd::ATTACK, &[id as f32])
+                        && !crate::untargetable::allow_command(spring::cmd::ATTACK, &[id as f32])
                         && crate::untargetable::allow_command(
-                            crate::cmd::MOVE,
+                            spring::cmd::MOVE,
                             &[100.0, 0.0, 100.0],
                         )
                 }),

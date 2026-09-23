@@ -2,7 +2,6 @@
 
 use alloc::vec::Vec;
 
-use crate::cmd;
 use crate::state::{DrillShip, Terrain, Units};
 use crate::terrain::{self, ICE_HEIGHT, SQUARE_SIZE};
 
@@ -72,7 +71,7 @@ pub fn give_orders(orders: &[MoveOrder]) {
         let target = order.target;
         let _ = spring::give_order_to_unit(
             order.unit,
-            cmd::MOVE,
+            spring::cmd::MOVE,
             &[target.x, target.y, target.z],
             0,
             0,

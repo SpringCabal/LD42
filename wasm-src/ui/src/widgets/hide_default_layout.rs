@@ -32,7 +32,7 @@ impl Widget<Global> for HideDefaultLayoutWidget {
                 "showrezbars 0",
                 "disticon 99999",
             ] {
-                let _ = spring::send_commands(command, "");
+                let _ = spring::send_command(command);
             }
             let _ = spring::slave_mini_map(true);
             let _ = spring::config_mini_map(-1, -1, -1, -1);
