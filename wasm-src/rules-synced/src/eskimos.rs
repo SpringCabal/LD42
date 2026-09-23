@@ -4,9 +4,22 @@ use alloc::vec::Vec;
 
 use spring::rules_params::los::PUBLIC;
 
-use crate::state::{self, Economy, Units};
+use crate::state::{self, Economy, Eskimo, FRAMES_PER_SECOND, Units};
 use crate::units::set_eskimo_needs;
 
+const FPS: f32 = FRAMES_PER_SECOND as f32;
+const MAX_NEED: f32 = 100.0;
+const BURNER_RANGE: f32 = 300.0;
+const WARMING_INCREASE: f32 = 4.0 / FPS;
+const COLD_DECREASE: f32 = 1.0 / FPS;
+const HEAT_RES_USAGE: f32 = 0.5 / FPS;
+const FOOD_DECAY_RATE: f32 = 1.0 / FPS;
+const FOOD_EATING_RATE: f32 = 10.0 / FPS;
+const FOOD_RES_USAGE: f32 = 0.1 / FPS;
+const FREEZING_HEALTH_DECAY: f32 = 1.0 / FPS;
+const STARVING_HEALTH_DECAY: f32 = 0.2 / FPS;
+
+/// Runs every frame, like `unit_eskimos.lua`'s GameFrame.
 pub fn update_eskimos(units: &mut Units, economy: &mut Economy) -> Vec<i32> {
     let burner_positions: Vec<spring::Float3> = units
         .burners
@@ -16,57 +29,25 @@ pub fn update_eskimos(units: &mut Units, economy: &mut Economy) -> Vec<i32> {
     let sync_lane = units.eskimo_sync_cursor;
     let mut dead = Vec::new();
     for (index, eskimo) in units.eskimos.iter_mut().enumerate() {
-        eskimo.food = (eskimo.food - 1.0 / 33.0).max(0.0);
         let near_burner = spring::get_unit_position(eskimo.id, false, false)
             .ok()
             .is_some_and(|position| {
                 burner_positions.iter().any(|burner| {
                     let dx = position.x - burner.x;
                     let dz = position.z - burner.z;
-                    dx * dx + dz * dz <= 300.0 * 300.0
+                    dx * dx + dz * dz <= BURNER_RANGE * BURNER_RANGE
                 })
             });
-        // unit_eskimos.lua only reevaluates proximity while the personal heat
-        // meter is at least two points below full. Preserve that sticky warm
-        // state at the cap rather than immediately cooling someone who steps
-        // away from the burner on the next frame.
-        if eskimo.heat + 2.0 <= 100.0 {
-            eskimo.warm = near_burner;
-        }
-        if eskimo.warm {
-            if economy.heat >= 0.5 / 33.0 {
-                economy.heat -= 0.5 / 33.0;
-                eskimo.heat = (eskimo.heat + 4.0 / 33.0).min(100.0);
-            } else {
-                // GG.Resources.Consume failure changes WARM to COLD before
-                // applying the normal cold decay in the original gadget.
-                eskimo.warm = false;
-                eskimo.heat = (eskimo.heat - 1.0 / 33.0).max(0.0);
-            }
-        } else {
-            eskimo.heat = (eskimo.heat - 1.0 / 33.0).max(0.0);
-        }
-        if eskimo.heat >= 100.0 {
-            eskimo.warm = false;
-        }
-        // Eating starts below 20 and continues until the meter passes 80.
-        if eskimo.food < 20.0 {
-            eskimo.eating = true;
-        } else if eskimo.food > 80.0 {
-            eskimo.eating = false;
-        }
-        if eskimo.eating && economy.food >= 0.1 / 33.0 {
-            economy.food -= 0.1 / 33.0;
-            eskimo.food = (eskimo.food + 10.0 / 33.0).min(100.0);
-        }
+        update_heat(eskimo, economy, near_burner);
+        update_food(eskimo, economy);
         // The health pool lives in the "health" rules param, which combat
         // (health.rs) and drowning also lower, so read it back every frame.
         let mut health_loss = 0.0;
         if eskimo.heat <= 0.0 {
-            health_loss += 1.0 / 33.0;
+            health_loss += FREEZING_HEALTH_DECAY;
         }
         if eskimo.food <= 0.0 {
-            health_loss += 0.2 / 33.0;
+            health_loss += STARVING_HEALTH_DECAY;
         }
         let health = spring::get_unit_rules_param_f32(eskimo.id, "health").unwrap_or(0.0);
         if health_loss > 0.0 {
@@ -90,4 +71,52 @@ pub fn update_eskimos(units: &mut Units, economy: &mut Economy) -> Vec<i32> {
     units.eskimo_sync_cursor = (sync_lane + 1) % 5;
     state::publish_resources(economy);
     dead
+}
+
+/// `DoHeat`: warm up next to a burner while the village has heat to spend,
+/// otherwise cool down. Proximity is only re-checked while the meter is at
+/// least two points below full, so a warm Eskimo stays warm until it tops
+/// up. A failed purchase turns the Eskimo cold without cooling it this frame.
+fn update_heat(eskimo: &mut Eskimo, economy: &mut Economy, near_burner: bool) {
+    if eskimo.heat + 2.0 <= MAX_NEED {
+        eskimo.warm = near_burner;
+    }
+    if eskimo.warm {
+        if economy.heat >= HEAT_RES_USAGE {
+            economy.heat -= HEAT_RES_USAGE;
+            eskimo.heat += WARMING_INCREASE;
+        } else {
+            eskimo.warm = false;
+        }
+    } else {
+        eskimo.heat -= COLD_DECREASE;
+    }
+    if eskimo.heat >= MAX_NEED {
+        eskimo.warm = false;
+    }
+    eskimo.heat = eskimo.heat.clamp(0.0, MAX_NEED);
+}
+
+/// `DoFood`: eating starts below 20 and continues until the meter passes 80.
+/// An idle Eskimo gets hungrier; an eating one gains food instead while the
+/// village has food, and stops eating (without getting hungrier this frame)
+/// when it has none.
+fn update_food(eskimo: &mut Eskimo, economy: &mut Economy) {
+    if eskimo.food < 20.0 {
+        eskimo.eating = true;
+    } else if eskimo.food > 80.0 {
+        eskimo.eating = false;
+    }
+    if !eskimo.eating {
+        eskimo.food -= FOOD_DECAY_RATE;
+    } else if economy.food >= FOOD_RES_USAGE {
+        economy.food -= FOOD_RES_USAGE;
+        eskimo.food += FOOD_EATING_RATE;
+    } else {
+        eskimo.eating = false;
+    }
+    if eskimo.food >= MAX_NEED {
+        eskimo.eating = false;
+    }
+    eskimo.food = eskimo.food.clamp(0.0, MAX_NEED);
 }

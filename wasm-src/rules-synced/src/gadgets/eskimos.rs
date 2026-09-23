@@ -18,10 +18,7 @@ impl Gadget<Global> for EskimosGadget {
         "Eskimos"
     }
 
-    fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
-        if frame % 30 == 0 {
-            return;
-        }
+    fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, _frame: i32) {
         let dead = eskimos::update_eskimos(
             &mut ctx.global().units.access_mut(),
             &mut ctx.global().economy.access_mut(),
