@@ -1,18 +1,24 @@
 //! The autonomous drill controller, ported from `unit_drill.lua`.
 
+use alloc::vec::Vec;
+
 use crate::cmd;
 use crate::state::{DrillShip, Terrain, Units};
 use crate::terrain::{self, ICE_HEIGHT, SQUARE_SIZE};
 
 const SEARCH_STEP: i32 = 64;
 
-pub fn update_drills(units: &mut Units, terrain: &mut Terrain, frame: i32) {
-    if frame % 30 != 0 {
-        return;
-    }
-    if units.drills.is_empty() {
-        return;
-    }
+/// A move order for a drill ship, issued once no state is borrowed:
+/// giving an order raises AllowCommand synchronously.
+pub struct MoveOrder {
+    pub unit: i32,
+    pub target: spring::Float3,
+}
+
+/// Queue a crater under every drill ship and pick new ice targets for the
+/// ships that have run out. Returns the move orders to give.
+pub fn update_drills(units: &mut Units, terrain: &mut Terrain) -> Vec<MoveOrder> {
+    let mut orders = Vec::new();
 
     for drill_ship in &mut units.drills {
         let id = drill_ship.id;
@@ -32,15 +38,7 @@ pub fn update_drills(units: &mut Units, terrain: &mut Terrain, frame: i32) {
         if drill_ship.has_order
             && distance(drill_ship.order_x, drill_ship.order_z, hull.x, hull.z) > NEARBY_SIZE
         {
-            let y =
-                spring::get_ground_height(drill_ship.order_x, drill_ship.order_z).unwrap_or(0.0);
-            let _ = spring::give_order_to_unit(
-                id,
-                cmd::MOVE,
-                &[drill_ship.order_x, y, drill_ship.order_z],
-                0,
-                0,
-            );
+            orders.push(move_order(id, drill_ship.order_x, drill_ship.order_z));
             continue;
         }
 
@@ -50,16 +48,37 @@ pub fn update_drills(units: &mut Units, terrain: &mut Terrain, frame: i32) {
         // cursor in place for the next 30-frame check.
         reset_search(drill_ship, hull.x, hull.z);
         if let Some((x, z)) = find_closest_ice(drill_ship) {
-            let y = spring::get_ground_height(x, z).unwrap_or(0.0);
-            let _ = spring::give_order_to_unit(id, cmd::MOVE, &[x, y, z], 0, 0);
+            orders.push(move_order(id, x, z));
             drill_ship.has_order = true;
             drill_ship.order_x = x;
             drill_ship.order_z = z;
         }
     }
+    orders
 }
 
 const NEARBY_SIZE: f32 = 100.0;
+
+fn move_order(unit: i32, x: f32, z: f32) -> MoveOrder {
+    let y = spring::get_ground_height(x, z).unwrap_or(0.0);
+    MoveOrder {
+        unit,
+        target: spring::Float3::new(x, y, z),
+    }
+}
+
+pub fn give_orders(orders: &[MoveOrder]) {
+    for order in orders {
+        let target = order.target;
+        let _ = spring::give_order_to_unit(
+            order.unit,
+            cmd::MOVE,
+            &[target.x, target.y, target.z],
+            0,
+            0,
+        );
+    }
+}
 
 fn distance(x1: f32, z1: f32, x2: f32, z2: f32) -> f32 {
     let dx = x1 - x2;
