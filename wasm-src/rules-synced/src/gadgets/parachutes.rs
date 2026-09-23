@@ -1,7 +1,7 @@
 use spring_addons::rules::Gadget;
 
 use crate::parachutes;
-use crate::state::{DestroyRequest, Global};
+use crate::state::Global;
 
 /// Parachute cleanup, ported from `unit_parachute_remover.lua`.
 #[derive(Default)]
@@ -20,13 +20,9 @@ impl Gadget<Global> for ParachutesGadget {
 
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, _frame: i32) {
         let landed = parachutes::update_parachutes(&ctx.global().units.access().parachutes);
-        ctx.global()
-            .pending
-            .access_mut()
-            .destroys
-            .extend(landed.into_iter().map(|id| DestroyRequest {
-                id,
-                reclaimed: true,
-            }));
+        let mut pending = ctx.global().pending.access_mut();
+        for id in landed {
+            pending.destroy(id, true);
+        }
     }
 }

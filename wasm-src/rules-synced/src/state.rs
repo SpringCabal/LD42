@@ -124,6 +124,16 @@ pub struct Pending {
     pub destroys: Vec<DestroyRequest>,
 }
 
+impl Pending {
+    /// Queue a unit for destruction once; several gadgets can condemn the
+    /// same unit in one frame (a drowning Eskimo also runs out of health).
+    pub fn destroy(&mut self, id: i32, reclaimed: bool) {
+        if !self.destroys.iter().any(|request| request.id == id) {
+            self.destroys.push(DestroyRequest { id, reclaimed });
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 pub struct DestroyRequest {
     pub id: i32,
@@ -173,14 +183,10 @@ pub fn initialize(global: &Global) {
     // Queue the same reclaimed destruction so stale buildings or units cannot
     // retain their map teams and appear alongside the authored expedition.
     if let Ok(units) = spring::get_all_units() {
-        global
-            .pending
-            .access_mut()
-            .destroys
-            .extend(units.into_iter().map(|id| DestroyRequest {
-                id,
-                reclaimed: true,
-            }));
+        let mut pending = global.pending.access_mut();
+        for id in units {
+            pending.destroy(id, true);
+        }
     }
     let economy = {
         let mut economy = global.economy.access_mut();

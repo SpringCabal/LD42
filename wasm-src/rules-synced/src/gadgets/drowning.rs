@@ -1,7 +1,7 @@
 use spring_addons::rules::Gadget;
 
 use crate::drowning;
-use crate::state::{DestroyRequest, Global};
+use crate::state::Global;
 
 /// Drowning, ported from `unit_drown_eskimos.lua`.
 #[derive(Default)]
@@ -20,13 +20,9 @@ impl Gadget<Global> for DrowningGadget {
 
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, _frame: i32) {
         let dead = drowning::update_drowning(&ctx.global().units.access());
-        ctx.global()
-            .pending
-            .access_mut()
-            .destroys
-            .extend(dead.into_iter().map(|id| DestroyRequest {
-                id,
-                reclaimed: false,
-            }));
+        let mut pending = ctx.global().pending.access_mut();
+        for id in dead {
+            pending.destroy(id, false);
+        }
     }
 }

@@ -703,6 +703,16 @@ pub fn request_drowning(unit: i32) {
     });
 }
 
+/// Keep a unit queued for attach only while it is still alive; units that
+/// died before their script attached would otherwise be retried forever.
+fn retry_if_alive(unit: i32, def: i32) {
+    let alive = spring::valid_unit_id(unit).unwrap_or(false)
+        && !spring::get_unit_is_dead(unit).unwrap_or(true);
+    if alive {
+        queue_unit_created(unit, def);
+    }
+}
+
 #[derive(Default)]
 pub struct MyCubeCusModule {
     registry: CusRegistry<MyCubeUnitScript>,
@@ -722,7 +732,7 @@ impl MyCubeCusModule {
                 continue;
             }
             let Ok(pieces) = spring::get_unit_piece_map(unit_id) else {
-                queue_unit_created(unit_id, def);
+                retry_if_alive(unit_id, def);
                 continue;
             };
             let root = spring::get_unit_root_piece(unit_id)
@@ -750,7 +760,7 @@ impl MyCubeCusModule {
             } else {
                 self.handles.remove(&instance);
                 let _ = self.registry.detach(handle);
-                queue_unit_created(unit_id, def);
+                retry_if_alive(unit_id, def);
             }
         }
     }
@@ -759,8 +769,10 @@ impl MyCubeCusModule {
         let pending = PENDING_DROWNING.with(|units| core::mem::take(&mut *units.borrow_mut()));
         for unit_id in pending {
             let instance = instance_id(UnitId(unit_id));
+            // Drowning is requested again on every frame the unit is in
+            // water, so a unit without a script yet (or any more) can be
+            // dropped.
             let Some(handle) = self.handles.get(&instance).copied() else {
-                PENDING_DROWNING.with(|units| units.borrow_mut().push(unit_id));
                 continue;
             };
             self.sync_instance_frame(handle);

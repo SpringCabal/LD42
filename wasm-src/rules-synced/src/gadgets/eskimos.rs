@@ -1,7 +1,7 @@
 use spring_addons::rules::Gadget;
 
 use crate::eskimos;
-use crate::state::{DestroyRequest, Global};
+use crate::state::Global;
 
 /// Eskimo food/heat/health bookkeeping, ported from `unit_eskimos.lua`.
 #[derive(Default)]
@@ -23,13 +23,9 @@ impl Gadget<Global> for EskimosGadget {
             &mut ctx.global().units.access_mut(),
             &mut ctx.global().economy.access_mut(),
         );
-        ctx.global()
-            .pending
-            .access_mut()
-            .destroys
-            .extend(dead.into_iter().map(|id| DestroyRequest {
-                id,
-                reclaimed: false,
-            }));
+        let mut pending = ctx.global().pending.access_mut();
+        for id in dead {
+            pending.destroy(id, false);
+        }
     }
 }

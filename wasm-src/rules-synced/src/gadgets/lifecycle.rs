@@ -1,5 +1,3 @@
-use core::cell::Cell;
-
 use spring_addons::rules::{Gadget, UnitDestroyedEvent};
 
 use crate::health;
@@ -10,35 +8,17 @@ use crate::unit_scripts;
 use crate::units::set_eskimo_needs;
 
 #[derive(Default)]
-pub struct LifecycleGadget {
-    swept: Cell<bool>,
-}
+pub struct LifecycleGadget;
 
 impl LifecycleGadget {
     pub fn new() -> Self {
-        Self::default()
+        Self
     }
 }
 
 impl Gadget<Global> for LifecycleGadget {
     fn name(&self) -> &'static str {
         "Lifecycle"
-    }
-
-    fn game_frame(&self, _ctx: &spring_addons::AddonContext<'_, Global>, _frame: i32) {
-        // Map-authored units exist before the Core rules module receives its
-        // first UnitCreated callin. Queue them once so their CUS instances
-        // are attached just like units spawned by the Rust story.
-        if self.swept.replace(true) {
-            return;
-        }
-        if let Ok(units) = spring::get_all_units() {
-            for id in units {
-                if let Ok(def) = spring::get_unit_def_id(id) {
-                    unit_scripts::queue_unit_created(id, def.0);
-                }
-            }
-        }
     }
 
     fn unit_created(
