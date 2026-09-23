@@ -1,11 +1,14 @@
 use alloc::format;
 use core::cell::RefCell;
 
-use crate::state::{Economy, Global, Story, Units};
+use crate::defs::{self, UnitKind};
+use crate::drills::Drills;
+use crate::state::{Economy, GameEnd, Global, Story, Village};
 
 struct Snapshot<'a> {
     economy: &'a mut Economy,
-    units: &'a mut Units,
+    village: &'a mut Village,
+    drills: &'a Drills,
     story: &'a mut Story,
 }
 
@@ -44,11 +47,13 @@ pub fn update(global: &Global, frame: i32) {
     // duration of the check, which is safe here because nothing below issues a
     // callout that re-enters a callin wanting them.
     let mut economy = global.economy.access_mut();
-    let mut units = global.units.access_mut();
+    let mut village = global.village.access_mut();
+    let drills = global.drills.access();
     let mut story = global.story.access_mut();
     let state = &mut Snapshot {
         economy: &mut economy,
-        units: &mut units,
+        village: &mut village,
+        drills: &drills,
         story: &mut story,
     };
     TRACKER.with_borrow_mut(|t| {
@@ -56,16 +61,16 @@ pub fn update(global: &Global, frame: i32) {
             return;
         }
         if frame == 15 {
-            check(t, state.story.initialized, "resource state initialized");
+            check(t, state.story.started, "resource state initialized");
             check(
                 t,
-                state.units.eskimos.len() == 10,
+                state.village.eskimos.len() == 10,
                 "initial expedition has ten eskimos",
             );
             check(
                 t,
                 state
-                    .units
+                    .village
                     .eskimos
                     .iter()
                     .all(|eskimo| spring::get_unit_position(eskimo.id, false, false).is_ok()),
@@ -85,13 +90,7 @@ pub fn update(global: &Global, frame: i32) {
                 state.story.step >= 1,
                 "storyteller dispatched initial scenario",
             );
-            let scenery = crate::defs::def_id(crate::defs::UnitKind::Coalburner).and_then(|def| {
-                spring::get_all_units().ok()?.into_iter().find(|id| {
-                    spring::get_unit_def_id(*id)
-                        .ok()
-                        .is_some_and(|candidate| candidate.0 == def)
-                })
-            });
+            let scenery = units_of(UnitKind::Coalburner).first().copied();
             check(
                 t,
                 scenery.is_some_and(|id| {
@@ -114,14 +113,14 @@ pub fn update(global: &Global, frame: i32) {
             );
             check(
                 t,
-                state.units.eskimos.iter().all(|unit| {
+                state.village.eskimos.iter().all(|unit| {
                     spring::get_unit_rules_param_f32(unit.id, "health").is_ok_and(|hp| hp > 0.0)
                 }),
                 "initial expedition survives early hunger/heat tick",
             );
             check(
                 t,
-                state.units.eskimos.iter().any(|unit| unit.food < 90.0),
+                state.village.eskimos.iter().any(|unit| unit.food < 90.0),
                 "hunger simulation consumes individual food",
             );
             check(
@@ -146,8 +145,8 @@ pub fn update(global: &Global, frame: i32) {
             // Hit the first Eskimo through the same UnitPreDamaged path the
             // engine uses; frame 53 checks the loss survived the Eskimo
             // needs updates in between.
-            t.combat = state.units.eskimos.first().and_then(|eskimo| {
-                let def = crate::defs::def_id(crate::defs::UnitKind::Eskimo)?;
+            t.combat = state.village.eskimos.first().and_then(|eskimo| {
+                let def = defs::def_id(UnitKind::Eskimo)?;
                 let health_before = spring::get_unit_rules_param_f32(eskimo.id, "health").ok()?;
                 let result = crate::health::unit_pre_damaged(eskimo.id, def);
                 Some((eskimo.id, health_before, result.new_damage))
@@ -166,7 +165,7 @@ pub fn update(global: &Global, frame: i32) {
             );
         }
         if frame == 48
-            && let Some(eskimo) = state.units.eskimos.first_mut()
+            && let Some(eskimo) = state.village.eskimos.first_mut()
         {
             // Drive the EATING state across multiple frames.
             eskimo.food = 19.0;
@@ -176,7 +175,7 @@ pub fn update(global: &Global, frame: i32) {
         if frame == 55 {
             check(
                 t,
-                state.units.eskimos.first().is_some_and(|eskimo| {
+                state.village.eskimos.first().is_some_and(|eskimo| {
                     eskimo.eating && eskimo.food > 20.0 && state.economy.food < 100.0
                 }),
                 "hungry Eskimo remains in the authored eating state across multiple frames",
@@ -185,7 +184,7 @@ pub fn update(global: &Global, frame: i32) {
         if frame == 140 {
             check(
                 t,
-                state.units.parachutes.iter().any(|id| {
+                units_of(UnitKind::Parachute).iter().any(|id| {
                     let Ok(position) = spring::get_unit_position(*id, false, false) else {
                         return false;
                     };
@@ -198,7 +197,7 @@ pub fn update(global: &Global, frame: i32) {
         if frame == 500 {
             check(
                 t,
-                state.units.drills.iter().any(|ship| ship.has_order),
+                state.drills.ships.iter().any(|ship| ship.has_order),
                 "drillships acquire an ice movement target",
             );
         }
@@ -224,7 +223,7 @@ pub fn update(global: &Global, frame: i32) {
         if frame == 475 {
             check(
                 t,
-                state.story.victory,
+                state.story.game_end == Some(GameEnd::Victory),
                 "storyteller terminal branch publishes victory state",
             );
             check(
@@ -243,7 +242,7 @@ pub fn update(global: &Global, frame: i32) {
         if frame == 1000 {
             check(
                 t,
-                state.units.parachutes.is_empty(),
+                units_of(UnitKind::Parachute).is_empty(),
                 "landed parachutes are reclaimed instead of left on the map",
             );
         }
@@ -274,4 +273,12 @@ pub fn trade_location() -> Option<(f32, f32)> {
     }
     best.filter(|(_, _, ground)| *ground > 0.0)
         .map(|(x, z, _)| (x, z))
+}
+
+fn units_of(kind: UnitKind) -> alloc::vec::Vec<i32> {
+    spring::get_all_units()
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|id| spring::get_unit_def_id(*id).is_ok_and(|def| defs::kind(def.0) == Some(kind)))
+        .collect()
 }

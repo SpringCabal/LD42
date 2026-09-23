@@ -25,9 +25,26 @@ impl Default for Meters {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GameEnd {
+    Victory,
+    Loss,
+}
+
+impl GameEnd {
+    /// The rules' name for a game end; anything else means still playing.
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "victory" => Some(Self::Victory),
+            "loss" => Some(Self::Loss),
+            _ => None,
+        }
+    }
+}
+
 /// Screen state: the scripted intro text and the end-game banner.
 pub struct Hud {
-    pub game_end: String,
+    pub game_end: Option<GameEnd>,
     pub end_frame: Option<i32>,
     pub intro: String,
     pub intro_frame: i32,
@@ -36,7 +53,7 @@ pub struct Hud {
 impl Default for Hud {
     fn default() -> Self {
         Self {
-            game_end: String::new(),
+            game_end: None,
             end_frame: None,
             intro: String::new(),
             intro_frame: -1_000,

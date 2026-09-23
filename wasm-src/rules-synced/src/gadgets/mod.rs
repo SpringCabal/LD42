@@ -5,13 +5,12 @@ pub mod game_end;
 pub mod health;
 #[cfg(feature = "headless-integration")]
 pub mod integration;
-pub mod lifecycle;
 pub mod parachutes;
-pub mod reaper;
 pub mod setup;
 pub mod status;
 pub mod storyteller;
 pub mod trade;
+pub mod unit_scripts;
 pub mod untargetable;
 
 pub use drills::DrillsGadget;
@@ -21,11 +20,10 @@ pub use game_end::GameEndGadget;
 pub use health::HealthGadget;
 #[cfg(feature = "headless-integration")]
 pub use integration::IntegrationGadget;
-pub use lifecycle::LifecycleGadget;
 pub use parachutes::ParachutesGadget;
-pub use reaper::ReaperGadget;
 pub use setup::{SetupGadget, setup};
 pub use status::StatusGadget;
 pub use storyteller::StorytellerGadget;
 pub use trade::TradeGadget;
+pub use unit_scripts::UnitScriptsGadget;
 pub use untargetable::UntargetableGadget;

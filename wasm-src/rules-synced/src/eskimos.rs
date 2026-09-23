@@ -4,7 +4,7 @@ use alloc::vec::Vec;
 
 use spring::rules_params::los::PUBLIC;
 
-use crate::state::{self, Economy, Eskimo, FRAMES_PER_SECOND, Units};
+use crate::state::{Economy, Eskimo, FRAMES_PER_SECOND, Village};
 use crate::units::set_eskimo_needs;
 
 const FPS: f32 = FRAMES_PER_SECOND as f32;
@@ -20,15 +20,15 @@ const FREEZING_HEALTH_DECAY: f32 = 1.0 / FPS;
 const STARVING_HEALTH_DECAY: f32 = 0.2 / FPS;
 
 /// Runs every frame, like `unit_eskimos.lua`'s GameFrame.
-pub fn update_eskimos(units: &mut Units, economy: &mut Economy) -> Vec<i32> {
-    let burner_positions: Vec<spring::Float3> = units
+pub fn update_eskimos(village: &mut Village, economy: &mut Economy) -> Vec<i32> {
+    let burner_positions: Vec<spring::Float3> = village
         .burners
         .iter()
         .filter_map(|id| spring::get_unit_position(*id, false, false).ok())
         .collect();
-    let sync_lane = units.eskimo_sync_cursor;
+    let sync_lane = village.sync_lane;
     let mut dead = Vec::new();
-    for (index, eskimo) in units.eskimos.iter_mut().enumerate() {
+    for (index, eskimo) in village.eskimos.iter_mut().enumerate() {
         let near_burner = spring::get_unit_position(eskimo.id, false, false)
             .ok()
             .is_some_and(|position| {
@@ -68,8 +68,7 @@ pub fn update_eskimos(units: &mut Units, economy: &mut Economy) -> Vec<i32> {
             set_eskimo_needs(eskimo.id, eskimo.food, eskimo.heat);
         }
     }
-    units.eskimo_sync_cursor = (sync_lane + 1) % 5;
-    state::publish_resources(economy);
+    village.sync_lane = (sync_lane + 1) % 5;
     dead
 }
 

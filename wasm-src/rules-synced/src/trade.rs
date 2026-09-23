@@ -1,8 +1,11 @@
 //! Ice harvesting and the resource trade, ported from `game_trade.lua` and
 //! the message half of `ui_modes.lua`.
 
-use crate::state::{self, Economy};
+use crate::state::{Economy, Supply};
 use crate::{ice, terrain};
+
+/// Money for a load of coal or food (`ui_modes.lua`).
+const PURCHASE_PRICE: f32 = 50.0;
 
 pub fn handle_message(economy: &mut Economy, data: &[u8]) {
     let Ok(message) = core::str::from_utf8(data) else {
@@ -15,25 +18,21 @@ pub fn handle_message(economy: &mut Economy, data: &[u8]) {
             .and_then(|value| value.parse::<i32>().ok())
             .unwrap_or(-1)
         {
-            1 => state::f32_param("uiMode", 1.0),
-            2 if state::consume(economy, "money", 50.0) => {
-                state::add(economy, "heat", 100.0);
-                state::f32_param("uiMode", -1.0);
+            2 if economy.consume(Supply::Money, PURCHASE_PRICE) => {
+                economy.add(Supply::Heat, 100.0);
             }
-            3 if state::consume(economy, "money", 50.0) => {
-                state::add(economy, "food", 100.0);
-                state::f32_param("uiMode", -1.0);
+            3 if economy.consume(Supply::Money, PURCHASE_PRICE) => {
+                economy.add(Supply::Food, 100.0);
             }
-            _ => state::f32_param("uiMode", -1.0),
+            // MODE|1 (sell ice) is a UI mode; the sale arrives as TRADE.
+            _ => {}
         },
         Some("TRADE") => {
             let x = fields.next().and_then(|value| value.parse::<f32>().ok());
             let z = fields.next().and_then(|value| value.parse::<f32>().ok());
             if let (Some(x), Some(z)) = (x, z) {
-                let value = harvest_ice(x, z);
-                state::add(economy, "money", value);
+                economy.add(Supply::Money, harvest_ice(x, z));
             }
-            state::f32_param("uiMode", -1.0);
         }
         _ => {}
     }

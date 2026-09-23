@@ -5,7 +5,8 @@ use alloc::{string::String, vec::Vec};
 use spring::Float3;
 
 use crate::defs::UnitKind::{self, *};
-use crate::state::{FRAMES_PER_SECOND, SpawnRequest, Story, story_game_end, text_param};
+use crate::spawning::SpawnRequest;
+use crate::state::{FRAMES_PER_SECOND, GameEnd, Story};
 
 pub fn run_story(state: &mut Story, frame: i32) -> Vec<SpawnRequest> {
     if frame < state.next_step {
@@ -49,16 +50,11 @@ pub fn run_story(state: &mut Story, frame: i32) -> Vec<SpawnRequest> {
         14 => ("The ice...", &[][..], 0, 3),
         15 => ("", &DRILLS_5[..], 1, 160),
         _ => {
-            if state.game_end == "loss" {
-                return Vec::new();
-            }
-            state.victory = true;
-            story_game_end(state, "victory", frame);
+            state.end_game(GameEnd::Victory, frame);
             return Vec::new();
         }
     };
     if !message.is_empty() {
-        text_param("introEvent", message);
         state.intro_event = String::from(message);
     }
     let mut requests = Vec::with_capacity(units.len());

@@ -2,8 +2,35 @@
 
 use alloc::vec::Vec;
 
-use crate::state::{DrillShip, Terrain, Units};
-use crate::terrain::{self, ICE_HEIGHT, SQUARE_SIZE};
+use alloc::collections::VecDeque;
+
+use crate::terrain::{self, ICE_HEIGHT, SQUARE_SIZE, TerrainJob};
+
+/// A drill ship and its search for ice, like the Lua drill gadget's
+/// per-ship table. The search cursor persists between checks because Core
+/// height queries are metered, while the Lua gadget scans the whole map at
+/// once.
+#[derive(Clone, Copy, Default)]
+pub struct DrillShip {
+    pub id: i32,
+    pub has_order: bool,
+    pub order_x: f32,
+    pub order_z: f32,
+    pub search_initialized: bool,
+    pub search_center_x: i32,
+    pub search_center_z: i32,
+    pub search_radius: i32,
+    pub search_side: u8,
+    pub search_offset: i32,
+    pub search_complete: bool,
+}
+
+/// The drill ships and the craters they are digging.
+#[derive(Default)]
+pub struct Drills {
+    pub ships: Vec<DrillShip>,
+    pub jobs: VecDeque<TerrainJob>,
+}
 
 const SEARCH_STEP: i32 = 64;
 
@@ -16,17 +43,17 @@ pub struct MoveOrder {
 
 /// Queue a crater under every drill ship and pick new ice targets for the
 /// ships that have run out. Returns the move orders to give.
-pub fn update_drills(units: &mut Units, terrain: &mut Terrain) -> Vec<MoveOrder> {
+pub fn update_drills(drills: &mut Drills) -> Vec<MoveOrder> {
     let mut orders = Vec::new();
 
-    for drill_ship in &mut units.drills {
+    for drill_ship in &mut drills.ships {
         let id = drill_ship.id;
         let Some(hull) = spring::get_unit_position(id, false, false).ok() else {
             continue;
         };
         // Lua drills under the animated `icemine` piece; the hull origin is
         // close enough and avoids a piece-map query per ship.
-        terrain::queue_terrain_job(terrain, hull.x, hull.z, 250, 2.0);
+        terrain::queue_terrain_job(&mut drills.jobs, hull.x, hull.z, 250, 2.0);
 
         // The original drill gadget is autonomous: once it has exhausted the
         // ice immediately around its hull it searches outward and issues a

@@ -5,13 +5,22 @@
 //! while the trade path, which is a one-off player action, still runs eagerly.
 
 pub use crate::ice::{SQUARE_SIZE, round_to_square};
-use crate::state::{self, Terrain};
+use alloc::collections::VecDeque;
+
+/// A crater being dug over several frames.
+pub struct TerrainJob {
+    start_x: f32,
+    start_z: f32,
+    size: i32,
+    amount: f32,
+    next_cell: usize,
+}
 
 /// Terrain above this height still counts as ice for the drills.
 pub const ICE_HEIGHT: f32 = -1.0;
 
-pub fn queue_terrain_job(terrain: &mut Terrain, x: f32, z: f32, size: i32, amount: f32) {
-    terrain.jobs.push_back(state::TerrainJob {
+pub fn queue_terrain_job(jobs: &mut VecDeque<TerrainJob>, x: f32, z: f32, size: i32, amount: f32) {
+    jobs.push_back(TerrainJob {
         start_x: round_to_square(x - size as f32 / 2.0),
         start_z: round_to_square(z - size as f32 / 2.0),
         size,
@@ -20,7 +29,7 @@ pub fn queue_terrain_job(terrain: &mut Terrain, x: f32, z: f32, size: i32, amoun
     });
 }
 
-pub fn process_terrain_jobs(terrain: &mut Terrain) {
+pub fn process_terrain_jobs(jobs: &mut VecDeque<TerrainJob>) {
     // One SetHeightMapFunc callback is considerably cheaper than one host
     // call per sample, but keep each callback bounded so a late wave of ships
     // cannot monopolize a GameFrame. Four 256-sample slices complete an
@@ -31,7 +40,7 @@ pub fn process_terrain_jobs(terrain: &mut Terrain) {
 
     for _ in 0..JOBS_PER_FRAME {
         let Some((start_x, start_z, size, amount, first, last, cell_count)) =
-            terrain.jobs.front().map(|job| {
+            jobs.front().map(|job| {
                 let cells_per_side = (job.size / SQUARE_SIZE + 1) as usize;
                 let cell_count = cells_per_side * cells_per_side;
                 (
@@ -49,18 +58,18 @@ pub fn process_terrain_jobs(terrain: &mut Terrain) {
         };
 
         if first >= cell_count {
-            terrain.jobs.pop_front();
+            jobs.pop_front();
             continue;
         }
 
         if !apply_terrain_cells(start_x, start_z, size, amount, first, last) {
             break;
         }
-        if let Some(job) = terrain.jobs.front_mut() {
+        if let Some(job) = jobs.front_mut() {
             job.next_cell = last;
         }
         if last >= cell_count {
-            terrain.jobs.pop_front();
+            jobs.pop_front();
         }
     }
 }

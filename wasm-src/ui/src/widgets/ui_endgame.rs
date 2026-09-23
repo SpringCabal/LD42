@@ -1,6 +1,6 @@
 use spring_addons::ui::Widget;
 
-use crate::state::{Global, current_frame};
+use crate::state::{GameEnd, Global, current_frame};
 
 /// The victory banner, ported from `ui_endgame.lua`.
 #[derive(Default)]
@@ -19,9 +19,9 @@ impl Widget<Global> for UiEndgameWidget {
 
     fn draw_screen(&self, ctx: &spring_addons::AddonContext<'_, Global>, width: i32, height: i32) {
         let hud = ctx.global().hud.access();
-        if hud.game_end.is_empty() {
+        let Some(game_end) = hud.game_end else {
             return;
-        }
+        };
 
         // A centred card, clear of the resource meters at the bottom.
         let card_width = 460.0;
@@ -38,10 +38,9 @@ impl Widget<Global> for UiEndgameWidget {
             card_y + card_height,
         );
 
-        let title = if hud.game_end == "loss" {
-            "Game Over"
-        } else {
-            "Victory!"
+        let title = match game_end {
+            GameEnd::Loss => "Game Over",
+            GameEnd::Victory => "Victory!",
         };
         let end_frame = hud.end_frame.unwrap_or_else(current_frame);
         let survival_seconds = end_frame.max(0) / crate::state::FRAMES_PER_SECOND;
