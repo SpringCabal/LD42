@@ -243,11 +243,10 @@ impl Widget<Global> for GuiKeybindsWidget {
             return EventResult::Handled;
         }
         if event.ctrl && event.matches("q") {
-            let _ = spring::log("mycube-ui", 30, "MYCUBE_RETURN_TO_WASM_MENU");
-            // `system_control::quit` terminates the engine process. The Lua
-            // keybind uses `quitforce`, which is the engine command handled
-            // by run-wasm.sh as a return to its menu loop.
-            let _ = spring::send_commands("quitforce", "");
+            // Same as the Lua keybind (ctrl+q reloadforce): reload into the
+            // menu in-process.  `quitforce` ended the whole process, which only
+            // looked like a return to the menu when run-wasm.sh relaunched it.
+            let _ = spring::send_commands("reloadforce", "");
             return EventResult::Handled;
         }
         let message = if event.matches("1") {
