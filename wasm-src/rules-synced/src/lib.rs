@@ -17,6 +17,9 @@ pub mod spawning;
 pub mod state;
 pub mod story;
 pub mod terrain;
+#[cfg(feature = "headless-integration")]
+#[path = "../../common/test_sites.rs"]
+pub mod test_sites;
 pub mod trade;
 pub mod unit_scripts;
 pub mod units;

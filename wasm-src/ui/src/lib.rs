@@ -7,6 +7,9 @@ pub mod ice;
 pub mod round;
 pub mod rules;
 pub mod state;
+#[cfg(feature = "headless-integration")]
+#[path = "../../common/test_sites.rs"]
+pub mod test_sites;
 pub mod widgets;
 
 spring_addons::export_ui_widgets! {

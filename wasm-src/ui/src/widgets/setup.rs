@@ -42,5 +42,5 @@ pub fn setup(handler: &mut WidgetHandler<Global>) {
     #[cfg(feature = "e2e")]
     register_widgets!(handler, [dbg_e2e()]);
     #[cfg(feature = "headless-integration")]
-    register_widgets!(handler, [DbgRestartWidget::new()]);
+    register_widgets!(handler, [DbgUiMessagesWidget::new()]);
 }

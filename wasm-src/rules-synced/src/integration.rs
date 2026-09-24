@@ -12,6 +12,7 @@ use springcabal::check::Suite;
 
 use crate::defs::{self, UnitKind};
 use crate::state::{GameEnd, Global};
+use crate::test_sites::{trade_location, water_location};
 
 /// Checks that must pass; fewer means the run skipped some.
 const EXPECTED_CHECKS: u32 = 29;
@@ -20,7 +21,7 @@ const EXPECTED_CHECKS: u32 = 29;
 /// the attacker's gameplay damage and lets none of it through.
 const ENGINE_HIT: f32 = 5.0;
 
-/// The UI's test widget asks for a restart at frame 1005; give up on it
+/// The UI's test driver asks for a restart at frame 1005; give up on it
 /// after this frame.
 const RESTART_DEADLINE: i32 = 1100;
 
@@ -398,7 +399,7 @@ impl Tracker {
         );
     }
 
-    /// The UI's test widget restarts the round the way Ctrl+R does. Check
+    /// The UI's test driver restarts the round the way Ctrl+R does. Check
     /// the new round, then lose it.
     fn update_second_round(&mut self, global: &Global, frame: i32) {
         let Some(start) = self.restart.or_else(|| {
@@ -498,34 +499,6 @@ fn eskimo_ids(global: &Global) -> Vec<i32> {
         .iter()
         .map(|eskimo| eskimo.id)
         .collect()
-}
-
-/// The highest point on a 512-elmo grid: the ice, for the trade check.
-pub fn trade_location() -> Option<(f32, f32)> {
-    grid_extreme(|ground, best| ground > best)
-        .filter(|(_, _, ground)| *ground > 0.0)
-        .map(|(x, z, _)| (x, z))
-}
-
-/// The lowest point on the same grid: the sea, for the drowning check.
-fn water_location() -> Option<(f32, f32)> {
-    grid_extreme(|ground, best| ground < best)
-        .filter(|(_, _, ground)| *ground < 0.0)
-        .map(|(x, z, _)| (x, z))
-}
-
-fn grid_extreme(better: impl Fn(f32, f32) -> bool) -> Option<(f32, f32, f32)> {
-    let (width, height) = spring::game::map_size_elmos().ok()?;
-    let mut best: Option<(f32, f32, f32)> = None;
-    for x in (256..width).step_by(512usize) {
-        for z in (256..height).step_by(512usize) {
-            let ground = spring::get_ground_height(x as f32, z as f32).ok()?;
-            if best.is_none_or(|(_, _, current)| better(ground, current)) {
-                best = Some((x as f32, z as f32, ground));
-            }
-        }
-    }
-    best
 }
 
 fn units_of(kind: UnitKind) -> Vec<i32> {
