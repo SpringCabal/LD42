@@ -87,7 +87,11 @@ impl ShipScript {
     }
 
     /// `startIcedrill(1.0, math.random(10, 30))` / `stopIcedrill(1.0)`.
+    /// A repeated call does nothing.
     pub(super) fn set_active(&mut self, ctx: &UnitCtx, active: bool) {
+        if self.mining.borrow().active == active {
+            return;
+        }
         if active {
             self.start_drill(ctx);
         } else {

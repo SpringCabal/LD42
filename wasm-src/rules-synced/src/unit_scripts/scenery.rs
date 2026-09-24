@@ -15,6 +15,8 @@ pub(super) struct CoalburnerScript {
     heaters: Vec<Piece>,
     firecycle: Vec<Piece>,
     inards: Piece,
+    /// Whether the burner is on (Activate), so a repeated call does nothing.
+    lit: bool,
 }
 
 impl CoalburnerScript {
@@ -24,6 +26,7 @@ impl CoalburnerScript {
             heaters: matching_pieces(map, "Heater"),
             firecycle: matching_pieces(map, "firecycle"),
             inards: piece_in(map, "Inards"),
+            lit: false,
         }
     }
 
@@ -32,7 +35,16 @@ impl CoalburnerScript {
         self.set_heat(ctx, 0.0);
     }
 
-    pub(super) fn set_heat(&mut self, ctx: &UnitCtx, factor: f32) {
+    /// Activate / Deactivate: full heat or none.
+    pub(super) fn set_lit(&mut self, ctx: &UnitCtx, lit: bool) {
+        if self.lit == lit {
+            return;
+        }
+        self.lit = lit;
+        self.set_heat(ctx, if lit { 1.0 } else { 0.0 });
+    }
+
+    fn set_heat(&mut self, ctx: &UnitCtx, factor: f32) {
         hide_all(ctx, &self.heaters);
         hide_all(ctx, &self.firecycle);
         ctx.hide(self.inards);

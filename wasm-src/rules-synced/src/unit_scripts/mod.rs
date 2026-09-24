@@ -114,7 +114,8 @@ impl UnitScript for MyCubeUnitScript {
         // Create runs once the rules callin that created the unit has
         // returned. An activateWhenBuilt unit was activated before that,
         // while the module was busy, so the engine could not deliver its
-        // Activate; deliver it now.
+        // Activate; deliver it now. Should the engine queue that Activate
+        // instead (engine TODO §2), the scripts ignore the second one.
         if spring::units_info::get_unit_is_active(ctx.unit().0).unwrap_or(false) {
             self.activate(ctx);
         }
@@ -142,7 +143,7 @@ impl UnitScript for MyCubeUnitScript {
 
     fn activate(&mut self, ctx: &UnitCtx) {
         match self {
-            Self::Coalburner(script) => script.set_heat(ctx, 1.0),
+            Self::Coalburner(script) => script.set_lit(ctx, true),
             Self::Drillship(script) => script.set_active(ctx, true),
             _ => {}
         }
@@ -150,7 +151,7 @@ impl UnitScript for MyCubeUnitScript {
 
     fn deactivate(&mut self, ctx: &UnitCtx) {
         match self {
-            Self::Coalburner(script) => script.set_heat(ctx, 0.0),
+            Self::Coalburner(script) => script.set_lit(ctx, false),
             Self::Drillship(script) => script.set_active(ctx, false),
             _ => {}
         }
