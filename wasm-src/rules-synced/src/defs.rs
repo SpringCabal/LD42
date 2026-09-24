@@ -10,6 +10,8 @@ pub enum UnitKind {
     Drillship,
     Eskimo,
     Iglu,
+    /// The second iglu model. Its Lua script, `igluscript2.lua`, is empty.
+    Iglu2,
     Lantern,
     Parachute,
     Pirate,
@@ -21,9 +23,10 @@ impl UnitKind {
         matches!(self, Self::Coalburner | Self::Iglu | Self::Lantern)
     }
 
-    /// Parachutes have no unit script (`parachut.lua` does not exist).
+    /// Parachutes and the second iglu have no unit script (`parachut.lua`
+    /// does not exist, `igluscript2.lua` is empty).
     pub const fn has_script(self) -> bool {
-        !matches!(self, Self::Parachute)
+        !matches!(self, Self::Parachute | Self::Iglu2)
     }
 
     /// The def the story spawns for this kind.
@@ -33,6 +36,7 @@ impl UnitKind {
             Self::Drillship => "drillship",
             Self::Eskimo => "eskimo",
             Self::Iglu => "iglu",
+            Self::Iglu2 => "iglu2",
             Self::Lantern => "lantern",
             Self::Parachute => "parachut",
             Self::Pirate => "pirate",
@@ -40,13 +44,13 @@ impl UnitKind {
     }
 }
 
-/// Every def name with its kind; `iglu2` is a second iglu model.
+/// Every def name with its kind.
 const DEF_NAMES: [(&str, UnitKind); 8] = [
     ("coalburner", UnitKind::Coalburner),
     ("drillship", UnitKind::Drillship),
     ("eskimo", UnitKind::Eskimo),
     ("iglu", UnitKind::Iglu),
-    ("iglu2", UnitKind::Iglu),
+    ("iglu2", UnitKind::Iglu2),
     ("lantern", UnitKind::Lantern),
     ("parachut", UnitKind::Parachute),
     ("pirate", UnitKind::Pirate),

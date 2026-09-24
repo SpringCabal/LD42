@@ -6,7 +6,6 @@ use spring::cus::{Angle, AngularSpeed, Axis, Piece, UnitCtx};
 pub(super) const SIG_WALK: spring::cus::SignalMask = spring::cus::SignalMask::new(1);
 pub(super) const SIG_IDLE: spring::cus::SignalMask = spring::cus::SignalMask::new(2);
 pub(super) const SIG_AIM: spring::cus::SignalMask = spring::cus::SignalMask::new(4);
-pub(super) const SIG_SHIP: spring::cus::SignalMask = spring::cus::SignalMask::new(8);
 
 pub(super) type PieceMap = [spring::owned::units_pieces::PieceMapEntry];
 
@@ -89,25 +88,49 @@ pub(super) fn all_named_pieces(map: &PieceMap) -> Vec<Piece> {
     map.iter().map(|entry| Piece(entry.piece_num - 1)).collect()
 }
 
-pub(super) fn matching_pieces(map: &PieceMap, prefix: &str) -> Vec<Piece> {
-    let mut matches = map
+/// The group and number of a piece named like `Build3` or `Deco005`, the way
+/// Lua's `getPieceTableByNameGroups` splits names: the trailing digits are
+/// the number, the rest is the group. Pieces without a number are in none.
+fn group_and_number(name: &str) -> Option<(&str, u32)> {
+    let group = name.trim_end_matches(|character: char| character.is_ascii_digit());
+    let number = name[group.len()..].parse().ok()?;
+    Some((group, number))
+}
+
+/// `TableOfPieceGroups[group]`: the pieces of a group with their numbers,
+/// in number order (Lua keys the table by number).
+pub(super) fn numbered_group(map: &PieceMap, group: &str) -> Vec<(u32, Piece)> {
+    let mut pieces = map
         .iter()
-        .filter(|entry| entry.name.starts_with(prefix))
-        .map(|entry| {
-            let suffix = &entry.name[prefix.len()..];
-            let number_end = suffix
-                .char_indices()
-                .find(|(_, character)| !character.is_ascii_digit())
-                .map_or(suffix.len(), |(index, _)| index);
-            let number = suffix[..number_end].parse::<u32>().unwrap_or(u32::MAX);
-            (number, entry.piece_num, Piece(entry.piece_num - 1))
+        .filter_map(|entry| {
+            let (name, number) = group_and_number(&entry.name)?;
+            (name == group).then_some((number, Piece(entry.piece_num - 1)))
         })
         .collect::<Vec<_>>();
-    // Lua's getPieceTableByNameGroups stores numbered pieces at their numeric
-    // indexes.  The engine map itself is hierarchical/model order, which is
-    // not necessarily the same order (the drillship is a notable example).
-    matches.sort_by_key(|(number, piece_num, _)| (*number, *piece_num));
-    matches.into_iter().map(|(_, _, piece)| piece).collect()
+    pieces.sort_by_key(|(number, piece)| (*number, piece.0));
+    pieces
+}
+
+/// The pieces of a group, in number order.
+pub(super) fn matching_pieces(map: &PieceMap, group: &str) -> Vec<Piece> {
+    numbered_group(map, group)
+        .into_iter()
+        .map(|(_, piece)| piece)
+        .collect()
+}
+
+/// Every piece that belongs to a numbered group, i.e. everything in Lua's
+/// `TableOfPieceGroups`.
+pub(super) fn grouped_pieces(map: &PieceMap) -> Vec<Piece> {
+    let mut pieces = map
+        .iter()
+        .filter_map(|entry| {
+            let (group, number) = group_and_number(&entry.name)?;
+            Some(((group, number), Piece(entry.piece_num - 1)))
+        })
+        .collect::<Vec<_>>();
+    pieces.sort_by_key(|(key, _)| *key);
+    pieces.into_iter().map(|(_, piece)| piece).collect()
 }
 
 pub(super) fn hide_all(ctx: &UnitCtx, pieces: &[Piece]) {

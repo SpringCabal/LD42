@@ -26,7 +26,7 @@ use spring::cus::{
 use self::common::set_scenery_state;
 use self::human::HumanScript;
 use self::scenery::{CoalburnerScript, IgluScript};
-use self::ship::ShipScript;
+use self::ship::{ShipScript, SinkingSoundLock};
 use crate::defs::{self, UnitKind};
 
 const RAW_START_DROWNING: i32 = 1;
@@ -34,7 +34,7 @@ const RAW_START_DROWNING: i32 = 1;
 fn capabilities(kind: UnitKind) -> ScriptCapabilities {
     let mut bits = ScriptCapabilities::KILLED | ScriptCapabilities::CREATE;
     match kind {
-        UnitKind::Coalburner | UnitKind::Drillship | UnitKind::Iglu => {
+        UnitKind::Coalburner | UnitKind::Drillship => {
             bits |= ScriptCapabilities::ACTIVATE | ScriptCapabilities::DEACTIVATE;
         }
         UnitKind::Eskimo | UnitKind::Pirate => {
@@ -46,7 +46,7 @@ fn capabilities(kind: UnitKind) -> ScriptCapabilities {
                 | ScriptCapabilities::AIM_FROM_WEAPON
                 | ScriptCapabilities::SHOT;
         }
-        UnitKind::Lantern | UnitKind::Parachute => {}
+        UnitKind::Iglu | UnitKind::Iglu2 | UnitKind::Lantern | UnitKind::Parachute => {}
     }
     ScriptCapabilities::new(bits)
 }
@@ -66,15 +66,22 @@ enum MyCubeUnitScript {
 }
 
 impl MyCubeUnitScript {
-    fn for_kind(kind: Option<UnitKind>, unit: UnitId, map: &common::PieceMap) -> Self {
+    fn for_kind(
+        kind: Option<UnitKind>,
+        unit: UnitId,
+        map: &common::PieceMap,
+        sinking_sound: &SinkingSoundLock,
+    ) -> Self {
         match kind {
             Some(UnitKind::Coalburner) => Self::Coalburner(CoalburnerScript::new(map)),
-            Some(UnitKind::Drillship) => Self::Drillship(ShipScript::new(map)),
+            Some(UnitKind::Drillship) => {
+                Self::Drillship(ShipScript::new(map, Rc::clone(sinking_sound)))
+            }
             Some(UnitKind::Eskimo) => Self::Human(HumanScript::new(unit, map, false)),
             Some(UnitKind::Pirate) => Self::Human(HumanScript::new(unit, map, true)),
             Some(UnitKind::Iglu) => Self::Iglu(IgluScript::new(map)),
             Some(UnitKind::Lantern) => Self::Lantern,
-            Some(UnitKind::Parachute) | None => Self::None,
+            Some(UnitKind::Iglu2 | UnitKind::Parachute) | None => Self::None,
         }
     }
 }
@@ -86,7 +93,7 @@ impl UnitScript for MyCubeUnitScript {
             .ok()
             .and_then(|def| defs::kind(def.0));
         let map = spring::get_unit_piece_map(unit.0).unwrap_or_default();
-        Self::for_kind(kind, unit, &map)
+        Self::for_kind(kind, unit, &map, &SinkingSoundLock::default())
     }
 
     fn create(&mut self, ctx: &UnitCtx) {
@@ -186,7 +193,11 @@ impl UnitScript for MyCubeUnitScript {
                 script.killed(ctx);
                 WreckLevel::One
             }
-            Self::Coalburner(_) | Self::Drillship(_) | Self::Lantern => WreckLevel::One,
+            Self::Drillship(script) => {
+                script.killed(ctx);
+                WreckLevel::One
+            }
+            Self::Coalburner(_) | Self::Lantern => WreckLevel::One,
             Self::None => WreckLevel::None,
         }
     }
@@ -205,6 +216,7 @@ const LOG_SECTION: &str = "mycube-cus";
 pub struct MyCubeCusModule {
     registry: CusRegistry<MyCubeUnitScript>,
     handles: BTreeMap<u32, CusHandle>,
+    sinking_sound: SinkingSoundLock,
 }
 
 impl MyCubeCusModule {
@@ -230,7 +242,7 @@ impl MyCubeCusModule {
                 return;
             }
         };
-        let script = MyCubeUnitScript::for_kind(Some(kind), unit, &pieces);
+        let script = MyCubeUnitScript::for_kind(Some(kind), unit, &pieces, &self.sinking_sound);
         let host = WasmCus::new(unit, instance);
         let engine = Rc::new(RefCell::new(host.engine()));
         let handle = self

@@ -6,7 +6,8 @@ use alloc::vec::Vec;
 use spring::cus::{Angle, AngularSpeed, Axis, Piece, SfxFlags, UnitCtx};
 
 use super::common::{
-    PieceMap, all_named_pieces, coin_flip, hide_all, matching_pieces, piece_in, show_all,
+    PieceMap, all_named_pieces, coin_flip, grouped_pieces, hide_all, matching_pieces,
+    numbered_group, piece_in, show_all,
 };
 
 pub(super) struct CoalburnerScript {
@@ -50,7 +51,7 @@ impl CoalburnerScript {
                 ctx.spin(
                     *piece,
                     Axis::X,
-                    AngularSpeed::radians_per_second(speed),
+                    AngularSpeed::degrees_per_second(speed),
                     AngularSpeed::radians_per_second(0.0),
                 );
             }
@@ -58,50 +59,71 @@ impl CoalburnerScript {
     }
 }
 
-pub(super) struct IgluScript {
-    all: Vec<Piece>,
-    build: Vec<Piece>,
+/// A numbered `Build` block of an iglu and the decorations that belong to
+/// it (`XY<n>Deco*` and `Y<n>Deco*`).
+struct IgluBlock {
+    piece: Piece,
     xy_deco: Vec<Piece>,
     y_deco: Vec<Piece>,
 }
 
+pub(super) struct IgluScript {
+    all: Vec<Piece>,
+    grouped: Vec<Piece>,
+    blocks: Vec<IgluBlock>,
+}
+
 impl IgluScript {
     pub(super) fn new(map: &PieceMap) -> Self {
+        let blocks = numbered_group(map, "Build")
+            .into_iter()
+            .map(|(number, piece)| IgluBlock {
+                piece,
+                xy_deco: matching_pieces(map, &alloc::format!("XY{number}Deco")),
+                y_deco: matching_pieces(map, &alloc::format!("Y{number}Deco")),
+            })
+            .collect();
         Self {
             all: all_named_pieces(map),
-            build: matching_pieces(map, "Build"),
-            xy_deco: matching_pieces(map, "XY"),
-            y_deco: matching_pieces(map, "Y"),
+            grouped: grouped_pieces(map),
+            blocks,
         }
     }
 
-    /// `buildUnit`: show a random subset of the blocks and decorations.
+    /// `buildUnit`: the first block always shows. Each block shows on a coin
+    /// flip, turned at random, and only a shown block gets decorations, each
+    /// on its own coin flip: `XY` ones turn around Y and tilt -80..15 degrees
+    /// around X, `Y` ones only turn around Y.
     pub(super) fn create(&mut self, ctx: &UnitCtx) {
         hide_all(ctx, &self.all);
-        if let Some(piece) = self.build.first() {
-            ctx.show(*piece);
+        if let Some(block) = self.blocks.first() {
+            ctx.show(block.piece);
         }
-        for (index, piece) in self.build.iter().enumerate().skip(1) {
-            if coin_flip() {
-                ctx.show(*piece);
+        for block in &self.blocks {
+            if !coin_flip() {
+                continue;
             }
-            if index % 2 == 0 {
-                let angle = spring::random::synced::int(-360, 360) as f32;
-                ctx.turn_now(*piece, Axis::Y, Angle::degrees(angle));
+            ctx.show(block.piece);
+            turn_degrees(ctx, block.piece, Axis::Y, -360, 360);
+            for piece in block.xy_deco.iter().copied() {
+                if coin_flip() {
+                    turn_degrees(ctx, piece, Axis::Y, -360, 360);
+                    turn_degrees(ctx, piece, Axis::X, -80, 15);
+                    ctx.show(piece);
+                }
             }
-        }
-        for piece in self.xy_deco.iter().chain(self.y_deco.iter()) {
-            if coin_flip() {
-                ctx.show(*piece);
-                let angle = spring::random::synced::int(-360, 360) as f32;
-                ctx.turn_now(*piece, Axis::Y, Angle::degrees(angle));
+            for piece in block.y_deco.iter().copied() {
+                if coin_flip() {
+                    turn_degrees(ctx, piece, Axis::Y, -360, 360);
+                    ctx.show(piece);
+                }
             }
         }
     }
 
-    /// Every piece falls or shatters.
+    /// Every block and decoration, shown or not, falls or shatters.
     pub(super) fn killed(&mut self, ctx: &UnitCtx) {
-        for piece in self.all.iter().copied() {
+        for piece in self.grouped.iter().copied() {
             let effect = if coin_flip() {
                 SfxFlags::FALL
             } else {
@@ -110,4 +132,10 @@ impl IgluScript {
             ctx.explode(piece, SfxFlags(effect.0 | SfxFlags::NO_HEATCLOUD.0));
         }
     }
+}
+
+/// Turn a piece at once to `math.random(lower, upper)` degrees.
+fn turn_degrees(ctx: &UnitCtx, piece: Piece, axis: Axis, lower: i32, upper: i32) {
+    let angle = spring::random::synced::int(lower, upper) as f32;
+    ctx.turn_now(piece, axis, Angle::degrees(angle));
 }
