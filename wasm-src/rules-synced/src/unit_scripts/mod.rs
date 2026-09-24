@@ -27,9 +27,6 @@ use crate::defs::{self, UnitKind};
 /// `crate::with_cus_module`. The drill ships share one [`SinkingSoundLock`].
 pub type MyCubeCusModule = CusHost<MyCubeUnitScript, SinkingSoundLock>;
 
-/// The named function the drowning rules call (`env.StartDrowning()`).
-pub const START_DROWNING: &str = "StartDrowning";
-
 fn capabilities(kind: UnitKind) -> ScriptCapabilities {
     let mut bits = ScriptCapabilities::KILLED | ScriptCapabilities::CREATE;
     match kind {
@@ -80,6 +77,22 @@ impl MyCubeUnitScript {
     }
 }
 
+impl MyCubeUnitScript {
+    /// `env.StartDrowning()`, which the drowning rules call on Eskimos and
+    /// pirates in the water. Other scripts have no such function.
+    pub fn start_drowning(&mut self, ctx: &UnitCtx) {
+        if let Self::Human(script) = self {
+            script.start_drowning(ctx);
+        }
+    }
+
+    /// Whether this is an Eskimo's or pirate's script that is drowning.
+    #[cfg(feature = "headless-integration")]
+    pub fn is_drowning(&self) -> bool {
+        matches!(self, Self::Human(script) if script.is_drowning())
+    }
+}
+
 impl UnitDefScript<SinkingSoundLock> for MyCubeUnitScript {
     fn capabilities(def: i32) -> Option<ScriptCapabilities> {
         defs::kind(def)
@@ -107,22 +120,6 @@ impl UnitScript for MyCubeUnitScript {
             Self::Drillship(script) => script.create(ctx),
             Self::Human(script) => script.create(ctx),
             Self::None => {}
-        }
-    }
-
-    fn call_named(
-        &mut self,
-        ctx: &UnitCtx,
-        name: &str,
-        _arguments: &[f32],
-        _returns: &mut [f32],
-    ) -> Option<usize> {
-        match self {
-            Self::Human(script) if name == START_DROWNING => {
-                script.start_drowning(ctx);
-                Some(0)
-            }
-            _ => None,
         }
     }
 

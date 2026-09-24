@@ -15,12 +15,7 @@ pub fn update_drowning(units: impl Iterator<Item = i32>) -> Vec<i32> {
             // GameFrame, never inside a unit-script callin, so the module is
             // free here.
             crate::with_cus_module(|host| {
-                host.call(
-                    spring::UnitId(id),
-                    crate::unit_scripts::START_DROWNING,
-                    &[],
-                    &mut [],
-                )
+                host.with_script(spring::UnitId(id), |ctx, script| script.start_drowning(ctx))
             });
             let Some(health) = crate::health::pool(id).map(|health| health - 1.0) else {
                 continue;

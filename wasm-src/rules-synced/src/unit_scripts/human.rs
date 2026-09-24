@@ -57,6 +57,12 @@ impl HumanScript {
         ctx.spawn(idle_task(&self.state));
     }
 
+    /// Whether `StartDrowning` has run.
+    #[cfg(feature = "headless-integration")]
+    pub(super) fn is_drowning(&self) -> bool {
+        self.state.borrow().drowning
+    }
+
     /// `StartDrowning`: stop everything and flounder until dead.
     pub(super) fn start_drowning(&mut self, ctx: &UnitCtx) {
         {
