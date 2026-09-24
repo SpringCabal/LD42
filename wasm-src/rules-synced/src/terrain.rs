@@ -99,10 +99,6 @@ pub fn process_terrain_jobs(jobs: &mut VecDeque<TerrainJob>) {
     }
 }
 
-pub fn round_i_to_square(value: i32) -> i32 {
-    value - value.rem_euclid(SQUARE_SIZE)
-}
-
 pub fn decrease_terrain(x: f32, z: f32, size: i32, amount: f32) {
     let cells_per_side = (size / SQUARE_SIZE + 1) as usize;
     let cell_count = cells_per_side * cells_per_side;

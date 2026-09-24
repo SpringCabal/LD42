@@ -4,13 +4,10 @@ use alloc::vec::Vec;
 
 use alloc::collections::VecDeque;
 
-use crate::terrain::{self, ICE_HEIGHT, SQUARE_SIZE, TerrainJob};
+use crate::terrain::{self, ICE_HEIGHT, SQUARE_SIZE, TerrainJob, round_to_square};
 
-/// A drill ship and its search for ice, like the Lua drill gadget's
-/// per-ship table. The search cursor persists between checks because Core
-/// height queries are metered, while the Lua gadget scans the whole map at
-/// once.
-#[derive(Clone, Copy, Default)]
+/// A drill ship, like the Lua drill gadget's per-ship table.
+#[derive(Clone, Copy)]
 pub struct DrillShip {
     pub id: i32,
     /// The frame the ship was created; its script drills every half second
@@ -21,13 +18,8 @@ pub struct DrillShip {
     pub has_order: bool,
     pub order_x: f32,
     pub order_z: f32,
-    pub search_initialized: bool,
-    pub search_center_x: i32,
-    pub search_center_z: i32,
-    pub search_radius: i32,
-    pub search_side: u8,
-    pub search_offset: i32,
-    pub search_complete: bool,
+    /// The last frame the ship had run out of ice (`checkedFrame`).
+    checked_frame: i32,
 }
 
 /// The drill ships and the craters they are digging.
@@ -35,9 +27,13 @@ pub struct DrillShip {
 pub struct Drills {
     pub ships: Vec<DrillShip>,
     pub jobs: VecDeque<TerrainJob>,
+    /// No ice is left anywhere, so the ships no longer look for it
+    /// (`DISABLE_GADGET`).
+    out_of_ice: bool,
 }
 
-const SEARCH_STEP: i32 = 64;
+/// Frames between a ship's searches for new ice (`CHECK_FRAME_INTERVAL`).
+const CHECK_INTERVAL: i32 = 30;
 /// `shipscript.lua` drills after every `Sleep(500)`: 15 frames.
 const DRILL_PERIOD: i32 = 15;
 const DRILL_SIZE: i32 = 250;
@@ -54,7 +50,10 @@ impl DrillShip {
             id,
             created_frame,
             mine_piece,
-            ..Self::default()
+            has_order: false,
+            order_x: 0.0,
+            order_z: 0.0,
+            checked_frame: -1,
         }
     }
 }
@@ -85,42 +84,61 @@ pub struct MoveOrder {
     pub target: spring::Float3,
 }
 
-/// Pick new ice targets for the ships that have run out. Returns the move
-/// orders to give.
-pub fn update_drills(drills: &mut Drills) -> Vec<MoveOrder> {
+/// `GameFrame`: a ship that has run out of ice nearby goes back to its
+/// target if it has not reached it, and otherwise heads for the closest ice.
+/// Returns the move orders to give.
+pub fn update_drills(drills: &mut Drills, frame: i32) -> Vec<MoveOrder> {
     let mut orders = Vec::new();
-
-    for drill_ship in &mut drills.ships {
-        let id = drill_ship.id;
-        let Some(hull) = spring::get_unit_position(id, false, false).ok() else {
+    if drills.out_of_ice {
+        return orders;
+    }
+    for ship in &mut drills.ships {
+        if frame - ship.checked_frame <= CHECK_INTERVAL {
+            continue;
+        }
+        let Ok(hull) = spring::get_unit_position(ship.id, false, false) else {
             continue;
         };
-        // The original drill gadget is autonomous: once it has exhausted the
-        // ice immediately around its hull it searches outward and issues a
-        // normal movement order toward the closest remaining ice.
-        if nearby_ice(hull.x, hull.z) {
+        match nearby_ice(hull.x, hull.z) {
+            Ok(false) => {}
+            Ok(true) => continue,
+            Err(error) => {
+                log_failed_query(error);
+                continue;
+            }
+        }
+        ship.checked_frame = frame;
+        if ship.has_order && distance(ship.order_x, ship.order_z, hull.x, hull.z) > NEARBY_SIZE {
+            orders.push(move_order(ship.id, ship.order_x, ship.order_z));
             continue;
         }
-        if drill_ship.has_order
-            && distance(drill_ship.order_x, drill_ship.order_z, hull.x, hull.z) > NEARBY_SIZE
-        {
-            orders.push(move_order(id, drill_ship.order_x, drill_ship.order_z));
-            continue;
-        }
-
-        // The previous target has been reached (or this is the first search),
-        // so restart the Lua-style outward search from the ship's current
-        // position. A search slice that finds nothing yet simply leaves its
-        // cursor in place for the next 30-frame check.
-        reset_search(drill_ship, hull.x, hull.z);
-        if let Some((x, z)) = find_closest_ice(drill_ship) {
-            orders.push(move_order(id, x, z));
-            drill_ship.has_order = true;
-            drill_ship.order_x = x;
-            drill_ship.order_z = z;
+        match find_closest_ice(hull.x, hull.z) {
+            Ok(Some((x, z))) => {
+                orders.push(move_order(ship.id, x, z));
+                ship.has_order = true;
+                ship.order_x = x;
+                ship.order_z = z;
+            }
+            Ok(None) => {
+                ship.has_order = false;
+                spring::log_info!(LOG_SECTION, "no more ice");
+                drills.out_of_ice = true;
+                break;
+            }
+            Err(error) => log_failed_query(error),
         }
     }
     orders
+}
+
+const LOG_SECTION: &str = "mycube-drills";
+
+fn log_failed_query(error: spring::ApiError) {
+    spring::log_once!(
+        spring::log_level::WARNING,
+        LOG_SECTION,
+        "reading the ground heights around a drill ship failed: {error:?}"
+    );
 }
 
 const NEARBY_SIZE: f32 = 100.0;
@@ -144,7 +162,7 @@ pub fn give_orders(orders: &[MoveOrder]) {
             0,
         ) {
             spring::log_warning!(
-                "mycube-drills",
+                LOG_SECTION,
                 "move order for drill ship {} failed: {error:?}",
                 order.unit
             );
@@ -158,89 +176,58 @@ fn distance(x1: f32, z1: f32, x2: f32, z2: f32) -> f32 {
     spring::Float3::new(dx, 0.0, dz).length()
 }
 
-fn reset_search(drill: &mut DrillShip, x: f32, z: f32) {
-    if drill.has_order || !drill.search_initialized {
-        drill.has_order = false;
-        drill.search_initialized = true;
-        drill.search_center_x = terrain::round_i_to_square(x as i32);
-        drill.search_center_z = terrain::round_i_to_square(z as i32);
-        drill.search_radius = SEARCH_STEP;
-        drill.search_side = 0;
-        drill.search_offset = 0;
-        drill.search_complete = false;
+/// `NearbyIce`: whether any point of the 13x13 grid (every heightmap square
+/// of `NEARBY_SIZE`) around the ship is still ice.
+fn nearby_ice(x: f32, z: f32) -> spring::Result<bool> {
+    let half = NEARBY_SIZE / 2.0;
+    let start_x = round_to_square(x - half);
+    let start_z = round_to_square(z - half);
+    let size = round_to_square(NEARBY_SIZE) as i32;
+    let mut points = Vec::new();
+    for dx in (0..=size).step_by(SQUARE_SIZE as usize) {
+        for dz in (0..=size).step_by(SQUARE_SIZE as usize) {
+            points.push([start_x + dx as f32, start_z + dz as f32]);
+        }
     }
-}
-
-fn nearby_ice(x: f32, z: f32) -> bool {
-    let center_x = terrain::round_i_to_square(x as i32);
-    let center_z = terrain::round_i_to_square(z as i32);
-    // Lua inspects the whole 13x13 neighbourhood. Core counts every terrain
-    // query as host work, so sample the hull and its immediate edge only.
-    [(0, 0), (-48, 0), (48, 0), (0, -48), (0, 48)]
+    Ok(spring::ground_heights(&points)?
         .into_iter()
-        .any(|(dx, dz)| {
-            spring::get_ground_height((center_x + dx) as f32, (center_z + dz) as f32)
-                .is_ok_and(|height| height > ICE_HEIGHT)
-        })
+        .any(|height| height > ICE_HEIGHT))
 }
 
-fn find_closest_ice(drill: &mut DrillShip) -> Option<(f32, f32)> {
-    let [points_x, points_z] = spring::get_height_map_size().ok()?;
-    let max_x = (points_x - 1) * SQUARE_SIZE;
-    let max_z = (points_z - 1) * SQUARE_SIZE;
-    let center_x = drill.search_center_x;
-    let center_z = drill.search_center_z;
-    let max_radius = max_x.max(max_z);
-    // The Lua perimeter search, spread over several checks: the cursor
-    // survives between calls, and each call stops after MAX_ICE_PROBES
-    // height queries to stay within Core's per-callin host-work budget.
-    const MAX_ICE_PROBES: usize = 256;
-    let mut probes = 0;
-    while probes < MAX_ICE_PROBES {
-        if drill.search_complete {
-            return None;
-        }
-        if drill.search_radius > max_radius {
-            drill.search_complete = true;
-            return None;
-        }
-
-        let radius = drill.search_radius;
-        let side = drill.search_side as i32;
-        let side_steps = (radius * 2 / SEARCH_STEP) + 1;
-        if drill.search_offset >= side_steps {
-            drill.search_offset = 0;
-            drill.search_side = drill.search_side.saturating_add(1);
-            if drill.search_side >= 4 {
-                drill.search_side = 0;
-                drill.search_radius = drill.search_radius.saturating_add(SEARCH_STEP);
+/// `FindClosestIce`: the first ice on squares of growing size around the
+/// ship, top and bottom rows first, then the left and right columns, like
+/// Lua. The squares grow by one heightmap square at a time (Lua: one elmo,
+/// which samples nearly the same points eight times over), and points off
+/// the map are skipped. `None` when no ice is left.
+fn find_closest_ice(x: f32, z: f32) -> spring::Result<Option<(f32, f32)>> {
+    let (map_x, map_z) = spring::game::map_size_elmos()?;
+    let center_x = round_to_square(x) as i32;
+    let center_z = round_to_square(z) as i32;
+    let on_map = |x: i32, z: i32| (0..=map_x).contains(&x) && (0..=map_z).contains(&z);
+    let step = SQUARE_SIZE as usize;
+    let mut ring = Vec::new();
+    for size in (SQUARE_SIZE..=map_x.max(map_z)).step_by(step) {
+        ring.clear();
+        for z in [center_z - size, center_z + size] {
+            for x in (center_x - size..=center_x + size).step_by(step) {
+                ring.push((x, z));
             }
+        }
+        for x in [center_x - size, center_x + size] {
+            for z in (center_z - size..=center_z + size).step_by(step) {
+                ring.push((x, z));
+            }
+        }
+        ring.retain(|&(x, z)| on_map(x, z));
+        if ring.is_empty() {
             continue;
         }
-
-        let offset = drill.search_offset;
-        drill.search_offset += 1;
-        let (start, fixed, horizontal) = match side {
-            0 => (center_x - radius, center_z - radius, true),
-            1 => (center_x - radius, center_z + radius, true),
-            2 => (center_z - radius, center_x - radius, false),
-            _ => (center_z - radius, center_x + radius, false),
-        };
-        let varying = start + offset * SEARCH_STEP;
-        let (candidate_x, candidate_z) = if horizontal {
-            (varying, fixed)
-        } else {
-            (fixed, varying)
-        };
-        if !(0..=max_x).contains(&candidate_x) || !(0..=max_z).contains(&candidate_z) {
-            continue;
-        }
-        probes += 1;
-        if spring::get_ground_height(candidate_x as f32, candidate_z as f32)
-            .is_ok_and(|height| height > ICE_HEIGHT)
-        {
-            return Some((candidate_x as f32, candidate_z as f32));
+        let points: Vec<[f32; 2]> = ring.iter().map(|&(x, z)| [x as f32, z as f32]).collect();
+        let heights = spring::ground_heights(&points)?;
+        if let Some(index) = heights.iter().position(|height| *height > ICE_HEIGHT) {
+            let (x, z) = ring[index];
+            return Ok(Some((x as f32, z as f32)));
         }
     }
-    None
+    Ok(None)
 }

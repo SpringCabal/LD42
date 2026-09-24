@@ -5,9 +5,6 @@ use crate::drills::{self, DrillShip};
 use crate::state::Global;
 use crate::terrain;
 
-/// Frames between the checks for nearby ice (`CHECK_FRAME_INTERVAL`).
-const CHECK_INTERVAL: i32 = 30;
-
 /// The autonomous drill controller, ported from `unit_drill.lua`.
 #[derive(Default)]
 pub struct DrillsGadget;
@@ -57,15 +54,10 @@ impl Gadget<Global> for DrillsGadget {
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
         let mut state = ctx.global().drills.access_mut();
         drills::drill(&mut state, frame);
-        if frame % CHECK_INTERVAL == 0 {
-            let orders = drills::update_drills(&mut state);
-            // Giving an order raises AllowCommand, so release the state first.
-            drop(state);
-            drills::give_orders(&orders);
-        } else {
-            // Height-map edits are metered host work; keep them off the
-            // frames that search for ice.
-            terrain::process_terrain_jobs(&mut state.jobs);
-        }
+        terrain::process_terrain_jobs(&mut state.jobs);
+        let orders = drills::update_drills(&mut state, frame);
+        // Giving an order raises AllowCommand, so release the state first.
+        drop(state);
+        drills::give_orders(&orders);
     }
 }
