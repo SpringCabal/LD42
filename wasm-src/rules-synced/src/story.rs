@@ -140,13 +140,8 @@ pub fn restore_ice() {
 }
 
 fn map_size() -> (f32, f32) {
-    spring::get_height_map_size()
-        .map(|[x, z]| {
-            (
-                (x.saturating_sub(1) * 8) as f32,
-                (z.saturating_sub(1) * 8) as f32,
-            )
-        })
+    spring::game::map_size_elmos()
+        .map(|(x, z)| (x as f32, z as f32))
         .unwrap_or((8192.0, 8192.0))
 }
 

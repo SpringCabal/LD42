@@ -17,7 +17,7 @@ pub mod ui_floating_text;
 
 pub use api_sync::ApiSyncWidget;
 #[cfg(feature = "e2e")]
-pub use dbg_e2e::DbgE2eWidget;
+pub use dbg_e2e::dbg_e2e;
 #[cfg(feature = "headless-integration")]
 pub use dbg_restart::DbgRestartWidget;
 pub use gui_camera::GuiCameraWidget;

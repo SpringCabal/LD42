@@ -2,7 +2,9 @@
 
 use alloc::vec::Vec;
 
-use crate::terrain::{self, ICE_HEIGHT, SQUARE_SIZE, round_to_square};
+use spring::consts::SQUARE_SIZE;
+
+use crate::terrain::{self, ICE_HEIGHT, round_to_square};
 
 /// A drill ship, like the Lua drill gadget's per-ship table.
 #[derive(Clone, Copy)]

@@ -515,10 +515,10 @@ fn water_location() -> Option<(f32, f32)> {
 }
 
 fn grid_extreme(better: impl Fn(f32, f32) -> bool) -> Option<(f32, f32, f32)> {
-    let [width, height] = spring::get_height_map_size().ok()?;
+    let (width, height) = spring::game::map_size_elmos().ok()?;
     let mut best: Option<(f32, f32, f32)> = None;
-    for x in (256..width * crate::terrain::SQUARE_SIZE).step_by(512usize) {
-        for z in (256..height * crate::terrain::SQUARE_SIZE).step_by(512usize) {
+    for x in (256..width).step_by(512usize) {
+        for z in (256..height).step_by(512usize) {
             let ground = spring::get_ground_height(x as f32, z as f32).ok()?;
             if best.is_none_or(|(_, _, current)| better(ground, current)) {
                 best = Some((x as f32, z as f32, ground));

@@ -35,7 +35,7 @@ impl Gadget<Global> for RestartGadget {
             spring::log_info!(
                 "mycube",
                 "the round restarts at frame {}",
-                spring::game::frame().unwrap_or(0)
+                spring::game::current_frame()
             );
         }
     }

@@ -1,8 +1,7 @@
 //! The ice-trade yield, shared by the rules (which pays it) and the UI (which
 //! previews it). Both crates include this file with `#[path]`.
 
-/// Spring's heightmap square size in elmos.
-pub const SQUARE_SIZE: i32 = 8;
+use spring::consts::SQUARE_SIZE;
 
 /// Side of the square sampled around the clicked point.
 const SAMPLE_SIZE: i32 = 200;

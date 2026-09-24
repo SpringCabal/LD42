@@ -1,6 +1,7 @@
 //! Terrain excavation shared by the drill controller and the ice trade.
 
-pub use crate::ice::{SQUARE_SIZE, round_to_square};
+pub use crate::ice::round_to_square;
+use spring::consts::SQUARE_SIZE;
 
 /// Terrain above this height still counts as ice for the drills.
 pub const ICE_HEIGHT: f32 = -1.0;

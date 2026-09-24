@@ -233,7 +233,7 @@ impl Widget<Global> for GuiTradeWidget {
         y: i32,
         button: i32,
     ) -> EventResult {
-        if button != 1 || !self.trading.get() {
+        if button != spring::mouse::LEFT || !self.trading.get() {
             // Leave normal clicks to Spring's selection handler.
             return EventResult::Ignored;
         }
