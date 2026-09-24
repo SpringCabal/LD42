@@ -9,6 +9,8 @@
 use alloc::vec::Vec;
 
 use mycube_shared::unit;
+use spring::cmd::options::ALT_KEY;
+use spring::cmd::{ATTACK, INSERT, MOVE};
 use springcabal::check::Suite;
 
 use crate::defs::{self, UnitKind};
@@ -16,7 +18,7 @@ use crate::state::{GameEnd, Global};
 use mycube_shared::test_sites::{trade_location, water_location};
 
 /// Checks that must pass; fewer means the run skipped some.
-const EXPECTED_CHECKS: u32 = 29;
+const EXPECTED_CHECKS: u32 = 31;
 
 /// Engine damage for the combat check. The health gadget replaces it with
 /// the attacker's gameplay damage and lets none of it through.
@@ -30,6 +32,10 @@ const RESTART_DEADLINE: i32 = 1100;
 const RESTART_CHECK: i32 = 15;
 const RESTART_CONDEMN: i32 = 20;
 const RESTART_LOSS_CHECK: i32 = 30;
+
+/// How far the scenery check's move order goes; the engine drops a move to
+/// where the unit already stands.
+const MOVE_STEP: f32 = 100.0;
 
 /// The drowning check puts an Eskimo in the sea on the first frame and
 /// checks its health on the second.
@@ -171,14 +177,50 @@ impl Tracker {
             "initial resources begin balanced before normal simulation consumption",
         );
         self.check(step >= 1, "storyteller dispatched initial scenario");
-        let scenery = units_of(UnitKind::Coalburner).first().copied();
+        self.check_scenery_orders(&eskimos);
+    }
+
+    /// Orders through the engine, whose AllowCommand reaches the
+    /// Untargetable gadget: attacks on the coal burner are dropped, while an
+    /// attack on an Eskimo and a move are queued. Each order is cleared
+    /// again at once, so no shot is fired and nobody walks off.
+    fn check_scenery_orders(&mut self, eskimos: &[i32]) {
+        let burner = units_of(UnitKind::Coalburner).first().copied();
+        let (Some(&unit), Some(&other), Some(burner)) = (eskimos.get(3), eskimos.get(4), burner)
+        else {
+            self.check(
+                false,
+                "an attack order on the coal burner is dropped, one on an Eskimo is kept",
+            );
+            self.check(
+                false,
+                "an inserted attack order on the coal burner is dropped",
+            );
+            self.check(false, "a move order next to the scenery is kept");
+            return;
+        };
+        let position = spring::get_unit_position(unit, false, false).unwrap_or_default();
+        let step = [position.x + MOVE_STEP, position.y, position.z];
+        // INSERT with ALT_KEY takes a queue position: -1 is the end.
+        let insert_attack = |target: i32| [-1.0, ATTACK as f32, 0.0, target as f32];
+        let attack_other = queued_orders(unit, &[(ATTACK, &[other as f32])]);
+        let attack_burner = queued_orders(unit, &[(ATTACK, &[burner as f32])]);
+        let insert_other = queued_orders(unit, &[(MOVE, &step), (INSERT, &insert_attack(other))]);
+        let insert_burner = queued_orders(unit, &[(MOVE, &step), (INSERT, &insert_attack(burner))]);
+        let move_step = queued_orders(unit, &[(MOVE, &step)]);
         self.check(
-            scenery.is_some_and(|id| {
-                spring::get_unit_rules_param_f32(id, unit::UNTARGETABLE) == Ok(1.0)
-                    && !crate::untargetable::allow_command(spring::cmd::ATTACK, &[id as f32])
-                    && crate::untargetable::allow_command(spring::cmd::MOVE, &[100.0, 0.0, 100.0])
-            }),
-            "support scenery rejects targeted commands without blocking movement",
+            spring::get_unit_rules_param_f32(burner, unit::UNTARGETABLE) == Ok(1.0)
+                && attack_other == [ATTACK]
+                && attack_burner.is_empty(),
+            "an attack order on the coal burner is dropped, one on an Eskimo is kept",
+        );
+        self.check(
+            insert_other == [MOVE, ATTACK] && insert_burner == [MOVE],
+            "an inserted attack order on the coal burner is dropped",
+        );
+        self.check(
+            move_step == [MOVE],
+            "a move order next to the scenery is kept",
         );
     }
 
@@ -389,7 +431,7 @@ impl Tracker {
             targets.iter().any(|&(id, x, z)| {
                 spring::units_commands::get_unit_commands(id, 1).is_ok_and(|commands| {
                     commands.first().is_some_and(|command| {
-                        command.cmd_id == spring::cmd::MOVE
+                        command.cmd_id == MOVE
                             && command.params.len() >= 3
                             && (command.params[0] - x).abs() < 1.0
                             && (command.params[2] - z).abs() < 1.0
@@ -490,6 +532,24 @@ fn make_first_eskimo_hungry(global: &Global) {
         eskimo.eating = false;
     }
     global.economy.access_mut().food = 100.0;
+}
+
+/// Give `unit` these orders through the engine, then the commands in its
+/// queue, and clear the queue.
+fn queued_orders(unit: i32, orders: &[(i32, &[f32])]) -> Vec<i32> {
+    for &(command, params) in orders {
+        let options = if command == INSERT { ALT_KEY } else { 0 };
+        if let Err(error) = spring::give_order_to_unit(unit, command, params, options, 0) {
+            spring::log_warning!("mycube-test", "ordering unit {unit} failed: {error:?}");
+        }
+    }
+    let queue = spring::units_commands::get_unit_commands(unit, 4)
+        .map(|queue| queue.iter().map(|command| command.cmd_id).collect())
+        .unwrap_or_default();
+    if let Err(error) = spring::give_order_to_unit(unit, spring::cmd::STOP, &[], 0, 0) {
+        spring::log_warning!("mycube-test", "stopping unit {unit} failed: {error:?}");
+    }
+    queue
 }
 
 fn eskimo_ids(global: &Global) -> Vec<i32> {
