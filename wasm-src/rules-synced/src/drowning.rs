@@ -14,7 +14,14 @@ pub fn update_drowning(units: impl Iterator<Item = i32>) -> Vec<i32> {
             // water; the script ignores repeats. The drowning gadget runs in
             // GameFrame, never inside a unit-script callin, so the module is
             // free here.
-            crate::with_cus_module(|module| module.start_drowning(id));
+            crate::with_cus_module(|host| {
+                host.call(
+                    spring::UnitId(id),
+                    crate::unit_scripts::START_DROWNING,
+                    &[],
+                    &mut [],
+                )
+            });
             let Some(health) = crate::health::pool(id).map(|health| health - 1.0) else {
                 continue;
             };

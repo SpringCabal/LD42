@@ -12,7 +12,7 @@ use super::eskimo::{
     play_drown, play_shoot, play_throw, play_walk,
 };
 
-pub(super) struct HumanScript {
+pub struct HumanScript {
     pirate: bool,
     state: Rc<RefCell<HumanState>>,
 }
