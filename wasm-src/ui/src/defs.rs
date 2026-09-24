@@ -1,4 +1,4 @@
-//! The unit defs the HUD draws bars for, resolved by name once.
+//! The unit defs the UI treats specially, resolved by name once.
 
 use core::cell::OnceCell;
 
@@ -14,6 +14,8 @@ struct Defs {
     eskimo: Option<i32>,
     pirate: Option<i32>,
     drillship: Option<i32>,
+    /// The coal burner, the iglu and the lantern.
+    scenery: [Option<i32>; 3],
 }
 
 thread_local! {
@@ -28,6 +30,7 @@ fn defs() -> Defs {
                 eskimo: id("eskimo"),
                 pirate: id("pirate"),
                 drillship: id("drillship"),
+                scenery: [id("coalburner"), id("iglu"), id("lantern")],
             }
         })
     })
@@ -45,6 +48,12 @@ pub fn kind(def: i32) -> Option<UnitKind> {
     } else {
         None
     }
+}
+
+/// Whether units of this def are scenery, which their unit scripts make
+/// unselectable and hide from the minimap.
+pub fn is_scenery(def: i32) -> bool {
+    defs().scenery.contains(&Some(def))
 }
 
 impl UnitKind {

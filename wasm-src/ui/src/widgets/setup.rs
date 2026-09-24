@@ -10,6 +10,7 @@ pub fn setup(handler: &mut WidgetHandler<Global>) {
         [
             ApiSyncWidget::new(),
             HideDefaultLayoutWidget::new(),
+            SceneryWidget::new(),
             GuiCameraWidget::new(),
             SndMusicWidget::new(),
             GuiHealthbarsWidget::new(),
