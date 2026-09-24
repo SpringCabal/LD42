@@ -48,12 +48,8 @@ impl Widget<Global> for GuiKeybindsWidget {
         event: &KeyEvent<'_>,
     ) -> EventResult {
         if event.ctrl && event.matches("r") {
-            // Match ui_endgame.lua's restart action.  The cheat toggle is
-            // needed because the reload command is protected in the engine;
-            // turn it back off immediately after the rules reload.
-            let _ = spring::send_command("cheat");
-            let _ = spring::send_command("luarules reload");
-            let _ = spring::send_command("cheat");
+            // ui_endgame.lua's restart action.
+            springcabal::restart::reload_rules();
             return EventResult::Handled;
         }
         if springcabal::menu::is_quit_to_menu(event) {
