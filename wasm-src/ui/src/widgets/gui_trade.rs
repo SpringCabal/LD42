@@ -9,8 +9,6 @@ use crate::state::Global;
 
 /// Side of the square of ice a trade harvests.
 const TRADE_SIZE: f32 = 300.0;
-/// `TraceScreenRay` hit type for the ground.
-const HIT_GROUND: i32 = 3;
 const BRUSH_TEXTURE: &str = "Bitmaps/circle.png";
 /// Seconds between two valuations of the ice under a moving cursor: one
 /// valuation samples 676 heights.
@@ -135,19 +133,7 @@ impl GuiTradeWidget {
 
 /// The ground point under a screen position, if the cursor is over ground.
 fn ground_under(x: i32, y: i32) -> Option<spring::Float3> {
-    let trace = spring::camera::trace_screen_ray(
-        x as f32,
-        y as f32,
-        spring::camera::TraceScreenRayOptions {
-            only_coords: true,
-            use_minimap: false,
-            include_sky: false,
-            ignore_water: false,
-            height_offset: 0.0,
-        },
-    )
-    .ok()?;
-    (trace.hit_type == HIT_GROUND).then_some(trace.hit_pos)
+    spring::pick::ground_at(x as f32, y as f32)
 }
 
 impl Widget<Global> for GuiTradeWidget {

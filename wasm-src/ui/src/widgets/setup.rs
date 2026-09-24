@@ -11,8 +11,6 @@ use crate::state::Global;
 /// `snd_music.lua`'s track, looped.
 const MUSIC_FILE: &str = "sounds/remixed_background.ogg";
 const MUSIC_VOLUME: f32 = 0.15;
-/// Seconds, for when the engine can't report the stream length.
-const MUSIC_LENGTH: f32 = 91.008;
 
 /// hide_default_layout.lua: the console, resource bar, tooltip, clock, player
 /// list and minimap; units never turn into icons.
@@ -31,7 +29,7 @@ pub fn setup(handler: &mut WidgetHandler<Global>) {
             HideDefaultInterface::new(HIDDEN_INTERFACE),
             SceneryWidget::new(),
             GuiCameraWidget::new(),
-            MusicLoop::new(MUSIC_FILE, MUSIC_VOLUME).length_hint(MUSIC_LENGTH),
+            MusicLoop::new(MUSIC_FILE, MUSIC_VOLUME),
             GuiHealthbarsWidget::new(),
             GuiSelectionStatsWidget::new(),
             GuiResourcesWidget::new(),

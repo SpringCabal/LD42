@@ -45,10 +45,6 @@ impl Default for Hud {
     }
 }
 
-pub fn current_frame() -> i32 {
-    spring::game::frame().map_or(0, |frame| frame as i32)
-}
-
 /// The shared communication namespace for the UI module.
 #[derive(Default)]
 pub struct Global {

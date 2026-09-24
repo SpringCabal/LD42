@@ -1,7 +1,7 @@
 use alloc::string::String;
 use spring_addons::ui::Widget;
 
-use crate::state::{GameEnd, Global, Meters, current_frame};
+use crate::state::{GameEnd, Global, Meters};
 
 #[derive(Default)]
 pub struct ApiSyncWidget;
@@ -42,7 +42,7 @@ impl Widget<Global> for ApiSyncWidget {
         hud.survival_frames = (survived >= 0).then_some(survived);
         if hud.intro != intro {
             hud.intro = String::from(intro);
-            hud.intro_frame = current_frame();
+            hud.intro_frame = spring::game::current_frame();
         }
     }
 }

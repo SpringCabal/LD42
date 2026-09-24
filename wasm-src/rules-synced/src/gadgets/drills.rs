@@ -32,7 +32,7 @@ impl Gadget<Global> for DrillsGadget {
         _builder: i32,
     ) {
         if defs::kind(def) == Some(UnitKind::Drillship) {
-            let frame = spring::game::frame().map_or(0, |frame| frame as i32);
+            let frame = spring::game::current_frame();
             ctx.global()
                 .drills
                 .access_mut()

@@ -6,7 +6,7 @@ use spring_addons::ui::Widget;
 
 use crate::defs::{self, UnitKind};
 
-use crate::state::{Global, current_frame};
+use crate::state::Global;
 
 const BAR_WIDTH: f32 = 46.0;
 const BAR_HEIGHT: f32 = 4.0;
@@ -34,7 +34,7 @@ impl GuiHealthbarsWidget {
     }
 
     fn refresh_units(&self) {
-        let frame = current_frame();
+        let frame = spring::game::current_frame();
         if self.listed_frame.get() == Some(frame) {
             return;
         }

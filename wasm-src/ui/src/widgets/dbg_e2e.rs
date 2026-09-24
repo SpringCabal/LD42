@@ -3,7 +3,7 @@ use core::cell::Cell;
 use spring_addons::ui::Widget;
 use springcabal::shots::{Clock, Screenshots};
 
-use crate::state::{Global, current_frame};
+use crate::state::Global;
 
 /// Game frames of the visual suite's screenshots.
 const SHOT_FRAMES: [u32; 5] = [25, 90, 210, 390, 530];
@@ -39,7 +39,7 @@ impl Widget<Global> for DbgE2eWidget {
     }
 
     fn update(&self, ctx: &spring_addons::AddonContext<'_, Global>, dt: f32) {
-        let frame = current_frame();
+        let frame = spring::game::current_frame();
         match self.quit_frame.get() {
             Some(quit_frame) if frame >= quit_frame => {
                 let _ = spring::system_control::quit(0);

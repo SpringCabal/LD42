@@ -1,7 +1,7 @@
 use spring_addons::ui::Widget;
 
 use crate::round::LUA_FRAMES_PER_SECOND;
-use crate::state::{Global, current_frame};
+use crate::state::Global;
 
 /// `ui_floating_text.lua` shows a story event for five seconds...
 const SHOW_FRAMES: i32 = 5 * LUA_FRAMES_PER_SECOND;
@@ -24,7 +24,7 @@ impl Widget<Global> for UiFloatingTextWidget {
     }
 
     fn draw_screen(&self, ctx: &spring_addons::AddonContext<'_, Global>, width: i32, height: i32) {
-        let frame = current_frame();
+        let frame = spring::game::current_frame();
         let hud = ctx.global().hud.access();
         let start = hud.intro_frame;
         let age = frame - start;

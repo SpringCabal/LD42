@@ -2,7 +2,7 @@ use core::cell::Cell;
 
 use spring_addons::ui::Widget;
 
-use crate::state::{Global, current_frame};
+use crate::state::Global;
 
 /// The frame the headless integration test restarts the round, after the
 /// rules' checks of the first round (`rules-synced/src/integration.rs`).
@@ -27,7 +27,7 @@ impl Widget<Global> for DbgRestartWidget {
     }
 
     fn update(&self, _ctx: &spring_addons::AddonContext<'_, Global>, _dt: f32) {
-        if !self.sent.get() && current_frame() >= RESTART_FRAME {
+        if !self.sent.get() && spring::game::current_frame() >= RESTART_FRAME {
             self.sent.set(true);
             crate::rules::restart_round();
         }
