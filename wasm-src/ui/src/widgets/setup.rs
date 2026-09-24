@@ -14,16 +14,21 @@ const MUSIC_VOLUME: f32 = 0.15;
 /// Seconds, for when the engine can't report the stream length.
 const MUSIC_LENGTH: f32 = 91.008;
 
+/// hide_default_layout.lua: the console, resource bar, tooltip, clock, player
+/// list and minimap; units never turn into icons.
+pub const HIDDEN_INTERFACE: u32 =
+    CONSOLE | RESOURCE_BAR | TOOLTIP | CLOCK | PLAYER_INFO | MINIMAP | UNIT_ICONS;
+
 pub fn setup(handler: &mut WidgetHandler<Global>) {
+    if gallery::active() {
+        gallery::setup(handler);
+        return;
+    }
     register_widgets!(
         handler,
         [
             ApiSyncWidget::new(),
-            // hide_default_layout.lua: the console, resource bar, tooltip,
-            // clock, player list and minimap; units never turn into icons.
-            HideDefaultInterface::new(
-                CONSOLE | RESOURCE_BAR | TOOLTIP | CLOCK | PLAYER_INFO | MINIMAP | UNIT_ICONS
-            ),
+            HideDefaultInterface::new(HIDDEN_INTERFACE),
             SceneryWidget::new(),
             GuiCameraWidget::new(),
             MusicLoop::new(MUSIC_FILE, MUSIC_VOLUME).length_hint(MUSIC_LENGTH),

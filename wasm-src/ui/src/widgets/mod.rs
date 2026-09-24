@@ -1,6 +1,7 @@
 pub mod api_sync;
 #[cfg(feature = "e2e")]
 pub mod dbg_e2e;
+pub mod gallery;
 pub mod gui_camera;
 pub mod gui_healthbars;
 pub mod gui_keybinds;
