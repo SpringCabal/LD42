@@ -45,7 +45,8 @@ impl GameEnd {
 /// Screen state: the scripted intro text and the end-game banner.
 pub struct Hud {
     pub game_end: Option<GameEnd>,
-    pub end_frame: Option<i32>,
+    /// How long the round lasted, in frames, once it has ended.
+    pub survival_frames: Option<i32>,
     pub intro: String,
     pub intro_frame: i32,
 }
@@ -54,7 +55,7 @@ impl Default for Hud {
     fn default() -> Self {
         Self {
             game_end: None,
-            end_frame: None,
+            survival_frames: None,
             intro: String::new(),
             intro_frame: -1_000,
         }

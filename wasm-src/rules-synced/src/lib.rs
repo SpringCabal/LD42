@@ -11,6 +11,8 @@ pub mod ice;
 #[cfg(feature = "headless-integration")]
 pub mod integration;
 pub mod parachutes;
+#[path = "../../common/round.rs"]
+pub mod round;
 pub mod spawning;
 pub mod state;
 pub mod story;

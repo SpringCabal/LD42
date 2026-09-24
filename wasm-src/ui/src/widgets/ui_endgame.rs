@@ -1,6 +1,6 @@
 use spring_addons::ui::Widget;
 
-use crate::state::{GameEnd, Global, current_frame};
+use crate::state::{GameEnd, Global};
 
 /// The victory banner, ported from `ui_endgame.lua`.
 #[derive(Default)]
@@ -42,8 +42,8 @@ impl Widget<Global> for UiEndgameWidget {
             GameEnd::Loss => "Game Over",
             GameEnd::Victory => "Victory!",
         };
-        let end_frame = hud.end_frame.unwrap_or_else(current_frame);
-        let survival_seconds = end_frame.max(0) / crate::state::FRAMES_PER_SECOND;
+        let survival_seconds =
+            hud.survival_frames.unwrap_or(0).max(0) / crate::state::FRAMES_PER_SECOND;
         let _ = spring::gfx::begin_text(false);
         let _ = spring::gfx::color(0.85, 0.95, 1.0, 1.0);
         let _ = spring::gfx::text(title, width as f32 / 2.0, card_y + 135.0, 32.0, "cson");

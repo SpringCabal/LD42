@@ -42,9 +42,11 @@ impl Gadget<Global> for StorytellerGadget {
             let mut story = ctx.global().story.access_mut();
             if !story.started {
                 story.started = true;
-                // storyteller.lua clears the map's own units before its
-                // scenario starts.
+                story.start_frame = frame;
+                // storyteller.lua's Initialize clears the map and restores
+                // the ice an earlier round dug away.
                 destroy_later(ctx, spring::get_all_units().unwrap_or_default(), true);
+                crate::story::restore_ice();
             }
             crate::story::run_story(&mut story, frame)
         };

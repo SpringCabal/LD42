@@ -103,16 +103,6 @@ impl GuiTradeWidget {
     }
 }
 
-/// Send a trade message to the rules, which own the economy.
-fn send_to_rules(message: &str) {
-    if let Err(error) = spring::send_lua_rules_msg(message) {
-        spring::log_warning!(
-            "mycube-ui",
-            "sending {message} to the rules failed: {error:?}"
-        );
-    }
-}
-
 /// The ground point under a screen position, if the cursor is over ground.
 fn ground_under(x: i32, y: i32) -> Option<spring::Float3> {
     let trace = spring::camera::trace_screen_ray(
@@ -216,7 +206,7 @@ impl Widget<Global> for GuiTradeWidget {
         } else {
             return EventResult::Ignored;
         };
-        send_to_rules(message);
+        crate::rules::send(message);
         EventResult::Handled
     }
 
@@ -234,7 +224,7 @@ impl Widget<Global> for GuiTradeWidget {
         let Some(ground) = ground_under(x, y) else {
             return EventResult::Handled;
         };
-        send_to_rules(
+        crate::rules::send(
             &Encoder::new("TRADE")
                 .field(format_args!("{:.1}", ground.x))
                 .field(format_args!("{:.1}", ground.z))

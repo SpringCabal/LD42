@@ -17,7 +17,7 @@ impl Widget<Global> for ApiSyncWidget {
         "ApiSync"
     }
 
-    /// Parses the rules' `MYCUBE_STATUS|food|heat|money|end|end_frame|intro`.
+    /// Parses the rules' `MYCUBE_STATUS|food|heat|money|end|survived|intro`.
     fn recv_from_synced(&self, ctx: &spring_addons::AddonContext<'_, Global>, message: &[u8]) {
         let Some(mut fields) = core::str::from_utf8(message)
             .ok()
@@ -29,7 +29,7 @@ impl Widget<Global> for ApiSyncWidget {
         else {
             return;
         };
-        let (Some(game_end), Some(end_frame), Some(intro)) = (
+        let (Some(game_end), Some(survived), Some(intro)) = (
             fields.next().map(GameEnd::parse),
             fields.i32(),
             fields.next(),
@@ -39,7 +39,7 @@ impl Widget<Global> for ApiSyncWidget {
         *ctx.global().meters.access_mut() = Meters { food, heat, money };
         let mut hud = ctx.global().hud.access_mut();
         hud.game_end = game_end;
-        hud.end_frame = (end_frame >= 0).then_some(end_frame);
+        hud.survival_frames = (survived >= 0).then_some(survived);
         if hud.intro != intro {
             hud.intro = String::from(intro);
             hud.intro_frame = current_frame();

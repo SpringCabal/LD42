@@ -81,8 +81,10 @@ impl GameEnd {
 /// Scripted-story progress.
 #[derive(Default)]
 pub struct Story {
-    /// The map's own units have been cleared and the story has begun.
+    /// The map's units have been cleared and the story has begun.
     pub started: bool,
+    /// The frame the round started (`game_end.lua`'s `startTime`).
+    pub start_frame: i32,
     pub step: usize,
     pub next_step: i32,
     pub intro_event: String,
@@ -106,6 +108,11 @@ impl Story {
         }
         self.game_end = Some(end);
         self.end_frame = Some(frame);
+    }
+
+    /// Frames from the start of the round to its end, once it has ended.
+    pub fn survival_frames(&self) -> Option<i32> {
+        self.end_frame.map(|end| end - self.start_frame)
     }
 }
 
@@ -142,4 +149,15 @@ pub struct Global {
     pub village: Resource<Village>,
     /// Owned by the Drills gadget; shared only with the integration test.
     pub drills: Resource<Drills>,
+}
+
+impl Global {
+    /// Start the round over. The storyteller clears the map and restores
+    /// the ice on the next frame, as `storyteller.lua`'s Initialize does.
+    pub fn restart_round(&self) {
+        *self.economy.access_mut() = Economy::default();
+        *self.story.access_mut() = Story::default();
+        *self.village.access_mut() = Village::default();
+        *self.drills.access_mut() = Drills::default();
+    }
 }

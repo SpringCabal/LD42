@@ -49,6 +49,7 @@ pub fn setup(handler: &mut GadgetHandler<Global>) {
             GameEndGadget::new(),
             StatusGadget::new(),
             TradeGadget::new(),
+            RestartGadget::new(),
         ]
     );
 

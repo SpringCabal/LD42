@@ -6,6 +6,7 @@ pub mod health;
 #[cfg(feature = "headless-integration")]
 pub mod integration;
 pub mod parachutes;
+pub mod restart;
 pub mod setup;
 pub mod status;
 pub mod storyteller;
@@ -21,6 +22,7 @@ pub use health::HealthGadget;
 #[cfg(feature = "headless-integration")]
 pub use integration::IntegrationGadget;
 pub use parachutes::ParachutesGadget;
+pub use restart::RestartGadget;
 pub use setup::{SetupGadget, setup};
 pub use status::StatusGadget;
 pub use storyteller::StorytellerGadget;

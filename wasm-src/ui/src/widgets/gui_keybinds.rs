@@ -48,8 +48,8 @@ impl Widget<Global> for GuiKeybindsWidget {
         event: &KeyEvent<'_>,
     ) -> EventResult {
         if event.ctrl && event.matches("r") {
-            // ui_endgame.lua's restart action.
-            springcabal::restart::reload_rules();
+            // ui_endgame.lua's Restart button.
+            crate::rules::restart_round();
             return EventResult::Handled;
         }
         if springcabal::menu::is_quit_to_menu(event) {

@@ -6,7 +6,8 @@ use springcabal::message::{Encoder, SendOnChange};
 use crate::state::Global;
 
 /// Sends the HUD state (resources, story text, game end) to the UI as
-/// `MYCUBE_STATUS|food|heat|money|end|end_frame|intro`, whenever it changes.
+/// `MYCUBE_STATUS|food|heat|money|end|survived|intro`, whenever it changes.
+/// `survived` is the round's length in frames once it has ended, else -1.
 #[derive(Default)]
 pub struct StatusGadget {
     status: SendOnChange<String>,
@@ -32,7 +33,7 @@ impl Gadget<Global> for StatusGadget {
                 .field(format_args!("{:.0}", economy.heat))
                 .field(format_args!("{:.0}", economy.money))
                 .field(story.game_end.map_or("", |end| end.as_str()))
-                .field(story.end_frame.unwrap_or(-1))
+                .field(story.survival_frames().unwrap_or(-1))
                 .field(&story.intro_event)
                 .finish()
         };

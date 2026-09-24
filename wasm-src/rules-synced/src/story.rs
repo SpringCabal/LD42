@@ -106,6 +106,14 @@ pub fn run_story(state: &mut Story, frame: i32) -> Vec<SpawnRequest> {
 
 const IGLU_MIN_DISTANCE: f32 = 400.0;
 
+/// `Spring.RevertHeightMap` over the whole map.
+pub fn restore_ice() {
+    let (map_x, map_z) = map_size();
+    if let Err(error) = spring::terrain_control::revert_height_map(0.0, 0.0, map_x, map_z, 1.0) {
+        spring::log_warning!("mycube", "restoring the ice failed: {error:?}");
+    }
+}
+
 fn map_size() -> (f32, f32) {
     spring::get_height_map_size()
         .map(|[x, z]| {
