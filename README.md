@@ -21,10 +21,8 @@ modules instead of Lua. The Lua original is the sibling `MyCube.sdd`.
 - The HUD (resources, key legend, end screen, story text) is drawn with plain rectangles and text instead of Chili.
 - Health bars are drawn in screen space above each unit, not as billboards in the world: the drawing API has no display lists.
 - Excavation subtracts from the height (floor -500) instead of setting a target from the corner height: the interpolated ground height made the Lua formula raise corners now and then.
-- A drill crater is dug over a few frames, 256 heightmap points per slice, to stay within the engine's per-callin work budget.
 - A drill ship searching for new ice grows its search square by one heightmap square at a time instead of Lua's one elmo (which samples nearly the same points eight times over and could exceed the work budget on this map), and skips points off the map, which Lua can pick at the map edge.
 - The story gives up looking for room for an iglu after 1000 tries and places it anyway; Lua keeps trying.
 - The sell cursor's harvest value is recomputed at most ten times a second, and once a second while the cursor rests; Lua recomputes its 676 height samples on every move.
-- A crater slice the engine refuses is retried at most five times, then dropped.
 
 [![Join the chat at https://gitter.im/SpringCabal/LD42](https://badges.gitter.im/SpringCabal/LD42.svg)](https://gitter.im/SpringCabal/LD42?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)

@@ -2,9 +2,7 @@
 
 use alloc::vec::Vec;
 
-use alloc::collections::VecDeque;
-
-use crate::terrain::{self, ICE_HEIGHT, SQUARE_SIZE, TerrainJob, round_to_square};
+use crate::terrain::{self, ICE_HEIGHT, SQUARE_SIZE, round_to_square};
 
 /// A drill ship, like the Lua drill gadget's per-ship table.
 #[derive(Clone, Copy)]
@@ -22,11 +20,10 @@ pub struct DrillShip {
     checked_frame: i32,
 }
 
-/// The drill ships and the craters they are digging.
+/// The drill ships.
 #[derive(Default)]
 pub struct Drills {
     pub ships: Vec<DrillShip>,
-    pub jobs: VecDeque<TerrainJob>,
     /// No ice is left anywhere, so the ships no longer look for it
     /// (`DISABLE_GADGET`).
     out_of_ice: bool,
@@ -60,7 +57,7 @@ impl DrillShip {
 
 /// `GG.Drill.DrillUnit`: every drill ship digs a crater under its drill tip
 /// every half second, drilling or not.
-pub fn drill(drills: &mut Drills, frame: i32) {
+pub fn drill(drills: &Drills, frame: i32) {
     for ship in &drills.ships {
         let age = frame - ship.created_frame;
         if age <= 0 || age % DRILL_PERIOD != 0 {
@@ -72,7 +69,7 @@ pub fn drill(drills: &mut Drills, frame: i32) {
             .map(|pos_dir| pos_dir.position)
             .or_else(|| spring::get_unit_position(ship.id, false, false).ok());
         if let Some(tip) = tip {
-            terrain::queue_terrain_job(&mut drills.jobs, tip.x, tip.z, DRILL_SIZE, DRILL_AMOUNT);
+            terrain::decrease_terrain(tip.x, tip.z, DRILL_SIZE, DRILL_AMOUNT);
         }
     }
 }
