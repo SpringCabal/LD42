@@ -1,14 +1,12 @@
 //! State shared between gadgets. Everything else lives in the gadget that
 //! owns it.
 
-use alloc::string::String;
 use alloc::vec::Vec;
 
 use spring_addons::Resource;
 
 use crate::drills::Drills;
-
-pub const FRAMES_PER_SECOND: i32 = 33;
+pub use crate::round::GameEnd;
 
 /// The village's three stocks.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -63,21 +61,6 @@ impl Default for Economy {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum GameEnd {
-    Victory,
-    Loss,
-}
-
-impl GameEnd {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Victory => "victory",
-            Self::Loss => "loss",
-        }
-    }
-}
-
 /// Scripted-story progress.
 #[derive(Default)]
 pub struct Story {
@@ -87,7 +70,8 @@ pub struct Story {
     pub start_frame: i32,
     pub step: usize,
     pub next_step: i32,
-    pub intro_event: String,
+    /// The last story text (`introEvent`).
+    pub intro_event: &'static str,
     pub story_eskimos: usize,
     pub story_drills: usize,
     pub story_parachutes: usize,

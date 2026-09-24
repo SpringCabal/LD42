@@ -15,8 +15,8 @@ use super::common::{
 /// Chips of ice after which the hold is full (`setIceDrillLoad`).
 const FULL_LOAD_CHIPS: u32 = 100;
 const SINKING_SOUND: &str = "sounds/sinkingship.ogg";
-/// Simulation frames per second.
-const GAME_SPEED: u32 = 30;
+/// The engine's simulation frames per second (`Game.gameSpeed`).
+const ENGINE_FRAMES_PER_SECOND: u32 = 30;
 
 /// The frame until which a sinking sound is playing, shared by every drill
 /// ship: `PlaySoundByUnitDefID` plays one at a time per unit def.
@@ -108,7 +108,7 @@ impl ShipScript {
             return;
         }
         self.sinking_sound
-            .set(frame + (length_ms as u32) * GAME_SPEED / 1000);
+            .set(frame + (length_ms as u32) * ENGINE_FRAMES_PER_SECOND / 1000);
         play_unit_sound(ctx.unit(), SINKING_SOUND, 0.75);
     }
 

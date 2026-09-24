@@ -1,6 +1,12 @@
 use spring_addons::ui::Widget;
 
+use crate::round::LUA_FRAMES_PER_SECOND;
 use crate::state::{Global, current_frame};
+
+/// `ui_floating_text.lua` shows a story event for five seconds...
+const SHOW_FRAMES: i32 = 5 * LUA_FRAMES_PER_SECOND;
+/// ...and moves it up by this many screen units over that time.
+const RISE: f32 = 50.0;
 
 /// The story overlay, ported from `ui_floating_text.lua`.
 #[derive(Default)]
@@ -22,14 +28,12 @@ impl Widget<Global> for UiFloatingTextWidget {
         let hud = ctx.global().hud.access();
         let start = hud.intro_frame;
         let age = frame - start;
-        // ui_floating_text.lua displays a story event for five seconds and moves
-        // it upward by 50 screen units over that time.
-        if !(0..165).contains(&age) {
+        if !(0..SHOW_FRAMES).contains(&age) {
             return;
         }
         let _ = spring::gfx::begin_text(false);
         let _ = spring::gfx::color(0.85, 0.95, 1.0, 1.0);
-        let y = height as f32 / 4.0 - age as f32 / 165.0 * 50.0;
+        let y = height as f32 / 4.0 - age as f32 / SHOW_FRAMES as f32 * RISE;
         for (line, text) in hud.intro.lines().enumerate() {
             let _ = spring::gfx::text(
                 text,

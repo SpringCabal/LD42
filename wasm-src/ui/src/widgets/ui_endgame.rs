@@ -43,7 +43,7 @@ impl Widget<Global> for UiEndgameWidget {
             GameEnd::Victory => "Victory!",
         };
         let survival_seconds =
-            hud.survival_frames.unwrap_or(0).max(0) / crate::state::FRAMES_PER_SECOND;
+            hud.survival_frames.unwrap_or(0).max(0) / crate::round::LUA_FRAMES_PER_SECOND;
         let _ = spring::gfx::begin_text(false);
         let _ = spring::gfx::color(0.85, 0.95, 1.0, 1.0);
         let _ = spring::gfx::text(title, width as f32 / 2.0, card_y + 135.0, 32.0, "cson");

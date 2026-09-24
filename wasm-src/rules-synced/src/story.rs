@@ -1,12 +1,13 @@
 //! The authored scenario script, ported from `storyteller.lua`.
 
-use alloc::{string::String, vec::Vec};
+use alloc::vec::Vec;
 
 use spring::Float3;
 
 use crate::defs::UnitKind::{self, *};
+use crate::round::LUA_FRAMES_PER_SECOND;
 use crate::spawning::SpawnRequest;
-use crate::state::{FRAMES_PER_SECOND, GameEnd, Story};
+use crate::state::{GameEnd, Story};
 
 pub fn run_story(state: &mut Story, frame: i32) -> Vec<SpawnRequest> {
     if frame < state.next_step {
@@ -55,7 +56,7 @@ pub fn run_story(state: &mut Story, frame: i32) -> Vec<SpawnRequest> {
         }
     };
     if !message.is_empty() {
-        state.intro_event = String::from(message);
+        state.intro_event = message;
     }
     let mut requests = Vec::with_capacity(units.len());
     for &unit in units {
@@ -89,7 +90,7 @@ pub fn run_story(state: &mut Story, frame: i32) -> Vec<SpawnRequest> {
         }
     }
     state.step += 1;
-    state.next_step = frame.saturating_add(wait.saturating_mul(FRAMES_PER_SECOND));
+    state.next_step = frame.saturating_add(wait.saturating_mul(LUA_FRAMES_PER_SECOND));
     requests
 }
 

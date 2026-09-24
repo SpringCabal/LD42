@@ -2,7 +2,7 @@ use alloc::string::String;
 
 use spring_addons::Resource;
 
-pub const FRAMES_PER_SECOND: i32 = 33;
+pub use crate::round::GameEnd;
 
 /// The three resource meters, refreshed from the rules module's status
 /// broadcast and read by the resource panel.
@@ -21,23 +21,6 @@ impl Default for Meters {
             food: 80,
             heat: 80,
             money: 80,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum GameEnd {
-    Victory,
-    Loss,
-}
-
-impl GameEnd {
-    /// The rules' name for a game end; anything else means still playing.
-    pub fn parse(value: &str) -> Option<Self> {
-        match value {
-            "victory" => Some(Self::Victory),
-            "loss" => Some(Self::Loss),
-            _ => None,
         }
     }
 }
