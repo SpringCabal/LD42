@@ -14,7 +14,12 @@ pub struct TerrainJob {
     size: i32,
     amount: f32,
     next_cell: usize,
+    /// Failed attempts at the current slice.
+    failures: u32,
 }
+
+/// Attempts at one slice before its crater is given up.
+const MAX_FAILURES: u32 = 5;
 
 /// Terrain above this height still counts as ice for the drills.
 pub const ICE_HEIGHT: f32 = -1.0;
@@ -26,6 +31,7 @@ pub fn queue_terrain_job(jobs: &mut VecDeque<TerrainJob>, x: f32, z: f32, size: 
         size,
         amount,
         next_cell: 0,
+        failures: 0,
     });
 }
 
@@ -62,11 +68,30 @@ pub fn process_terrain_jobs(jobs: &mut VecDeque<TerrainJob>) {
             continue;
         }
 
-        if !apply_terrain_cells(start_x, start_z, size, amount, first, last) {
+        let result = apply_terrain_cells(start_x, start_z, size, amount, first, last);
+        if result != Ok(true) {
+            // Retry on a later frame, in case the host was only out of
+            // budget; give up on a crater that keeps failing.
+            let Some(job) = jobs.front_mut() else {
+                break;
+            };
+            job.failures += 1;
+            let failures = job.failures;
+            let gave_up = failures >= MAX_FAILURES;
+            spring::log_warning!(
+                "mycube",
+                "digging the crater at ({start_x}, {start_z}) failed ({result:?}, attempt \
+                 {failures} of {MAX_FAILURES}){}",
+                if gave_up { "; giving it up" } else { "" }
+            );
+            if gave_up {
+                jobs.pop_front();
+            }
             break;
         }
         if let Some(job) = jobs.front_mut() {
             job.next_cell = last;
+            job.failures = 0;
         }
         if last >= cell_count {
             jobs.pop_front();
@@ -81,7 +106,7 @@ pub fn round_i_to_square(value: i32) -> i32 {
 pub fn decrease_terrain(x: f32, z: f32, size: i32, amount: f32) {
     let cells_per_side = (size / SQUARE_SIZE + 1) as usize;
     let cell_count = cells_per_side * cells_per_side;
-    let applied = apply_terrain_cells(
+    let result = apply_terrain_cells(
         round_to_square(x - size as f32 / 2.0),
         round_to_square(z - size as f32 / 2.0),
         size,
@@ -89,8 +114,11 @@ pub fn decrease_terrain(x: f32, z: f32, size: i32, amount: f32) {
         0,
         cell_count,
     );
-    if !applied {
-        spring::log_warning!("mycube", "lowering the ice at ({x}, {z}) failed");
+    if result != Ok(true) {
+        spring::log_warning!(
+            "mycube",
+            "lowering the ice at ({x}, {z}) failed: {result:?}"
+        );
     }
 }
 
@@ -109,7 +137,7 @@ fn apply_terrain_cells(
     amount: f32,
     first: usize,
     last: usize,
-) -> bool {
+) -> spring::Result<bool> {
     let cells_per_side = (size / SQUARE_SIZE + 1) as usize;
     let half = size as f32 / 2.0;
     spring::set_height_map_func(move || {
@@ -131,5 +159,4 @@ fn apply_terrain_cells(
             }
         }
     })
-    .is_ok_and(|success| success)
 }
