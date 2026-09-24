@@ -28,7 +28,6 @@ pub fn setup(handler: &mut WidgetHandler<Global>) {
             ApiSyncWidget::new(),
             HideDefaultInterface::new(HIDDEN_INTERFACE),
             SceneryWidget::new(),
-            GuiCameraWidget::new(),
             MusicLoop::new(MUSIC_FILE, MUSIC_VOLUME),
             GuiHealthbarsWidget::new(),
             GuiSelectionStatsWidget::new(),

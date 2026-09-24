@@ -13,6 +13,9 @@ const BAR_WIDTH: f32 = 46.0;
 const BAR_HEIGHT: f32 = 4.0;
 const BAR_GAP: f32 = 2.0;
 const UNIT_HEIGHT_SCALE: f32 = 1.8;
+/// `gui_healthbars.lua` draws a unit's bars only within this squared
+/// distance of the camera (`infoDistance`, about 894 elmos).
+const INFO_DISTANCE_SQ: f32 = 800_000.0;
 
 /// The original healthbar widget is a billboarded world draw call. Core's
 /// portable drawing API does not expose the widget's old display-list path,
@@ -86,6 +89,9 @@ impl Widget<Global> for GuiHealthbarsWidget {
 
     fn draw_screen(&self, _ctx: &spring_addons::AddonContext<'_, Global>, width: i32, height: i32) {
         self.refresh_units();
+        let Ok(camera) = spring::camera::get_camera_position(0) else {
+            return;
+        };
         for &(unit_id, kind) in self.bars.borrow().iter() {
             // The unit script sets the radius after creation, so read it here.
             let radius = spring::units_info::get_unit_radius(unit_id).unwrap_or(20.0);
@@ -93,6 +99,14 @@ impl Widget<Global> for GuiHealthbarsWidget {
             else {
                 continue;
             };
+            let (dx, dy, dz) = (
+                position.x - camera.x,
+                position.y - camera.y,
+                position.z - camera.z,
+            );
+            if dx * dx + dy * dy + dz * dz > INFO_DISTANCE_SQ {
+                continue;
+            }
             let Ok(projected) = spring::camera::world_to_screen_coords(spring::Float3::new(
                 position.x,
                 position.y + UNIT_HEIGHT_SCALE * radius,

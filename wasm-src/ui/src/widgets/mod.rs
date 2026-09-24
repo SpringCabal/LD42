@@ -4,7 +4,6 @@ pub mod dbg_e2e;
 #[cfg(feature = "headless-integration")]
 pub mod dbg_ui_messages;
 pub mod gallery;
-pub mod gui_camera;
 pub mod gui_healthbars;
 pub mod gui_keybinds;
 pub mod gui_resources;
@@ -20,7 +19,6 @@ pub use api_sync::ApiSyncWidget;
 pub use dbg_e2e::dbg_e2e;
 #[cfg(feature = "headless-integration")]
 pub use dbg_ui_messages::DbgUiMessagesWidget;
-pub use gui_camera::GuiCameraWidget;
 pub use gui_healthbars::GuiHealthbarsWidget;
 pub use gui_keybinds::GuiKeybindsWidget;
 pub use gui_resources::GuiResourcesWidget;

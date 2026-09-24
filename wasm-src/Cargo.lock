@@ -34,7 +34,6 @@ dependencies = [
  "spring",
  "spring-addons",
  "springcabal",
- "springcabal-control",
 ]
 
 [[package]]
@@ -59,12 +58,6 @@ dependencies = [
  "spring-addons",
 ]
 
-[[package]]
+[[patch.unused]]
 name = "springcabal-control"
 version = "0.1.0"
-dependencies = [
- "libm",
- "spring",
- "spring-addons",
- "springcabal",
-]

@@ -16,7 +16,7 @@ just copy    # build and install both WASM artifacts
   implements `scripts/*.lua` of the Lua original, and the rules reach it
   directly through `with_cus_module`.
 - `ui/`: the UI module, one widget per Lua widget (resources, trade,
-  health bars, story text, end screen, music, camera).
+  health bars, story text, end screen, music).
 - `shared/`: what both modules must agree on: the messages between them,
   the unit rules params, the ice-trade yield and the round's constants.
   Its host tests run with
