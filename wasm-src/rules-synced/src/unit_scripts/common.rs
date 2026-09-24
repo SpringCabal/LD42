@@ -7,13 +7,19 @@ pub(super) const SIG_WALK: spring::cus::SignalMask = spring::cus::SignalMask::ne
 pub(super) const SIG_IDLE: spring::cus::SignalMask = spring::cus::SignalMask::new(2);
 pub(super) const SIG_AIM: spring::cus::SignalMask = spring::cus::SignalMask::new(4);
 
-pub(super) type PieceMap = [spring::owned::units_pieces::PieceMapEntry];
+/// Every piece of a unit by model name, in model order (`InitCtx::pieces`).
+pub(super) type PieceMap<'a> = [(&'a str, Piece)];
 
 /// A piece by model name, or `Piece::INVALID`.
 pub(super) fn piece_in(map: &PieceMap, name: &str) -> Piece {
     map.iter()
-        .find(|entry| entry.name == name)
-        .map_or(Piece::INVALID, |entry| Piece(entry.piece_num - 1))
+        .find(|(entry, _)| *entry == name)
+        .map_or(Piece::INVALID, |(_, piece)| *piece)
+}
+
+/// The engine's piece number (1-based) of a script piece.
+fn piece_num(piece: Piece) -> i32 {
+    piece.0 + 1
 }
 
 /// The rest positions (model-space offsets) of the named pieces, from one
@@ -28,8 +34,8 @@ pub(super) fn piece_positions<const N: usize>(
         return positions;
     };
     let mut stack = alloc::vec![(root, spring::Float3::ZERO)];
-    while let Some((piece_num, parent_offset)) = stack.pop() {
-        let Ok(result) = spring::get_unit_piece_info(unit.0, piece_num) else {
+    while let Some((num, parent_offset)) = stack.pop() {
+        let Ok(result) = spring::get_unit_piece_info(unit.0, num) else {
             continue;
         };
         if !result.exists {
@@ -44,14 +50,14 @@ pub(super) fn piece_positions<const N: usize>(
         for (index, name) in names.iter().enumerate() {
             if map
                 .iter()
-                .any(|entry| entry.piece_num == piece_num && entry.name == *name)
+                .any(|(entry, piece)| piece_num(*piece) == num && entry == name)
             {
                 positions[index] = offset;
             }
         }
         for child_name in &info.children {
-            if let Some(child) = map.iter().find(|entry| entry.name == *child_name) {
-                stack.push((child.piece_num, offset));
+            if let Some((_, child)) = map.iter().find(|(entry, _)| entry == child_name) {
+                stack.push((piece_num(*child), offset));
             }
         }
     }
@@ -85,7 +91,7 @@ pub(super) fn coin_flip() -> bool {
 }
 
 pub(super) fn all_named_pieces(map: &PieceMap) -> Vec<Piece> {
-    map.iter().map(|entry| Piece(entry.piece_num - 1)).collect()
+    map.iter().map(|(_, piece)| *piece).collect()
 }
 
 /// The group and number of a piece named like `Build3` or `Deco005`, the way
@@ -102,9 +108,9 @@ fn group_and_number(name: &str) -> Option<(&str, u32)> {
 pub(super) fn numbered_group(map: &PieceMap, group: &str) -> Vec<(u32, Piece)> {
     let mut pieces = map
         .iter()
-        .filter_map(|entry| {
-            let (name, number) = group_and_number(&entry.name)?;
-            (name == group).then_some((number, Piece(entry.piece_num - 1)))
+        .filter_map(|(name, piece)| {
+            let (name, number) = group_and_number(name)?;
+            (name == group).then_some((number, *piece))
         })
         .collect::<Vec<_>>();
     pieces.sort_by_key(|(number, piece)| (*number, piece.0));
@@ -124,9 +130,9 @@ pub(super) fn matching_pieces(map: &PieceMap, group: &str) -> Vec<Piece> {
 pub(super) fn grouped_pieces(map: &PieceMap) -> Vec<Piece> {
     let mut pieces = map
         .iter()
-        .filter_map(|entry| {
-            let (group, number) = group_and_number(&entry.name)?;
-            Some(((group, number), Piece(entry.piece_num - 1)))
+        .filter_map(|(name, piece)| {
+            let (group, number) = group_and_number(name)?;
+            Some(((group, number), *piece))
         })
         .collect::<Vec<_>>();
     pieces.sort_by_key(|(key, _)| *key);

@@ -24,16 +24,11 @@ use self::ship::{ShipScript, SinkingSoundLock};
 use crate::defs::{self, UnitKind};
 
 /// The module's unit scripts. Rules code reaches them through
-/// `crate::with_cus_module`.
-pub type MyCubeCusModule = CusHost<MyCubeUnitScript>;
+/// `crate::with_cus_module`. The drill ships share one [`SinkingSoundLock`].
+pub type MyCubeCusModule = CusHost<MyCubeUnitScript, SinkingSoundLock>;
 
 /// The named function the drowning rules call (`env.StartDrowning()`).
 pub const START_DROWNING: &str = "StartDrowning";
-
-std::thread_local! {
-    /// Shared by every drill ship's script: see [`SinkingSoundLock`].
-    static SINKING_SOUND: SinkingSoundLock = SinkingSoundLock::default();
-}
 
 fn capabilities(kind: UnitKind) -> ScriptCapabilities {
     let mut bits = ScriptCapabilities::KILLED | ScriptCapabilities::CREATE;
@@ -85,29 +80,19 @@ impl MyCubeUnitScript {
     }
 }
 
-impl UnitDefScript for MyCubeUnitScript {
+impl UnitDefScript<SinkingSoundLock> for MyCubeUnitScript {
     fn capabilities(def: i32) -> Option<ScriptCapabilities> {
         defs::kind(def)
             .filter(|kind| kind.has_script())
             .map(capabilities)
     }
 
-    fn for_def(def: i32, ctx: &mut InitCtx<'_>) -> Self {
-        let unit = ctx.unit();
-        // The scripts look pieces up by name group, which `InitCtx` can't
-        // list, so they take the whole piece map.
-        let map = spring::get_unit_piece_map(unit.0).unwrap_or_default();
-        SINKING_SOUND
-            .with(|sinking_sound| Self::for_kind(defs::kind(def), unit, &map, sinking_sound))
+    fn for_def(def: i32, ctx: &mut InitCtx<'_>, sinking_sound: &mut SinkingSoundLock) -> Self {
+        Self::for_kind(defs::kind(def), ctx.unit(), &ctx.pieces(), sinking_sound)
     }
 }
 
 impl UnitScript for MyCubeUnitScript {
-    fn new(ctx: &mut InitCtx<'_>) -> Self {
-        let def = spring::get_unit_def_id(ctx.unit().0).map_or(-1, |def| def.0);
-        Self::for_def(def, ctx)
-    }
-
     fn create(&mut self, ctx: &UnitCtx) {
         match self {
             Self::Coalburner(script) => {
