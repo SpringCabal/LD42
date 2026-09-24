@@ -1,4 +1,4 @@
-# MyCube Core-WASM port
+# My Cube WASM modules
 
 Run these commands from this directory:
 
@@ -9,5 +9,16 @@ just build   # format, lint, and build both modules
 just copy    # build and install both WASM artifacts
 ```
 
-The original Lua game is retained beside this port; authored unit scripts are
-implemented by the Rust CUS module in `rules-synced/src/unit_scripts`.
+- `rules-synced/`: the synced rules module. Each gadget in `src/gadgets/`
+  ports one Lua gadget (storyteller, Eskimo needs, drowning, drills, health,
+  trade, ...) and owns its state; `src/state.rs` holds what several share.
+  The same module is the unit-script (CUS) module: `src/unit_scripts/`
+  implements `scripts/*.lua` of the Lua original, and the rules reach it
+  directly through `with_cus_module`.
+- `ui/`: the UI module, one widget per Lua widget (resources, trade,
+  health bars, story text, end screen, music, camera).
+- `common/`: code both modules include (the ice-trade yield).
+
+The `headless-integration` (rules) and `e2e` (UI) features add the tests
+the verification suites run. The verification gallery sets the mod option
+`gallery`, which turns the story off so the photographed unit stands alone.
