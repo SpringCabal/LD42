@@ -1,6 +1,6 @@
+use mycube_shared::Command;
 use spring_addons::rules::Gadget;
 
-use crate::round::RESTART_MESSAGE;
 use crate::state::Global;
 
 /// Starts the round over when the player asks (Ctrl+R).
@@ -30,7 +30,7 @@ impl Gadget<Global> for RestartGadget {
         _mode: i32,
         data: &[u8],
     ) {
-        if data == RESTART_MESSAGE.as_bytes() {
+        if core::str::from_utf8(data).ok().and_then(Command::decode) == Some(Command::Restart) {
             ctx.global().restart_round();
             spring::log_info!(
                 "mycube",

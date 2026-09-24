@@ -7,12 +7,13 @@
 //! once, and the gadgets handling them borrow the same state.
 
 use alloc::vec::Vec;
+use mycube_shared::unit;
 
 use springcabal::check::Suite;
 
 use crate::defs::{self, UnitKind};
 use crate::state::{GameEnd, Global};
-use crate::test_sites::{trade_location, water_location};
+use mycube_shared::test_sites::{trade_location, water_location};
 
 /// Checks that must pass; fewer means the run skipped some.
 const EXPECTED_CHECKS: u32 = 29;
@@ -96,7 +97,7 @@ impl Tracker {
                 );
             }
             35 => {
-                self.trade_before = trade_location().and_then(|(x, z)| {
+                self.trade_before = trade_location(map_size(), ground).and_then(|(x, z)| {
                     spring::get_ground_height(x, z)
                         .ok()
                         .map(|height| (x, z, height))
@@ -173,7 +174,7 @@ impl Tracker {
         let scenery = units_of(UnitKind::Coalburner).first().copied();
         self.check(
             scenery.is_some_and(|id| {
-                spring::get_unit_rules_param_f32(id, "untargetable") == Ok(1.0)
+                spring::get_unit_rules_param_f32(id, unit::UNTARGETABLE) == Ok(1.0)
                     && !crate::untargetable::allow_command(spring::cmd::ATTACK, &[id as f32])
                     && crate::untargetable::allow_command(spring::cmd::MOVE, &[100.0, 0.0, 100.0])
             }),
@@ -188,7 +189,7 @@ impl Tracker {
             let village = global.village.access();
             (
                 village.eskimos.iter().all(|unit| {
-                    spring::get_unit_rules_param_f32(unit.id, "health").is_ok_and(|hp| hp > 0.0)
+                    spring::get_unit_rules_param_f32(unit.id, unit::HEALTH).is_ok_and(|hp| hp > 0.0)
                 }),
                 village.eskimos.iter().any(|unit| unit.food < 90.0),
             )
@@ -226,7 +227,7 @@ impl Tracker {
             return;
         };
         let (Ok(pool), Ok(engine)) = (
-            spring::get_unit_rules_param_f32(target, "health"),
+            spring::get_unit_rules_param_f32(target, unit::HEALTH),
             spring::get_unit_health(target),
         ) else {
             return;
@@ -252,7 +253,7 @@ impl Tracker {
         self.check(
             eskimo_damage > 0.0
                 && combat.is_some_and(|(id, pool_before, engine_before)| {
-                    spring::get_unit_rules_param_f32(id, "health")
+                    spring::get_unit_rules_param_f32(id, unit::HEALTH)
                         .is_ok_and(|pool| (pool - (pool_before - eskimo_damage)).abs() < 0.01)
                         && spring::get_unit_health(id)
                             .is_ok_and(|engine| engine.health == engine_before)
@@ -268,8 +269,8 @@ impl Tracker {
             return;
         };
         let (Some((x, z)), Ok(pool)) = (
-            water_location(),
-            spring::get_unit_rules_param_f32(id, "health"),
+            water_location(map_size(), ground),
+            spring::get_unit_rules_param_f32(id, unit::HEALTH),
         ) else {
             return;
         };
@@ -287,7 +288,7 @@ impl Tracker {
         let drowning = self.drowning;
         self.check(
             drowning.is_some_and(|(id, before)| {
-                spring::get_unit_rules_param_f32(id, "health")
+                spring::get_unit_rules_param_f32(id, unit::HEALTH)
                     .is_ok_and(|pool| before - pool >= frames - 1.0)
             }),
             "an Eskimo in the sea loses a point of health per frame",
@@ -507,4 +508,12 @@ fn units_of(kind: UnitKind) -> Vec<i32> {
         .into_iter()
         .filter(|id| spring::get_unit_def_id(*id).is_ok_and(|def| defs::kind(def.0) == Some(kind)))
         .collect()
+}
+
+fn map_size() -> (i32, i32) {
+    spring::game::map_size_elmos().unwrap_or_default()
+}
+
+fn ground(x: f32, z: f32) -> Option<f32> {
+    spring::get_ground_height(x, z).ok()
 }

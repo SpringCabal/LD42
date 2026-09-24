@@ -62,13 +62,10 @@ pub fn is_scenery(def: i32) -> bool {
 
 /// A def's full gameplay health pool, `customParams.health`.
 fn health(def: Option<i32>) -> f32 {
-    def.and_then(|def| spring::unit_defs::get_unit_def_custom_param(def, "health").ok())
-        .and_then(|value| value.trim().parse().ok())
-        .unwrap_or(DEFAULT_HEALTH)
+    let param =
+        def.and_then(|def| spring::unit_defs::get_unit_def_custom_param(def, "health").ok());
+    mycube_shared::unit::max_health(param.as_deref())
 }
-
-/// `game_health.lua`'s pool for defs without `customParams.health`.
-const DEFAULT_HEALTH: f32 = 100_000.0;
 
 impl UnitKind {
     /// The full gameplay health pool.

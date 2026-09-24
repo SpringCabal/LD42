@@ -2,6 +2,7 @@
 //!
 //! Spring's engine health is deliberately not the authority for this game.
 
+use mycube_shared::unit;
 use spring::rules_params::los::PUBLIC;
 
 /// Returned once the pool is exhausted, so the engine kills the unit.
@@ -11,7 +12,7 @@ const LETHAL_DAMAGE: f32 = 1.0e16;
 /// it when the unit is created, so a failed read is a bug: it is logged and
 /// the caller leaves the unit alone.
 pub fn pool(id: i32) -> Option<f32> {
-    spring::get_unit_rules_param_f32(id, "health")
+    spring::get_unit_rules_param_f32(id, unit::HEALTH)
         .inspect_err(|error| {
             spring::log_warning!("mycube", "no health pool for unit {id}: {error:?}");
         })
@@ -19,7 +20,7 @@ pub fn pool(id: i32) -> Option<f32> {
 }
 
 pub fn set_pool(id: i32, health: f32) {
-    if let Err(error) = spring::set_unit_rules_param_f32(id, "health", health, PUBLIC) {
+    if let Err(error) = spring::set_unit_rules_param_f32(id, unit::HEALTH, health, PUBLIC) {
         spring::log_warning!(
             "mycube",
             "setting the health of unit {id} failed: {error:?}"

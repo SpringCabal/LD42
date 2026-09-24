@@ -2,7 +2,7 @@ use alloc::string::String;
 
 use spring_addons::Resource;
 
-pub use crate::round::GameEnd;
+pub use mycube_shared::GameEnd;
 
 /// The three resource meters, refreshed from the rules module's status
 /// broadcast and read by the resource panel.

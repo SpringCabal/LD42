@@ -1,6 +1,7 @@
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 use core::cell::{Cell, RefCell};
+use mycube_shared::unit;
 
 use spring_addons::ui::Widget;
 
@@ -109,7 +110,7 @@ impl Widget<Global> for GuiHealthbarsWidget {
                 continue;
             }
 
-            let health = spring::get_unit_rules_param_f32(unit_id, "health").unwrap_or(0.0);
+            let health = spring::get_unit_rules_param_f32(unit_id, unit::HEALTH).unwrap_or(0.0);
             let max_health = kind.max_health();
             self.draw_bar(
                 screen.x,
@@ -119,20 +120,20 @@ impl Widget<Global> for GuiHealthbarsWidget {
                 self.health_color(health / max_health),
             );
             if kind == UnitKind::Eskimo {
-                let food = spring::get_unit_rules_param_f32(unit_id, "food").unwrap_or(0.0);
+                let food = spring::get_unit_rules_param_f32(unit_id, unit::FOOD).unwrap_or(0.0);
                 self.draw_bar(
                     screen.x,
                     screen.y + 20.0 - BAR_HEIGHT - BAR_GAP,
                     food,
-                    100.0,
+                    unit::MAX_NEED,
                     (0.0, 1.0, 0.0),
                 );
-                let heat = spring::get_unit_rules_param_f32(unit_id, "heat").unwrap_or(0.0);
+                let heat = spring::get_unit_rules_param_f32(unit_id, unit::HEAT).unwrap_or(0.0);
                 self.draw_bar(
                     screen.x,
                     screen.y + 20.0 - 2.0 * (BAR_HEIGHT + BAR_GAP),
                     heat,
-                    100.0,
+                    unit::MAX_NEED,
                     (0.5, 0.3, 0.1),
                 );
             }

@@ -1,38 +1,14 @@
+use mycube_shared::Status;
 use spring_addons::rules::Gadget;
-use springcabal::message::{Encoder, SendOnChange};
+use springcabal::message::SendOnChange;
 
-use crate::state::{GameEnd, Global};
+use crate::state::Global;
 
-/// What the HUD shows.
-#[derive(Clone, Copy, PartialEq)]
-struct Status {
-    food: i32,
-    heat: i32,
-    money: i32,
-    game_end: Option<GameEnd>,
-    survival_frames: Option<i32>,
-    intro: &'static str,
-}
-
-impl Status {
-    fn encode(&self) -> alloc::string::String {
-        Encoder::new("MYCUBE_STATUS")
-            .field(self.food)
-            .field(self.heat)
-            .field(self.money)
-            .field(self.game_end.map_or("", GameEnd::as_str))
-            .field(self.survival_frames.unwrap_or(-1))
-            .field(self.intro)
-            .finish()
-    }
-}
-
-/// Sends the HUD state (resources, story text, game end) to the UI as
-/// `MYCUBE_STATUS|food|heat|money|end|survived|intro`, whenever it changes.
-/// `survived` is the round's length in frames once it has ended, else -1.
+/// Sends the HUD state (resources, story text, game end) to the UI as a
+/// [`Status`], whenever it changes.
 #[derive(Default)]
 pub struct StatusGadget {
-    status: SendOnChange<Status>,
+    status: SendOnChange<Status<'static>>,
 }
 
 impl StatusGadget {

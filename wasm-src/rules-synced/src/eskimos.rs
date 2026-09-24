@@ -2,13 +2,14 @@
 
 use alloc::vec::Vec;
 
-use crate::round::LUA_FRAMES_PER_SECOND;
+use mycube_shared::round::LUA_FRAMES_PER_SECOND;
+use mycube_shared::unit::MAX_NEED;
+
 use crate::state::{Economy, Eskimo, Village};
 use crate::units::set_eskimo_needs;
 
 /// The rates below are per Lua second.
 const FPS: f32 = LUA_FRAMES_PER_SECOND as f32;
-const MAX_NEED: f32 = 100.0;
 const BURNER_RANGE: f32 = 300.0;
 const WARMING_INCREASE: f32 = 4.0 / FPS;
 const COLD_DECREASE: f32 = 1.0 / FPS;

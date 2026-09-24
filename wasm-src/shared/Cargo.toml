@@ -1,0 +1,12 @@
+[package]
+name = "mycube-shared"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+spring = { workspace = true }
+springcabal = { workspace = true }
+
+[lints]
+workspace = true

@@ -15,6 +15,7 @@ headless-integration = []
 [dependencies]
 spring = { workspace = true }
 spring-addons = { workspace = true }
+mycube-shared = { path = "../shared" }
 springcabal = { workspace = true }
 springcabal-control = { workspace = true }
 

@@ -12,8 +12,17 @@ checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
 name = "mycube-rules-wasm"
 version = "0.1.0"
 dependencies = [
+ "mycube-shared",
  "spring",
  "spring-addons",
+ "springcabal",
+]
+
+[[package]]
+name = "mycube-shared"
+version = "0.1.0"
+dependencies = [
+ "spring",
  "springcabal",
 ]
 
@@ -21,6 +30,7 @@ dependencies = [
 name = "mycube-ui-wasm"
 version = "0.1.0"
 dependencies = [
+ "mycube-shared",
  "spring",
  "spring-addons",
  "springcabal",

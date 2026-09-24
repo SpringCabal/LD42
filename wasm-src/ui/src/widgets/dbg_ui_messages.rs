@@ -1,15 +1,15 @@
 use core::cell::Cell;
 
+use mycube_shared::Command;
 use spring_addons::ui::Widget;
-use springcabal::message::Encoder;
 
 use crate::state::Global;
 
-/// A message the headless integration test sends to the rules, from the
+/// A command the headless integration test sends to the rules, from the
 /// first update at or after `frame`.
 struct Step {
     frame: i32,
-    message: fn() -> Option<String>,
+    command: fn() -> Option<Command>,
 }
 
 /// In order; the rules check each result a few frames later
@@ -19,25 +19,28 @@ const STEPS: [Step; 4] = [
     // Buy coal (checked at frame 30).
     Step {
         frame: 20,
-        message: || Some(String::from("MODE|2")),
+        command: || Some(Command::BuyHeat),
     },
     // Sell the ice the rules measured at frame 35 (checked at 45).
     Step {
         frame: 36,
-        message: || {
-            let (x, z) = crate::test_sites::trade_location()?;
-            Some(Encoder::new("TRADE").field(x).field(z).finish())
+        command: || {
+            let map = spring::game::map_size_elmos().ok()?;
+            let (x, z) = mycube_shared::test_sites::trade_location(map, |x, z| {
+                spring::get_ground_height(x, z).ok()
+            })?;
+            Some(Command::Trade { x, z })
         },
     },
     // Buy food with the trade's money (checked at 45).
     Step {
         frame: 38,
-        message: || Some(String::from("MODE|3")),
+        command: || Some(Command::BuyFood),
     },
     // Restart the round the way Ctrl+R does, after the first round's checks.
     Step {
         frame: 1005,
-        message: || Some(String::from(crate::round::RESTART_MESSAGE)),
+        command: || Some(Command::Restart),
     },
 ];
 
@@ -66,8 +69,8 @@ impl Widget<Global> for DbgUiMessagesWidget {
                 return;
             }
             self.sent.set(self.sent.get() + 1);
-            match (step.message)() {
-                Some(message) => crate::rules::send(&message),
+            match (step.command)() {
+                Some(command) => crate::rules::send(command),
                 None => spring::log_warning!(
                     "mycube-ui",
                     "no message for the test step at frame {}",

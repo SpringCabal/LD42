@@ -1,14 +1,13 @@
 use core::cell::Cell;
 
+use mycube_shared::Command;
+use mycube_shared::ice::{TRADE_SIZE, ice_value, round_to_square};
 use spring::gl;
 use spring_addons::event::{EventResult, KeyEvent};
 use spring_addons::ui::Widget;
-use springcabal::message::Encoder;
 
 use crate::state::Global;
 
-/// Side of the square of ice a trade harvests.
-const TRADE_SIZE: f32 = 300.0;
 const BRUSH_TEXTURE: &str = "Bitmaps/circle.png";
 /// Seconds between two valuations of the ice under a moving cursor: one
 /// valuation samples 676 heights.
@@ -115,13 +114,15 @@ impl GuiTradeWidget {
         };
         let age = self.value_age.get() + dt;
         let square = (
-            crate::ice::round_to_square(preview.world_x),
-            crate::ice::round_to_square(preview.world_z),
+            round_to_square(preview.world_x),
+            round_to_square(preview.world_z),
         );
         let valued = !preview.valued_square.0.is_nan();
         let moved = square != preview.valued_square;
         if !valued || (moved && age >= VALUE_INTERVAL) || age >= VALUE_REFRESH {
-            preview.value = crate::ice::ice_value(preview.world_x, preview.world_z) as i32;
+            preview.value = ice_value(preview.world_x, preview.world_z, |x, z| {
+                spring::get_ground_height(x, z).unwrap_or(0.0)
+            }) as i32;
             preview.valued_square = square;
             self.value_age.set(0.0);
         } else {
@@ -166,7 +167,13 @@ impl Widget<Global> for GuiTradeWidget {
             15.0,
             "o",
         );
-        let _ = spring::gfx::text("Area: 300 x 300", left + 10.0, bottom + 13.0, 13.0, "o");
+        let _ = spring::gfx::text(
+            &alloc::format!("Area: {TRADE_SIZE} x {TRADE_SIZE}"),
+            left + 10.0,
+            bottom + 13.0,
+            13.0,
+            "o",
+        );
         let _ = spring::gfx::end_text(0);
     }
 
@@ -182,7 +189,7 @@ impl Widget<Global> for GuiTradeWidget {
         let _ = spring::gfx::use_shader(shader);
         let _ = spring::gfx::blending(true);
         let _ = spring::gfx::blend_func(gl::SRC_ALPHA, gl::ONE);
-        let half = TRADE_SIZE / 2.0;
+        let half = TRADE_SIZE as f32 / 2.0;
         let _ = spring::gfx::color(0.05, 0.45, 0.95, 0.32);
         let _ = spring::gfx::draw_ground_quad(
             preview.world_x - half,
@@ -207,22 +214,22 @@ impl Widget<Global> for GuiTradeWidget {
         _ctx: &spring_addons::AddonContext<'_, Global>,
         event: &KeyEvent<'_>,
     ) -> EventResult {
-        let message = if event.matches("1") {
+        let command = if event.matches("1") {
             // ui_modes.lua toggles MODE 1; pressing 1 again cancels selling.
             let trading = !self.trading.get();
             self.stop_trading();
             self.trading.set(trading);
-            "MODE|1"
+            Command::SellMode
         } else if event.matches("2") {
             self.stop_trading();
-            "MODE|2"
+            Command::BuyHeat
         } else if event.matches("3") {
             self.stop_trading();
-            "MODE|3"
+            Command::BuyFood
         } else {
             return EventResult::Ignored;
         };
-        crate::rules::send(message);
+        crate::rules::send(command);
         EventResult::Handled
     }
 
@@ -240,12 +247,10 @@ impl Widget<Global> for GuiTradeWidget {
         let Some(ground) = ground_under(x, y) else {
             return EventResult::Handled;
         };
-        crate::rules::send(
-            &Encoder::new("TRADE")
-                .field(format_args!("{:.1}", ground.x))
-                .field(format_args!("{:.1}", ground.z))
-                .finish(),
-        );
+        crate::rules::send(Command::Trade {
+            x: ground.x,
+            z: ground.z,
+        });
         self.stop_trading();
         EventResult::Handled
     }

@@ -6,7 +6,7 @@ use alloc::vec::Vec;
 use spring_addons::Resource;
 
 use crate::drills::Drills;
-pub use crate::round::GameEnd;
+pub use mycube_shared::GameEnd;
 
 /// The village's three stocks.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -1,10 +1,15 @@
 //! Terrain excavation shared by the drill controller and the ice trade.
 
-pub use crate::ice::round_to_square;
+pub use mycube_shared::ice::round_to_square;
 use spring::consts::SQUARE_SIZE;
 
 /// Terrain above this height still counts as ice for the drills.
 pub const ICE_HEIGHT: f32 = -1.0;
+
+/// The ground height at `(x, z)`; 0 (sea level) off the map.
+pub fn ground_height(x: f32, z: f32) -> f32 {
+    spring::get_ground_height(x, z).unwrap_or(0.0)
+}
 
 /// `DecreaseTerrain`: dig a round crater of `size` around `(x, z)`, deepest
 /// (`amount` per elmo from the rim) in the middle.

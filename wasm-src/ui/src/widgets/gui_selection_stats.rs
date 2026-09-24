@@ -1,3 +1,4 @@
+use mycube_shared::unit;
 use spring_addons::ui::Widget;
 
 use crate::defs::{self, UnitKind};
@@ -60,22 +61,22 @@ impl Widget<Global> for GuiSelectionStatsWidget {
                 self.draw_bar(
                     0.0,
                     y,
-                    spring::get_unit_rules_param_f32(unit_id, "health").unwrap_or(0.0),
-                    100.0,
+                    spring::get_unit_rules_param_f32(unit_id, unit::HEALTH).unwrap_or(0.0),
+                    UnitKind::Eskimo.max_health(),
                     (1.0, 0.0, 0.0),
                 );
                 self.draw_bar(
                     0.0,
                     y + BAR_STEP,
-                    spring::get_unit_rules_param_f32(unit_id, "food").unwrap_or(0.0),
-                    100.0,
+                    spring::get_unit_rules_param_f32(unit_id, unit::FOOD).unwrap_or(0.0),
+                    unit::MAX_NEED,
                     (0.0, 1.0, 0.0),
                 );
                 self.draw_bar(
                     0.0,
                     y + 2.0 * BAR_STEP,
-                    spring::get_unit_rules_param_f32(unit_id, "heat").unwrap_or(0.0),
-                    100.0,
+                    spring::get_unit_rules_param_f32(unit_id, unit::HEAT).unwrap_or(0.0),
+                    unit::MAX_NEED,
                     (0.5, 0.3, 0.1),
                 );
             } else if let Ok(health) = spring::units_info::get_unit_health(unit_id) {

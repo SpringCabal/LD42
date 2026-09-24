@@ -3,6 +3,8 @@
 use alloc::vec::Vec;
 use core::cell::OnceCell;
 
+use mycube_shared::unit;
+
 /// The unit types the rules and unit scripts care about.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum UnitKind {
@@ -56,9 +58,6 @@ const DEF_NAMES: [(&str, UnitKind); 8] = [
     ("pirate", UnitKind::Pirate),
 ];
 
-/// `game_health.lua`'s pool for defs without `customParams.health`.
-const DEFAULT_HEALTH: f32 = 100_000.0;
-
 #[derive(Clone, Copy)]
 struct DefInfo {
     id: i32,
@@ -82,8 +81,9 @@ impl Defs {
                 Some(DefInfo {
                     id,
                     kind,
-                    health: custom_param(id, "health").unwrap_or(DEFAULT_HEALTH),
-                    damage: custom_param(id, "damage").unwrap_or(0.0),
+                    health: unit::max_health(custom_param(id, "health").as_deref()),
+                    damage: unit::custom_param_number(custom_param(id, "damage").as_deref())
+                        .unwrap_or(0.0),
                 })
             })
             .collect();
@@ -95,12 +95,8 @@ impl Defs {
     }
 }
 
-fn custom_param(def: i32, key: &str) -> Option<f32> {
-    spring::unit_defs::get_unit_def_custom_param(def, key)
-        .ok()?
-        .trim()
-        .parse()
-        .ok()
+fn custom_param(def: i32, key: &str) -> Option<alloc::string::String> {
+    spring::unit_defs::get_unit_def_custom_param(def, key).ok()
 }
 
 thread_local! {
@@ -128,7 +124,10 @@ pub fn def_id(kind: UnitKind) -> Option<i32> {
 
 /// The gameplay health a unit of this def starts with (`game_health.lua`).
 pub fn health(def: i32) -> f32 {
-    with_defs(|defs| defs.info(def).map_or(DEFAULT_HEALTH, |info| info.health))
+    with_defs(|defs| {
+        defs.info(def)
+            .map_or(unit::DEFAULT_HEALTH, |info| info.health)
+    })
 }
 
 /// The gameplay damage a unit of this def deals per hit.

@@ -1,3 +1,4 @@
+use mycube_shared::Command;
 use spring_addons::rules::Gadget;
 
 use crate::state::Global;
@@ -27,6 +28,8 @@ impl Gadget<Global> for TradeGadget {
         _mode: i32,
         data: &[u8],
     ) {
-        trade::handle_message(&mut ctx.global().economy.access_mut(), data);
+        if let Some(command) = core::str::from_utf8(data).ok().and_then(Command::decode) {
+            trade::handle_command(&mut ctx.global().economy.access_mut(), command);
+        }
     }
 }

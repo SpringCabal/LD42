@@ -1,7 +1,7 @@
 use spring_addons::ui::Widget;
 
-use crate::round::LUA_FRAMES_PER_SECOND;
 use crate::state::Global;
+use mycube_shared::round::LUA_FRAMES_PER_SECOND;
 
 /// `ui_floating_text.lua` shows a story event for five seconds...
 const SHOW_FRAMES: i32 = 5 * LUA_FRAMES_PER_SECOND;

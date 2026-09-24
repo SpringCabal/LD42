@@ -17,8 +17,10 @@ just copy    # build and install both WASM artifacts
   directly through `with_cus_module`.
 - `ui/`: the UI module, one widget per Lua widget (resources, trade,
   health bars, story text, end screen, music, camera).
-- `common/`: code both modules include: the ice-trade yield, and the round's
-  constants and messages.
+- `shared/`: what both modules must agree on: the messages between them,
+  the unit rules params, the ice-trade yield and the round's constants.
+  Its host tests run with
+  `cargo test -p mycube-shared --target x86_64-unknown-linux-gnu`.
 
 The `headless-integration` (rules and UI) and `e2e` (UI) features add the
 tests the verification suites run. The verification gallery sets the mod option

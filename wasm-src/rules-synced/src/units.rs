@@ -1,10 +1,11 @@
 //! Small unit helpers shared by several gadgets.
 
+use mycube_shared::unit;
 use spring::rules_params::los::PUBLIC;
 
 pub fn set_eskimo_needs(id: i32, food: f32, heat: f32) {
-    let _ = spring::set_unit_rules_param_f32(id, "food", food, PUBLIC);
-    let _ = spring::set_unit_rules_param_f32(id, "heat", heat, PUBLIC);
+    let _ = spring::set_unit_rules_param_f32(id, unit::FOOD, food, PUBLIC);
+    let _ = spring::set_unit_rules_param_f32(id, unit::HEAT, heat, PUBLIC);
 }
 
 /// Destroy a unit unless it is already gone; several gadgets can condemn

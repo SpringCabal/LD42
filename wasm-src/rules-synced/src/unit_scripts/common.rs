@@ -1,4 +1,5 @@
 use alloc::vec::Vec;
+use mycube_shared::unit;
 
 use spring::UnitId;
 use spring::cus::{Angle, AngularSpeed, Axis, Piece, UnitCtx};
@@ -165,7 +166,7 @@ pub(super) fn set_scenery_state(unit: UnitId) {
     let _ = spring::set_unit_neutral(unit.0, true);
     let _ = spring::set_unit_rules_param_f32(
         unit.0,
-        "untargetable",
+        unit::UNTARGETABLE,
         1.0,
         spring::rules_params::los::PUBLIC,
     );

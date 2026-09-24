@@ -5,9 +5,9 @@ use alloc::vec::Vec;
 use spring::Float3;
 
 use crate::defs::UnitKind::{self, *};
-use crate::round::LUA_FRAMES_PER_SECOND;
 use crate::spawning::SpawnRequest;
 use crate::state::{GameEnd, Story};
+use mycube_shared::round::LUA_FRAMES_PER_SECOND;
 
 pub fn run_story(state: &mut Story, frame: i32) -> Vec<SpawnRequest> {
     if frame < state.next_step {

@@ -1,3 +1,5 @@
+use mycube_shared::Command;
+use mycube_shared::round::PURCHASE_PRICE;
 use spring_addons::event::{EventResult, KeyEvent};
 use spring_addons::ui::Widget;
 
@@ -31,8 +33,8 @@ impl Widget<Global> for GuiKeybindsWidget {
         for (line, text) in [
             "Ctrl+Q : Quit",
             "1 (+ left mouse): sell ice",
-            "2 (need 50 money): buy heating resource",
-            "3 (need 50 money): buy food",
+            &alloc::format!("2 (need {PURCHASE_PRICE} money): buy heating resource"),
+            &alloc::format!("3 (need {PURCHASE_PRICE} money): buy food"),
         ]
         .into_iter()
         .enumerate()
@@ -49,7 +51,7 @@ impl Widget<Global> for GuiKeybindsWidget {
     ) -> EventResult {
         if event.ctrl && event.matches("r") {
             // ui_endgame.lua's Restart button.
-            crate::rules::restart_round();
+            crate::rules::send(Command::Restart);
             return EventResult::Handled;
         }
         if springcabal::menu::is_quit_to_menu(event) {
