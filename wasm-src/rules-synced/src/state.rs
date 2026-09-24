@@ -90,6 +90,9 @@ pub struct Story {
     pub story_drills: usize,
     pub story_parachutes: usize,
     pub story_pirates: usize,
+    /// Where the story placed iglus and the coal burner, which keep their
+    /// distance from each other.
+    pub supports: Vec<(f32, f32)>,
     pub game_end: Option<GameEnd>,
     pub end_frame: Option<i32>,
 }

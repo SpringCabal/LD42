@@ -58,12 +58,11 @@ pub fn run_story(state: &mut Story, frame: i32) -> Vec<SpawnRequest> {
         state.intro_event = String::from(message);
     }
     let mut requests = Vec::with_capacity(units.len());
-    let mut support_positions = existing_support_positions();
     for &unit in units {
         let (x, y, z) = loop {
             let candidate = find_position(unit);
             if !is_support(unit)
-                || support_positions.iter().all(|(support_x, support_z)| {
+                || state.supports.iter().all(|(support_x, support_z)| {
                     let dx = candidate.0 - support_x;
                     let dz = candidate.2 - support_z;
                     dx * dx + dz * dz > IGLU_MIN_DISTANCE * IGLU_MIN_DISTANCE
@@ -78,7 +77,7 @@ pub fn run_story(state: &mut Story, frame: i32) -> Vec<SpawnRequest> {
             team,
         });
         if is_support(unit) {
-            support_positions.push((x, z));
+            state.supports.push((x, z));
         }
         if unit == Iglu {
             let lantern_x = x + random_int(130, 150) as f32 * random_sign();
@@ -134,12 +133,7 @@ fn random_sign() -> f32 {
 
 fn find_position(unit: UnitKind) -> (f32, f32, f32) {
     let (map_x, map_z) = map_size();
-    let (x, z) = if unit == Coalburner {
-        // Unlike storyteller.lua, which places the burner at random like an
-        // iglu, keep the village's only stove at the map centre so the
-        // iglus are placed around it. This skips the Lua's two draws.
-        (map_x * 0.5, map_z * 0.5)
-    } else if unit == Drillship {
+    let (x, z) = if unit == Drillship {
         (
             map_x * 0.5
                 + random_int((map_x / 4.0) as i32, (map_x / 2.0) as i32) as f32 * random_sign(),
@@ -161,21 +155,6 @@ fn is_support(kind: UnitKind) -> bool {
     matches!(kind, Iglu | Coalburner)
 }
 
-fn existing_support_positions() -> Vec<(f32, f32)> {
-    spring::get_all_units()
-        .unwrap_or_default()
-        .into_iter()
-        .filter(|unit_id| {
-            spring::get_unit_def_id(*unit_id)
-                .is_ok_and(|def| crate::defs::kind(def.0).is_some_and(is_support))
-        })
-        .filter_map(|unit_id| {
-            spring::get_unit_position(unit_id, false, false)
-                .ok()
-                .map(|position| (position.x, position.z))
-        })
-        .collect()
-}
 const INIT: [UnitKind; 16] = [
     Coalburner, Iglu, Iglu, Iglu, Iglu, Iglu, Eskimo, Eskimo, Eskimo, Eskimo, Eskimo, Eskimo,
     Eskimo, Eskimo, Eskimo, Eskimo,
