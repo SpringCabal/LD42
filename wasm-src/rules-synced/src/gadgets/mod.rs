@@ -2,6 +2,7 @@ pub mod drills;
 pub mod drowning;
 pub mod eskimos;
 pub mod game_end;
+pub mod global_los;
 pub mod health;
 #[cfg(feature = "headless-integration")]
 pub mod integration;
@@ -18,12 +19,13 @@ pub use drills::DrillsGadget;
 pub use drowning::DrowningGadget;
 pub use eskimos::EskimosGadget;
 pub use game_end::GameEndGadget;
+pub use global_los::GlobalLosGadget;
 pub use health::HealthGadget;
 #[cfg(feature = "headless-integration")]
 pub use integration::IntegrationGadget;
 pub use parachutes::ParachutesGadget;
 pub use restart::RestartGadget;
-pub use setup::{SetupGadget, setup};
+pub use setup::setup;
 pub use status::StatusGadget;
 pub use storyteller::StorytellerGadget;
 pub use trade::TradeGadget;
