@@ -14,6 +14,8 @@ struct Defs {
     eskimo: Option<i32>,
     pirate: Option<i32>,
     drillship: Option<i32>,
+    /// `customParams.health` of the eskimo, pirate and drillship defs.
+    health: [f32; 3],
     /// The coal burner, the iglu and the lantern.
     scenery: [Option<i32>; 3],
 }
@@ -26,10 +28,12 @@ fn defs() -> Defs {
     DEFS.with(|defs| {
         *defs.get_or_init(|| {
             let id = |name: &str| spring::get_unit_def_id_by_name(name).ok();
+            let (eskimo, pirate, drillship) = (id("eskimo"), id("pirate"), id("drillship"));
             Defs {
-                eskimo: id("eskimo"),
-                pirate: id("pirate"),
-                drillship: id("drillship"),
+                eskimo,
+                pirate,
+                drillship,
+                health: [eskimo, pirate, drillship].map(health),
                 scenery: [id("coalburner"), id("iglu"), id("lantern")],
             }
         })
@@ -56,12 +60,24 @@ pub fn is_scenery(def: i32) -> bool {
     defs().scenery.contains(&Some(def))
 }
 
+/// A def's full gameplay health pool, `customParams.health`.
+fn health(def: Option<i32>) -> f32 {
+    def.and_then(|def| spring::unit_defs::get_unit_def_custom_param(def, "health").ok())
+        .and_then(|value| value.trim().parse().ok())
+        .unwrap_or(DEFAULT_HEALTH)
+}
+
+/// `game_health.lua`'s pool for defs without `customParams.health`.
+const DEFAULT_HEALTH: f32 = 100_000.0;
+
 impl UnitKind {
-    /// The full gameplay health pool (`customParams.health`).
-    pub const fn max_health(self) -> f32 {
-        match self {
-            Self::Eskimo | Self::Pirate => 100.0,
-            Self::Drillship => 500.0,
-        }
+    /// The full gameplay health pool.
+    pub fn max_health(self) -> f32 {
+        let index = match self {
+            Self::Eskimo => 0,
+            Self::Pirate => 1,
+            Self::Drillship => 2,
+        };
+        defs().health[index]
     }
 }
