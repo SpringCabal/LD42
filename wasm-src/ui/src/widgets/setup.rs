@@ -1,5 +1,8 @@
+use spring::default_interface::{
+    CLOCK, CONSOLE, MINIMAP, PLAYER_INFO, RESOURCE_BAR, TOOLTIP, UNIT_ICONS,
+};
 use spring_addons::register_widgets;
-use spring_addons::ui::WidgetHandler;
+use spring_addons::ui::{HideDefaultInterface, WidgetHandler};
 
 use super::*;
 use crate::state::Global;
@@ -9,7 +12,11 @@ pub fn setup(handler: &mut WidgetHandler<Global>) {
         handler,
         [
             ApiSyncWidget::new(),
-            HideDefaultLayoutWidget::new(),
+            // hide_default_layout.lua: the console, resource bar, tooltip,
+            // clock, player list and minimap; units never turn into icons.
+            HideDefaultInterface::new(
+                CONSOLE | RESOURCE_BAR | TOOLTIP | CLOCK | PLAYER_INFO | MINIMAP | UNIT_ICONS
+            ),
             SceneryWidget::new(),
             GuiCameraWidget::new(),
             SndMusicWidget::new(),

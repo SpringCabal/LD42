@@ -40,7 +40,6 @@ impl Widget<Global> for DbgE2eWidget {
             .is_some_and(|minimum| frame >= *minimum)
         {
             let _ = spring::send_command("screenshot");
-            let _ = spring::send_command("console 0");
             self.captured.set(target + 1);
             if target == 4 {
                 spring::log_info!("mycube-ui", "MYCUBE VISUAL E2E PASSED");
