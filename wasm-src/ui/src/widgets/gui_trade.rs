@@ -3,6 +3,7 @@ use core::cell::Cell;
 use spring::gl;
 use spring_addons::event::{EventResult, KeyEvent};
 use spring_addons::ui::Widget;
+use springcabal::message::Encoder;
 
 use crate::state::Global;
 
@@ -233,7 +234,12 @@ impl Widget<Global> for GuiTradeWidget {
         let Some(ground) = ground_under(x, y) else {
             return EventResult::Handled;
         };
-        send_to_rules(&alloc::format!("TRADE|{:.1}|{:.1}", ground.x, ground.z));
+        send_to_rules(
+            &Encoder::new("TRADE")
+                .field(format_args!("{:.1}", ground.x))
+                .field(format_args!("{:.1}", ground.z))
+                .finish(),
+        );
         self.stop_trading();
         EventResult::Handled
     }

@@ -9,7 +9,6 @@ pub mod gui_selection_stats;
 pub mod gui_trade;
 pub mod scenery;
 pub mod setup;
-pub mod snd_music;
 pub mod ui_endgame;
 pub mod ui_floating_text;
 
@@ -24,6 +23,5 @@ pub use gui_selection_stats::GuiSelectionStatsWidget;
 pub use gui_trade::GuiTradeWidget;
 pub use scenery::SceneryWidget;
 pub use setup::setup;
-pub use snd_music::SndMusicWidget;
 pub use ui_endgame::UiEndgameWidget;
 pub use ui_floating_text::UiFloatingTextWidget;

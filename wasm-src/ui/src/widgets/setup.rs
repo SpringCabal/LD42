@@ -3,9 +3,16 @@ use spring::default_interface::{
 };
 use spring_addons::register_widgets;
 use spring_addons::ui::{HideDefaultInterface, WidgetHandler};
+use springcabal::music::MusicLoop;
 
 use super::*;
 use crate::state::Global;
+
+/// `snd_music.lua`'s track, looped.
+const MUSIC_FILE: &str = "sounds/remixed_background.ogg";
+const MUSIC_VOLUME: f32 = 0.15;
+/// Seconds, for when the engine can't report the stream length.
+const MUSIC_LENGTH: f32 = 91.008;
 
 pub fn setup(handler: &mut WidgetHandler<Global>) {
     register_widgets!(
@@ -19,7 +26,7 @@ pub fn setup(handler: &mut WidgetHandler<Global>) {
             ),
             SceneryWidget::new(),
             GuiCameraWidget::new(),
-            SndMusicWidget::new(),
+            MusicLoop::new(MUSIC_FILE, MUSIC_VOLUME).length_hint(MUSIC_LENGTH),
             GuiHealthbarsWidget::new(),
             GuiSelectionStatsWidget::new(),
             GuiResourcesWidget::new(),

@@ -1,6 +1,7 @@
 use core::cell::RefCell;
 
 use spring_addons::rules::Gadget;
+use springcabal::message::Encoder;
 
 use crate::integration;
 use crate::state::Global;
@@ -29,7 +30,7 @@ impl Gadget<Global> for IntegrationGadget {
             20 => crate::trade::handle_message(&mut global.economy.access_mut(), b"MODE|2"),
             35 => {
                 if let Some((x, z)) = integration::trade_location() {
-                    let message = alloc::format!("TRADE|{x}|{z}");
+                    let message = Encoder::new("TRADE").field(x).field(z).finish();
                     crate::trade::handle_message(
                         &mut global.economy.access_mut(),
                         message.as_bytes(),

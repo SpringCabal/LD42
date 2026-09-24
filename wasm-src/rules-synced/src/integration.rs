@@ -1,7 +1,7 @@
 //! The headless integration test: checks at fixed frames, driven by the
 //! Integration gadget.
 
-use alloc::format;
+use springcabal::check::Suite;
 
 use crate::defs::{self, UnitKind};
 use crate::drills::Drills;
@@ -15,34 +15,35 @@ struct Snapshot<'a> {
     story: &'a mut Story,
 }
 
+/// Checks that must pass; fewer means the run skipped some.
+const EXPECTED_CHECKS: u32 = 21;
+
 /// The test's progress, owned by the Integration gadget.
-#[derive(Default)]
 pub struct Tracker {
-    passed: u32,
-    failed: u32,
-    done: bool,
+    suite: Suite,
     trade_before: Option<(f32, f32, f32)>,
     /// Unit id, health before the hit, and engine damage returned.
     combat: Option<(i32, f32, f32)>,
 }
 
+impl Default for Tracker {
+    fn default() -> Self {
+        Self {
+            suite: Suite::new("[MyCube-Rust-Test]", "MYCUBE INTEGRATION TESTS")
+                .require_at_least(EXPECTED_CHECKS),
+            trade_before: None,
+            combat: None,
+        }
+    }
+}
+
 impl Tracker {
     fn check(&mut self, condition: bool, message: &str) {
-        let line = if condition {
-            self.passed += 1;
-            format!(
-                "[MyCube-Rust-Test] ASSERTION PASSED ({}): {message}",
-                self.passed
-            )
-        } else {
-            self.failed += 1;
-            format!("[MyCube-Rust-Test] ASSERTION FAILED: {message}")
-        };
-        let _ = spring::echo(&line, "");
+        self.suite.check(condition, message);
     }
 
     pub fn update(&mut self, global: &Global, frame: i32) {
-        if self.done {
+        if self.suite.is_finished() {
             return;
         }
         // Test-only bookkeeping. It holds the four resources it inspects for
@@ -100,7 +101,9 @@ impl Tracker {
                 units_of(UnitKind::Parachute).is_empty(),
                 "landed parachutes are reclaimed instead of left on the map",
             ),
-            1020 => self.finish(),
+            1020 => {
+                self.suite.finish();
+            }
             _ => {}
         }
         // Run every authored storyteller branch under its normal spawn path,
@@ -217,18 +220,6 @@ impl Tracker {
                 && state.story.story_parachutes == 5,
             "all authored pirate, drillship, and parachute waves completed",
         );
-    }
-
-    fn finish(&mut self) {
-        let _ = spring::echo(
-            if self.failed == 0 {
-                "[MyCube-Rust-Test] ALL MYCUBE INTEGRATION TESTS PASSED"
-            } else {
-                "[MyCube-Rust-Test] MYCUBE INTEGRATION TESTS FAILED"
-            },
-            "",
-        );
-        self.done = true;
     }
 }
 

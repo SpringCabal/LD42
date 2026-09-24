@@ -1,8 +1,7 @@
 use alloc::string::String;
-use core::cell::RefCell;
-use core::fmt::Write;
 
 use spring_addons::rules::Gadget;
+use springcabal::message::{Encoder, SendOnChange};
 
 use crate::state::Global;
 
@@ -10,7 +9,7 @@ use crate::state::Global;
 /// `MYCUBE_STATUS|food|heat|money|end|end_frame|intro`, whenever it changes.
 #[derive(Default)]
 pub struct StatusGadget {
-    last_sent: RefCell<String>,
+    status: SendOnChange<String>,
 }
 
 impl StatusGadget {
@@ -26,24 +25,23 @@ impl Gadget<Global> for StatusGadget {
 
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, _frame: i32) {
         let economy = *ctx.global().economy.access();
-        let story = ctx.global().story.access();
-        let mut status = String::new();
-        let _ = write!(
-            status,
-            "MYCUBE_STATUS|{:.0}|{:.0}|{:.0}|{}|{}|{}",
-            economy.food,
-            economy.heat,
-            economy.money,
-            story.game_end.map_or("", |end| end.as_str()),
-            story.end_frame.unwrap_or(-1),
-            story.intro_event,
-        );
-        let mut last_sent = self.last_sent.borrow_mut();
-        if *last_sent != status {
-            if let Err(error) = spring::send_to_unsynced(&status) {
-                spring::log_warning!("mycube", "sending the HUD status failed: {error:?}");
-            }
-            *last_sent = status;
-        }
+        let status = {
+            let story = ctx.global().story.access();
+            Encoder::new("MYCUBE_STATUS")
+                .field(format_args!("{:.0}", economy.food))
+                .field(format_args!("{:.0}", economy.heat))
+                .field(format_args!("{:.0}", economy.money))
+                .field(story.game_end.map_or("", |end| end.as_str()))
+                .field(story.end_frame.unwrap_or(-1))
+                .field(&story.intro_event)
+                .finish()
+        };
+        self.status.send_if_changed(status, |status| {
+            spring::send_to_unsynced(status)
+                .inspect_err(|error| {
+                    spring::log_warning!("mycube", "sending the HUD status failed: {error:?}");
+                })
+                .is_ok()
+        });
     }
 }

@@ -1,6 +1,8 @@
 //! Ice harvesting and the resource trade, ported from `game_trade.lua` and
 //! the message half of `ui_modes.lua`.
 
+use springcabal::message;
+
 use crate::state::{Economy, Supply};
 use crate::{ice, terrain};
 
@@ -11,30 +13,19 @@ pub fn handle_message(economy: &mut Economy, data: &[u8]) {
     let Ok(message) = core::str::from_utf8(data) else {
         return;
     };
-    let mut fields = message.split('|');
-    match fields.next() {
-        Some("MODE") => match fields
-            .next()
-            .and_then(|value| value.parse::<i32>().ok())
-            .unwrap_or(-1)
-        {
-            2 if economy.consume(Supply::Money, PURCHASE_PRICE) => {
+    if let Some(mut fields) = message::fields(message, "MODE") {
+        match fields.i32() {
+            Some(2) if economy.consume(Supply::Money, PURCHASE_PRICE) => {
                 economy.add(Supply::Heat, 100.0);
             }
-            3 if economy.consume(Supply::Money, PURCHASE_PRICE) => {
+            Some(3) if economy.consume(Supply::Money, PURCHASE_PRICE) => {
                 economy.add(Supply::Food, 100.0);
             }
             // MODE|1 (sell ice) is a UI mode; the sale arrives as TRADE.
             _ => {}
-        },
-        Some("TRADE") => {
-            let x = fields.next().and_then(|value| value.parse::<f32>().ok());
-            let z = fields.next().and_then(|value| value.parse::<f32>().ok());
-            if let (Some(x), Some(z)) = (x, z) {
-                economy.add(Supply::Money, harvest_ice(x, z));
-            }
         }
-        _ => {}
+    } else if let Some((x, z)) = message::fields(message, "TRADE").and_then(|mut f| f.xz()) {
+        economy.add(Supply::Money, harvest_ice(x, z));
     }
 }
 

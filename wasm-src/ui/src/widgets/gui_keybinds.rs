@@ -56,9 +56,8 @@ impl Widget<Global> for GuiKeybindsWidget {
             let _ = spring::send_command("cheat");
             return EventResult::Handled;
         }
-        if event.ctrl && event.matches("q") {
-            // Same as the Lua keybind: reload into the menu in-process.
-            let _ = spring::send_command("reloadforce");
+        if springcabal::menu::is_quit_to_menu(event) {
+            springcabal::menu::quit_to_menu();
             return EventResult::Handled;
         }
         EventResult::Ignored
