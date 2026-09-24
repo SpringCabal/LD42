@@ -1,14 +1,19 @@
+use core::cell::RefCell;
+
 use spring_addons::rules::Gadget;
 
 use crate::integration;
 use crate::state::Global;
 
+/// The headless integration test (feature `headless-integration`).
 #[derive(Default)]
-pub struct IntegrationGadget;
+pub struct IntegrationGadget {
+    tracker: RefCell<integration::Tracker>,
+}
 
 impl IntegrationGadget {
     pub fn new() -> Self {
-        Self
+        Self::default()
     }
 }
 
@@ -19,7 +24,7 @@ impl Gadget<Global> for IntegrationGadget {
 
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
         let global = ctx.global();
-        integration::update(global, frame);
+        self.tracker.borrow_mut().update(global, frame);
         match frame {
             20 => crate::trade::handle_message(&mut global.economy.access_mut(), b"MODE|2"),
             35 => {
