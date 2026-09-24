@@ -26,9 +26,8 @@ pub fn update_eskimos(village: &mut Village, economy: &mut Economy) -> Vec<i32> 
         .iter()
         .filter_map(|id| spring::get_unit_position(*id, false, false).ok())
         .collect();
-    let sync_lane = village.sync_lane;
     let mut dead = Vec::new();
-    for (index, eskimo) in village.eskimos.iter_mut().enumerate() {
+    for eskimo in &mut village.eskimos {
         let near_burner = spring::get_unit_position(eskimo.id, false, false)
             .ok()
             .is_some_and(|position| {
@@ -57,14 +56,8 @@ pub fn update_eskimos(village: &mut Village, economy: &mut Economy) -> Vec<i32> 
                 dead.push(eskimo.id);
             }
         }
-        // Food and heat only drive the HUD. Rotating five lanes keeps every
-        // value fresh within five frames without turning a 20-person wave
-        // into forty host calls per frame.
-        if index % 5 == sync_lane {
-            set_eskimo_needs(eskimo.id, eskimo.food, eskimo.heat);
-        }
+        set_eskimo_needs(eskimo.id, eskimo.food, eskimo.heat);
     }
-    village.sync_lane = (sync_lane + 1) % 5;
     dead
 }
 

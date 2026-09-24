@@ -118,8 +118,6 @@ pub struct Eskimo {
 pub struct Village {
     pub eskimos: Vec<Eskimo>,
     pub burners: Vec<i32>,
-    /// Which fifth of the Eskimos publishes its food and heat this frame.
-    pub sync_lane: usize,
 }
 
 /// The shared communication namespace.
