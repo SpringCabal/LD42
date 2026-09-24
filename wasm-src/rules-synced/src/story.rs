@@ -59,18 +59,7 @@ pub fn run_story(state: &mut Story, frame: i32) -> Vec<SpawnRequest> {
     }
     let mut requests = Vec::with_capacity(units.len());
     for &unit in units {
-        let (x, y, z) = loop {
-            let candidate = find_position(unit);
-            if !is_support(unit)
-                || state.supports.iter().all(|(support_x, support_z)| {
-                    let dx = candidate.0 - support_x;
-                    let dz = candidate.2 - support_z;
-                    dx * dx + dz * dz > IGLU_MIN_DISTANCE * IGLU_MIN_DISTANCE
-                })
-            {
-                break candidate;
-            }
-        };
+        let (x, y, z) = place(unit, &state.supports);
         requests.push(SpawnRequest {
             kind: unit,
             position: Float3::new(x, y, z),
@@ -105,6 +94,41 @@ pub fn run_story(state: &mut Story, frame: i32) -> Vec<SpawnRequest> {
 }
 
 const IGLU_MIN_DISTANCE: f32 = 400.0;
+/// Tries at placing an iglu or the coal burner clear of the others.
+/// `storyteller.lua` tries until it succeeds; a crowded village would hang
+/// the game there.
+const MAX_PLACEMENT_TRIES: u32 = 1000;
+
+/// A position for `unit`, at a random spot like `storyteller.lua`'s
+/// `findPosition`. Iglus and the coal burner keep IGLU_MIN_DISTANCE from
+/// each other; if no such spot turns up, the last one tried is used.
+fn place(unit: UnitKind, supports: &[(f32, f32)]) -> (f32, f32, f32) {
+    let clear = |(x, _, z): (f32, f32, f32)| {
+        supports.iter().all(|(support_x, support_z)| {
+            let dx = x - support_x;
+            let dz = z - support_z;
+            dx * dx + dz * dz > IGLU_MIN_DISTANCE * IGLU_MIN_DISTANCE
+        })
+    };
+    let mut candidate = find_position(unit);
+    if !is_support(unit) {
+        return candidate;
+    }
+    for _ in 1..MAX_PLACEMENT_TRIES {
+        if clear(candidate) {
+            return candidate;
+        }
+        candidate = find_position(unit);
+    }
+    if !clear(candidate) {
+        spring::log_warning!(
+            "mycube",
+            "no room for a {} after {MAX_PLACEMENT_TRIES} tries; placing it at {candidate:?}",
+            unit.def_name()
+        );
+    }
+    candidate
+}
 
 /// `Spring.RevertHeightMap` over the whole map.
 pub fn restore_ice() {
