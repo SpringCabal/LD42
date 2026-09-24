@@ -5,8 +5,8 @@ use crate::drills::{self, DrillShip};
 use crate::state::Global;
 use crate::terrain;
 
-/// Frames between drill checks.
-const DRILL_INTERVAL: i32 = 30;
+/// Frames between the checks for nearby ice (`CHECK_FRAME_INTERVAL`).
+const CHECK_INTERVAL: i32 = 30;
 
 /// The autonomous drill controller, ported from `unit_drill.lua`.
 #[derive(Default)]
@@ -32,10 +32,12 @@ impl Gadget<Global> for DrillsGadget {
         _builder: i32,
     ) {
         if defs::kind(def) == Some(UnitKind::Drillship) {
-            ctx.global().drills.access_mut().ships.push(DrillShip {
-                id,
-                ..DrillShip::default()
-            });
+            let frame = spring::game::frame().map_or(0, |frame| frame as i32);
+            ctx.global()
+                .drills
+                .access_mut()
+                .ships
+                .push(DrillShip::new(id, frame));
         }
     }
 
@@ -53,12 +55,17 @@ impl Gadget<Global> for DrillsGadget {
     }
 
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
-        if frame % DRILL_INTERVAL == 0 {
-            let orders = drills::update_drills(&mut ctx.global().drills.access_mut());
-            // Giving an order raises AllowCommand, so the state is released first.
+        let mut state = ctx.global().drills.access_mut();
+        drills::drill(&mut state, frame);
+        if frame % CHECK_INTERVAL == 0 {
+            let orders = drills::update_drills(&mut state);
+            // Giving an order raises AllowCommand, so release the state first.
+            drop(state);
             drills::give_orders(&orders);
         } else {
-            terrain::process_terrain_jobs(&mut ctx.global().drills.access_mut().jobs);
+            // Height-map edits are metered host work; keep them off the
+            // frames that search for ice.
+            terrain::process_terrain_jobs(&mut state.jobs);
         }
     }
 }

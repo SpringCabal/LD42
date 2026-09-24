@@ -13,6 +13,11 @@ use crate::terrain::{self, ICE_HEIGHT, SQUARE_SIZE, TerrainJob};
 #[derive(Clone, Copy, Default)]
 pub struct DrillShip {
     pub id: i32,
+    /// The frame the ship was created; its script drills every half second
+    /// from then on.
+    pub created_frame: i32,
+    /// The `icemine` piece at the tip of the drill (1-based piece number).
+    pub mine_piece: Option<i32>,
     pub has_order: bool,
     pub order_x: f32,
     pub order_z: f32,
@@ -33,6 +38,45 @@ pub struct Drills {
 }
 
 const SEARCH_STEP: i32 = 64;
+/// `shipscript.lua` drills after every `Sleep(500)`: 15 frames.
+const DRILL_PERIOD: i32 = 15;
+const DRILL_SIZE: i32 = 250;
+const DRILL_AMOUNT: f32 = 2.0;
+
+impl DrillShip {
+    pub fn new(id: i32, created_frame: i32) -> Self {
+        let mine_piece = spring::get_unit_piece_map(id).ok().and_then(|map| {
+            map.iter()
+                .find(|entry| entry.name == "icemine")
+                .map(|entry| entry.piece_num)
+        });
+        Self {
+            id,
+            created_frame,
+            mine_piece,
+            ..Self::default()
+        }
+    }
+}
+
+/// `GG.Drill.DrillUnit`: every drill ship digs a crater under its drill tip
+/// every half second, drilling or not.
+pub fn drill(drills: &mut Drills, frame: i32) {
+    for ship in &drills.ships {
+        let age = frame - ship.created_frame;
+        if age <= 0 || age % DRILL_PERIOD != 0 {
+            continue;
+        }
+        let tip = ship
+            .mine_piece
+            .and_then(|piece| spring::get_unit_piece_pos_dir(ship.id, piece).ok())
+            .map(|pos_dir| pos_dir.position)
+            .or_else(|| spring::get_unit_position(ship.id, false, false).ok());
+        if let Some(tip) = tip {
+            terrain::queue_terrain_job(&mut drills.jobs, tip.x, tip.z, DRILL_SIZE, DRILL_AMOUNT);
+        }
+    }
+}
 
 /// A move order for a drill ship, issued once no state is borrowed:
 /// giving an order raises AllowCommand synchronously.
@@ -41,8 +85,8 @@ pub struct MoveOrder {
     pub target: spring::Float3,
 }
 
-/// Queue a crater under every drill ship and pick new ice targets for the
-/// ships that have run out. Returns the move orders to give.
+/// Pick new ice targets for the ships that have run out. Returns the move
+/// orders to give.
 pub fn update_drills(drills: &mut Drills) -> Vec<MoveOrder> {
     let mut orders = Vec::new();
 
@@ -51,10 +95,6 @@ pub fn update_drills(drills: &mut Drills) -> Vec<MoveOrder> {
         let Some(hull) = spring::get_unit_position(id, false, false).ok() else {
             continue;
         };
-        // Lua drills under the animated `icemine` piece; the hull origin is
-        // close enough and avoids a piece-map query per ship.
-        terrain::queue_terrain_job(&mut drills.jobs, hull.x, hull.z, 250, 2.0);
-
         // The original drill gadget is autonomous: once it has exhausted the
         // ice immediately around its hull it searches outward and issues a
         // normal movement order toward the closest remaining ice.
@@ -96,13 +136,19 @@ fn move_order(unit: i32, x: f32, z: f32) -> MoveOrder {
 pub fn give_orders(orders: &[MoveOrder]) {
     for order in orders {
         let target = order.target;
-        let _ = spring::give_order_to_unit(
+        if let Err(error) = spring::give_order_to_unit(
             order.unit,
             spring::cmd::MOVE,
             &[target.x, target.y, target.z],
             0,
             0,
-        );
+        ) {
+            spring::log_warning!(
+                "mycube-drills",
+                "move order for drill ship {} failed: {error:?}",
+                order.unit
+            );
+        }
     }
 }
 
