@@ -21,7 +21,7 @@ pub fn spawn(request: SpawnRequest) -> Option<i32> {
     } else {
         request.team
     };
-    let unit_id = spring::create_unit(
+    let created = spring::create_unit(
         spring::UnitDefRef {
             name: kind.def_name(),
             id,
@@ -34,8 +34,19 @@ pub fn spawn(request: SpawnRequest) -> Option<i32> {
             unit_id: -1,
             builder_id: -1,
         },
-    )
-    .ok()?;
+    );
+    let unit_id = match created {
+        Ok(unit_id) => unit_id,
+        Err(error) => {
+            spring::log_warning!(
+                "mycube",
+                "the story could not create a {} at {:?}: {error:?}",
+                kind.def_name(),
+                request.position
+            );
+            return None;
+        }
+    };
     if kind.is_scenery() {
         let _ = spring::set_unit_neutral(unit_id, true);
         let _ = spring::set_unit_blocking(

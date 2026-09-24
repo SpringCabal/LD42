@@ -23,7 +23,12 @@ impl Gadget<Global> for SetupGadget {
 
     fn init(&self, _ctx: &spring_addons::AddonContext<'_, Global>) {
         for ally_team in 0..2 {
-            let _ = spring::team_control::set_global_los(ally_team, true);
+            if let Err(error) = spring::team_control::set_global_los(ally_team, true) {
+                spring::log_warning!(
+                    "mycube",
+                    "global LOS for ally team {ally_team} failed: {error:?}"
+                );
+            }
         }
     }
 }

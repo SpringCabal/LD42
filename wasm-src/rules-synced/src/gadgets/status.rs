@@ -40,7 +40,9 @@ impl Gadget<Global> for StatusGadget {
         );
         let mut last_sent = self.last_sent.borrow_mut();
         if *last_sent != status {
-            let _ = spring::send_to_unsynced(&status);
+            if let Err(error) = spring::send_to_unsynced(&status) {
+                spring::log_warning!("mycube", "sending the HUD status failed: {error:?}");
+            }
             *last_sent = status;
         }
     }

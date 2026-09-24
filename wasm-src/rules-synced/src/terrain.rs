@@ -81,7 +81,7 @@ pub fn round_i_to_square(value: i32) -> i32 {
 pub fn decrease_terrain(x: f32, z: f32, size: i32, amount: f32) {
     let cells_per_side = (size / SQUARE_SIZE + 1) as usize;
     let cell_count = cells_per_side * cells_per_side;
-    let _ = apply_terrain_cells(
+    let applied = apply_terrain_cells(
         round_to_square(x - size as f32 / 2.0),
         round_to_square(z - size as f32 / 2.0),
         size,
@@ -89,6 +89,9 @@ pub fn decrease_terrain(x: f32, z: f32, size: i32, amount: f32) {
         0,
         cell_count,
     );
+    if !applied {
+        spring::log_warning!("mycube", "lowering the ice at ({x}, {z}) failed");
+    }
 }
 
 /// Apply one terrain slice inside Spring's height-map edit transaction.

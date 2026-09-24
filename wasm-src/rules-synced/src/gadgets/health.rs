@@ -27,7 +27,13 @@ impl Gadget<Global> for HealthGadget {
         _team: i32,
         _builder: i32,
     ) {
-        let _ = spring::set_unit_rules_param_f32(id, "health", defs::health(def), PUBLIC);
+        // Every gameplay system reads this pool; a unit without it dies on
+        // its first hit or frame in water.
+        if let Err(error) =
+            spring::set_unit_rules_param_f32(id, "health", defs::health(def), PUBLIC)
+        {
+            spring::log_warning!("mycube", "no health pool for unit {id}: {error:?}");
+        }
     }
 
     fn unit_pre_damaged(

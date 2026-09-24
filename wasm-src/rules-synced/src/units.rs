@@ -15,7 +15,7 @@ pub fn destroy(id: i32, reclaimed: bool) {
     if !alive {
         return;
     }
-    let _ = spring::destroy_unit(
+    if let Err(error) = spring::destroy_unit(
         id,
         spring::rules_synced::unit_control::DestroyUnitOptions {
             selfd: false,
@@ -23,7 +23,9 @@ pub fn destroy(id: i32, reclaimed: bool) {
             attacker_id: -1,
             recycle_id: false,
         },
-    );
+    ) {
+        spring::log_warning!("mycube", "destroying unit {id} failed: {error:?}");
+    }
 }
 
 /// Destroy these units once the current callin returns, when no gadget
