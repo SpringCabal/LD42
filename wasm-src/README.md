@@ -17,8 +17,9 @@ just copy    # build and install both WASM artifacts
   directly through `with_cus_module`.
 - `ui/`: the UI module, one widget per Lua widget (resources, trade,
   health bars, story text, end screen, music, camera).
-- `common/`: code both modules include (the ice-trade yield).
+- `common/`: code both modules include: the ice-trade yield, and the round's
+  constants and messages.
 
-The `headless-integration` (rules) and `e2e` (UI) features add the tests
-the verification suites run. The verification gallery sets the mod option
+The `headless-integration` (rules and UI) and `e2e` (UI) features add the
+tests the verification suites run. The verification gallery sets the mod option
 `gallery`, which turns the story off so the photographed unit stands alone.

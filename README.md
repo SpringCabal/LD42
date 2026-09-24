@@ -14,4 +14,18 @@ modules instead of Lua. The Lua original is the sibling `MyCube.sdd`.
   comparison while porting. The game does not load them and releases leave
   them out.
 
+## Differences from the Lua version
+
+- Restart (Ctrl+R) resets the round inside the rules module: `luarules reload`, which `ui_endgame.lua` uses, doesn't reload WASM rules.
+- Restart and quit are the keys Ctrl+R and Ctrl+Q, and work at any time; Lua shows Restart and Exit buttons on the end screen only.
+- The HUD (resources, key legend, end screen, story text) is drawn with plain rectangles and text instead of Chili.
+- Health bars are drawn in screen space above each unit, not as billboards in the world: the drawing API has no display lists.
+- Excavation subtracts from the height (floor -500) instead of setting a target from the corner height: the interpolated ground height made the Lua formula raise corners now and then.
+- A drill crater is dug over a few frames, 256 heightmap points per slice, to stay within the engine's per-callin work budget.
+- The drill ships check 5 points around the hull for nearby ice instead of Lua's 13x13 grid, and spread their search for new ice over several checks, for the same budget.
+- The Eskimos' food and heat rules params (shown in their bars) are published for a fifth of them each frame, not all of them every frame.
+- The story gives up looking for room for an iglu after 1000 tries and places it anyway; Lua keeps trying.
+- The sell cursor's harvest value is recomputed at most ten times a second, and once a second while the cursor rests; Lua recomputes its 676 height samples on every move.
+- A crater slice the engine refuses is retried at most five times, then dropped.
+
 [![Join the chat at https://gitter.im/SpringCabal/LD42](https://badges.gitter.im/SpringCabal/LD42.svg)](https://gitter.im/SpringCabal/LD42?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
