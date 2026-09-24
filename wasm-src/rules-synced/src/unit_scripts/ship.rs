@@ -61,12 +61,6 @@ impl ShipScript {
                 ctx.show(*piece);
             }
         }
-        // drillship.lua declares activateWhenBuilt=true.  The engine may send
-        // Activate before the queued Rust CUS backend is attached, so the
-        // normal replay hook is not sufficient on its own.  Start the same
-        // authored drilling state from Create; a later Activate is idempotent
-        // and will replace the signalled mining task.
-        self.set_active(ctx, true);
     }
 
     pub(super) fn set_active(&mut self, ctx: &UnitCtx, active: bool) {

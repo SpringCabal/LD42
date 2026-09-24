@@ -21,6 +21,11 @@ impl UnitKind {
         matches!(self, Self::Coalburner | Self::Iglu | Self::Lantern)
     }
 
+    /// Parachutes have no unit script (`parachut.lua` does not exist).
+    pub const fn has_script(self) -> bool {
+        !matches!(self, Self::Parachute)
+    }
+
     /// The def the story spawns for this kind.
     pub const fn def_name(self) -> &'static str {
         match self {

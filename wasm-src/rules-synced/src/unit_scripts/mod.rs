@@ -13,7 +13,6 @@ mod ship;
 
 use alloc::collections::BTreeMap;
 use alloc::rc::Rc;
-use alloc::vec::Vec;
 use core::cell::RefCell;
 
 use spring::UnitId;
@@ -62,7 +61,7 @@ enum MyCubeUnitScript {
     Human(HumanScript),
     Iglu(IgluScript),
     Lantern,
-    /// A unit without a script (parachutes, unknown defs).
+    /// A unit without a script.
     None,
 }
 
@@ -104,6 +103,13 @@ impl UnitScript for MyCubeUnitScript {
             Self::Drillship(script) => script.create(ctx),
             Self::Human(script) => script.create(ctx),
             Self::None => {}
+        }
+        // Create runs once the rules callin that created the unit has
+        // returned. An activateWhenBuilt unit was activated before that,
+        // while the module was busy, so the engine could not deliver its
+        // Activate; deliver it now.
+        if spring::units_info::get_unit_is_active(ctx.unit().0).unwrap_or(false) {
+            self.activate(ctx);
         }
     }
 
@@ -193,38 +199,7 @@ impl UnitScript for MyCubeUnitScript {
     }
 }
 
-thread_local! {
-    static PENDING_UNITS: RefCell<Vec<(i32, i32)>> = const { RefCell::new(Vec::new()) };
-    static PENDING_DROWNING: RefCell<Vec<i32>> = const { RefCell::new(Vec::new()) };
-}
-
-pub fn queue_unit_created(unit: i32, def: i32) {
-    if unit >= 0 {
-        PENDING_UNITS.with(|pending| pending.borrow_mut().push((unit, def)));
-    }
-}
-
-pub fn request_drowning(unit: i32) {
-    if unit < 0 {
-        return;
-    }
-    PENDING_DROWNING.with(|pending| {
-        let mut pending = pending.borrow_mut();
-        if !pending.contains(&unit) {
-            pending.push(unit);
-        }
-    });
-}
-
-/// Keep a unit queued for attach only while it is still alive; units that
-/// died before their script attached would otherwise be retried forever.
-fn retry_if_alive(unit: i32, def: i32) {
-    let alive = spring::valid_unit_id(unit).unwrap_or(false)
-        && !spring::get_unit_is_dead(unit).unwrap_or(true);
-    if alive {
-        queue_unit_created(unit, def);
-    }
-}
+const LOG_SECTION: &str = "mycube-cus";
 
 #[derive(Default)]
 pub struct MyCubeCusModule {
@@ -233,84 +208,70 @@ pub struct MyCubeCusModule {
 }
 
 impl MyCubeCusModule {
-    fn attach_pending(&mut self) {
-        let pending = PENDING_UNITS.with(|units| core::mem::take(&mut *units.borrow_mut()));
-        for (unit_id, def) in pending {
-            let Some(kind) = defs::kind(def).filter(|kind| *kind != UnitKind::Parachute) else {
-                continue;
-            };
-            let unit = UnitId(unit_id);
-            let instance = instance_id(unit);
-            if self.handles.contains_key(&instance) {
-                continue;
+    /// Attach the script for a new unit. Called from UnitCreated through
+    /// `with_cus_module`; the engine runs the script's Create once that
+    /// callin has returned.
+    pub fn attach(&mut self, unit_id: i32, def: i32) {
+        let Some(kind) = defs::kind(def).filter(|kind| kind.has_script()) else {
+            return;
+        };
+        let unit = UnitId(unit_id);
+        let instance = instance_id(unit);
+        if self.handles.contains_key(&instance) {
+            return;
+        }
+        let pieces = match spring::get_unit_piece_map(unit_id) {
+            Ok(pieces) => pieces,
+            Err(error) => {
+                spring::log_warning!(
+                    LOG_SECTION,
+                    "no piece map for unit {unit_id} ({kind:?}), no script attached: {error:?}"
+                );
+                return;
             }
-            let Ok(pieces) = spring::get_unit_piece_map(unit_id) else {
-                retry_if_alive(unit_id, def);
-                continue;
-            };
-            let script = MyCubeUnitScript::for_kind(Some(kind), unit, &pieces);
-            let host = WasmCus::new(unit, instance);
-            let engine = Rc::new(RefCell::new(host.engine()));
-            let handle = self
-                .registry
-                .attach(CusInstance::attach(unit, script, engine));
-            // The engine invokes Create synchronously from WasmCus::attach.
-            // Register the instance first so that callin can find its handle.
-            self.handles.insert(instance, handle);
-            if WasmCus::attach(unit, instance, capabilities(kind)).is_ok() {
-                // A unit with activateWhenBuilt can finish before the queued
-                // native backend is attached. Lua receives that callin
-                // synchronously; replay it for Rust when the unit is already
-                // active by the time the backend is ready.
-                self.replay_active_callin(unit, handle);
-            } else {
-                self.handles.remove(&instance);
-                let _ = self.registry.detach(handle);
-                retry_if_alive(unit_id, def);
-            }
+        };
+        let script = MyCubeUnitScript::for_kind(Some(kind), unit, &pieces);
+        let host = WasmCus::new(unit, instance);
+        let engine = Rc::new(RefCell::new(host.engine()));
+        let handle = self
+            .registry
+            .attach(CusInstance::attach(unit, script, engine));
+        self.handles.insert(instance, handle);
+        if let Err(error) = WasmCus::attach(unit, instance, capabilities(kind)) {
+            spring::log_warning!(
+                LOG_SECTION,
+                "attaching the script of unit {unit_id} ({kind:?}) failed: {error:?}"
+            );
+            self.handles.remove(&instance);
+            let _ = self.registry.detach(handle);
         }
     }
 
-    fn dispatch_pending_drowning(&mut self) {
-        let pending = PENDING_DROWNING.with(|units| core::mem::take(&mut *units.borrow_mut()));
-        for unit_id in pending {
-            let instance = instance_id(UnitId(unit_id));
-            // Drowning is requested again on every frame the unit is in
-            // water, so a unit without a script yet (or any more) can be
-            // dropped.
-            let Some(handle) = self.handles.get(&instance).copied() else {
-                continue;
-            };
-            self.sync_instance_frame(handle);
-            let mut result = spring::cus::UnitScriptCallResult::default();
-            let _ = self.registry.with(handle, |instance| {
-                instance.invoke(
-                    UnitScriptCall::RawCall,
-                    &[],
-                    &[RAW_START_DROWNING],
-                    &mut result,
-                )
-            });
-        }
+    /// `StartDrowning`, called by the drowning gadget on every frame the
+    /// unit is in water. Units without a script are skipped.
+    pub fn start_drowning(&mut self, unit_id: i32) {
+        self.start_drowning_instance(instance_id(UnitId(unit_id)));
     }
 
-    fn current_game_frame() -> u64 {
-        spring::game::frame().map_or(0, u64::from)
+    fn start_drowning_instance(&mut self, instance: u32) {
+        let Some(handle) = self.handles.get(&instance).copied() else {
+            return;
+        };
+        self.sync_instance_frame(handle);
+        let mut result = spring::cus::UnitScriptCallResult::default();
+        let _ = self.registry.with(handle, |instance| {
+            instance.invoke(
+                UnitScriptCall::RawCall,
+                &[],
+                &[RAW_START_DROWNING],
+                &mut result,
+            )
+        });
     }
 
     fn sync_instance_frame(&mut self, handle: CusHandle) {
-        let frame = Self::current_game_frame();
+        let frame = spring::game::frame().map_or(0, u64::from);
         let _ = self.registry.with(handle, |instance| instance.tick(frame));
-    }
-
-    fn replay_active_callin(&mut self, unit: UnitId, handle: CusHandle) {
-        if !spring::units_info::get_unit_is_active(unit.0).unwrap_or(false) {
-            return;
-        }
-        let mut result = spring::cus::UnitScriptCallResult::default();
-        let _ = self.registry.with(handle, |instance| {
-            instance.invoke(UnitScriptCall::Activate, &[], &[], &mut result)
-        });
     }
 }
 
@@ -367,25 +328,11 @@ impl CoreCusModule for MyCubeCusModule {
             return None;
         }
         *found = true;
-        let Some(handle) = self.handles.get(&instance_id).copied() else {
-            return Some(0);
-        };
-        self.sync_instance_frame(handle);
-        let mut result = spring::cus::UnitScriptCallResult::default();
-        let _ = self.registry.with(handle, |instance| {
-            instance.invoke(
-                UnitScriptCall::RawCall,
-                &[],
-                &[RAW_START_DROWNING],
-                &mut result,
-            )
-        });
+        self.start_drowning_instance(instance_id);
         Some(0)
     }
 
     fn cus_tick(&mut self, frame: u32) {
-        self.attach_pending();
-        self.dispatch_pending_drowning();
         self.registry.tick(frame as u64);
     }
 

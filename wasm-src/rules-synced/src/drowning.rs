@@ -12,16 +12,11 @@ pub fn update_drowning(units: impl Iterator<Item = i32>) -> Vec<i32> {
         if let Ok(position) = spring::get_unit_position(id, false, false)
             && spring::get_ground_height(position.x, position.z).unwrap_or(1.0) <= 0.0
         {
-            // unit_drown_eskimos.lua calls StartDrowning on every water
-            // frame. The Lua function itself is idempotent, and repeating the
-            // call matters here: a map-authored unit can reach this gadget
-            // before its deferred CUS instance has been attached.
-            let _ = spring::set_unit_rules_param_f32(id, "drowning", 1.0, PUBLIC);
-            // Lua invokes StartDrowning from this gadget callin. Calling
-            // back through Spring.UnitScript here would re-enter this same
-            // Core-Wasm store, so defer the equivalent named callback to the
-            // CUS tick that follows the callin.
-            crate::unit_scripts::request_drowning(id);
+            // unit_drown_eskimos.lua calls StartDrowning on every frame in
+            // water; the script ignores repeats. The drowning gadget runs in
+            // GameFrame, never inside a unit-script callin, so the module is
+            // free here.
+            crate::with_cus_module(|module| module.start_drowning(id));
             let health = spring::get_unit_rules_param_f32(id, "health").unwrap_or(0.0) - 1.0;
             if health <= 0.0 {
                 // Use ordinary destruction so Killed plays the authored death
