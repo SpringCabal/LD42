@@ -1,3 +1,5 @@
+use core::cell::Cell;
+
 use spring_addons::rules::Gadget;
 
 use crate::spawning;
@@ -6,11 +8,16 @@ use crate::units::destroy_later;
 
 /// The authored scenario script, ported from `storyteller.lua`.
 #[derive(Default)]
-pub struct StorytellerGadget;
+pub struct StorytellerGadget {
+    /// Off in the verification gallery (mod option `gallery`), which
+    /// photographs one unit at a time: the story's village and ships would
+    /// stand in front of it.
+    off: Cell<bool>,
+}
 
 impl StorytellerGadget {
     pub fn new() -> Self {
-        Self
+        Self::default()
     }
 }
 
@@ -19,7 +26,18 @@ impl Gadget<Global> for StorytellerGadget {
         "Storyteller"
     }
 
+    fn init(&self, _ctx: &spring_addons::AddonContext<'_, Global>) {
+        let gallery = spring::game_options::get_mod_option("gallery")
+            .ok()
+            .flatten()
+            .is_some_and(|mode| !mode.is_empty());
+        self.off.set(gallery);
+    }
+
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
+        if self.off.get() {
+            return;
+        }
         let requests = {
             let mut story = ctx.global().story.access_mut();
             if !story.started {
