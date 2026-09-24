@@ -1,8 +1,8 @@
 use alloc::vec::Vec;
-use mycube_shared::unit;
 
-use spring::UnitId;
+use mycube_shared::unit;
 use spring::cus::{Angle, AngularSpeed, Axis, Piece, UnitCtx};
+use spring::{ResultExt, UnitId};
 
 pub(super) const SIG_WALK: spring::cus::SignalMask = spring::cus::SignalMask::new(1);
 pub(super) const SIG_IDLE: spring::cus::SignalMask = spring::cus::SignalMask::new(2);
@@ -163,13 +163,14 @@ pub(super) fn reset_all(ctx: &UnitCtx, pieces: &[Piece]) {
 }
 
 pub(super) fn set_scenery_state(unit: UnitId) {
-    let _ = spring::set_unit_neutral(unit.0, true);
-    let _ = spring::set_unit_rules_param_f32(
+    spring::set_unit_neutral(unit.0, true).log_err("making the scenery neutral failed");
+    spring::set_unit_rules_param_f32(
         unit.0,
         unit::UNTARGETABLE,
         1.0,
         spring::rules_params::los::PUBLIC,
-    );
+    )
+    .log_err("marking the scenery untargetable failed");
 }
 
 pub(super) fn play_unit_sound(unit: UnitId, name: &str, volume: f32) {

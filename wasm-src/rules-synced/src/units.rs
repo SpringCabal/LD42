@@ -1,11 +1,14 @@
 //! Small unit helpers shared by several gadgets.
 
 use mycube_shared::unit;
+use spring::ResultExt;
 use spring::rules_params::los::PUBLIC;
 
 pub fn set_eskimo_needs(id: i32, food: f32, heat: f32) {
-    let _ = spring::set_unit_rules_param_f32(id, unit::FOOD, food, PUBLIC);
-    let _ = spring::set_unit_rules_param_f32(id, unit::HEAT, heat, PUBLIC);
+    spring::set_unit_rules_param_f32(id, unit::FOOD, food, PUBLIC)
+        .log_err_once("publishing an Eskimo's food failed");
+    spring::set_unit_rules_param_f32(id, unit::HEAT, heat, PUBLIC)
+        .log_err_once("publishing an Eskimo's heat failed");
 }
 
 /// Destroy a unit unless it is already gone; several gadgets can condemn

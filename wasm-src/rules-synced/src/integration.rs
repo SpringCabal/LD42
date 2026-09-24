@@ -7,8 +7,8 @@
 //! once, and the gadgets handling them borrow the same state.
 
 use alloc::vec::Vec;
-use mycube_shared::unit;
 
+use mycube_shared::unit;
 use springcabal::check::Suite;
 
 use crate::defs::{self, UnitKind};

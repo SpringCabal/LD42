@@ -1,6 +1,6 @@
 //! Creating the story's units, ported from `storyteller.lua`.
 
-use spring::Float3;
+use spring::{Float3, ResultExt};
 
 use crate::defs::{self, UnitKind};
 use crate::state::Story;
@@ -48,8 +48,8 @@ pub fn spawn(request: SpawnRequest) -> Option<i32> {
         }
     };
     if kind.is_scenery() {
-        let _ = spring::set_unit_neutral(unit_id, true);
-        let _ = spring::set_unit_blocking(
+        spring::set_unit_neutral(unit_id, true).log_err("making the scenery neutral failed");
+        spring::set_unit_blocking(
             unit_id,
             spring::types::SetUnitBlockingOptions {
                 blocking: true,
@@ -60,7 +60,8 @@ pub fn spawn(request: SpawnRequest) -> Option<i32> {
                 block_enemy_pushing: true,
                 block_height_changes: false,
             },
-        );
+        )
+        .log_err("making the scenery blocking failed");
     }
     Some(unit_id)
 }

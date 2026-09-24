@@ -1,8 +1,8 @@
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 use core::cell::{Cell, RefCell};
-use mycube_shared::unit;
 
+use mycube_shared::unit;
 use spring_addons::ui::Widget;
 
 use crate::defs::{self, UnitKind};

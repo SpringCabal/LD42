@@ -3,20 +3,19 @@
 //! Spring's engine health is deliberately not the authority for this game.
 
 use mycube_shared::unit;
+use spring::ResultExt;
 use spring::rules_params::los::PUBLIC;
 
 /// Returned once the pool is exhausted, so the engine kills the unit.
 const LETHAL_DAMAGE: f32 = 1.0e16;
 
 /// A unit's health pool (its `health` rules param). The Health gadget sets
-/// it when the unit is created, so a failed read is a bug: it is logged and
-/// the caller leaves the unit alone.
+/// it when the unit is created, so a failed read is a bug: the first one is
+/// logged, and the caller leaves the unit alone.
 pub fn pool(id: i32) -> Option<f32> {
     spring::get_unit_rules_param_f32(id, unit::HEALTH)
-        .inspect_err(|error| {
-            spring::log_warning!("mycube", "no health pool for unit {id}: {error:?}");
-        })
-        .ok()
+        .map_err(|error| (id, error))
+        .log_err_once("no health pool for (unit, error)")
 }
 
 pub fn set_pool(id: i32, health: f32) {

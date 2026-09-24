@@ -2,6 +2,7 @@
 
 use mycube_shared::ice;
 pub use mycube_shared::ice::round_to_square;
+use spring::ResultExt;
 
 /// Terrain above this height still counts as ice for the drills.
 pub const ICE_HEIGHT: f32 = -1.0;
@@ -29,7 +30,8 @@ pub fn decrease_terrain(x: f32, z: f32, size: i32, amount: f32) {
             let height = spring::get_ground_height(gx, gz).unwrap_or(-500.0);
             let delta = (amount * depth).min((height + 500.0).max(0.0));
             if delta > 0.0 {
-                let _ = spring::add_height_map(gx, gz, -delta);
+                spring::add_height_map(gx, gz, -delta)
+                    .log_err_once("lowering a heightmap point failed");
             }
         }
     });
