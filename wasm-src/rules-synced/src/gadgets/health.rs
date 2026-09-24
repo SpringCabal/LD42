@@ -1,4 +1,3 @@
-use spring::rules_params::los::PUBLIC;
 use spring_addons::rules::{Gadget, UnitPreDamagedEvent};
 
 use crate::state::Global;
@@ -27,13 +26,8 @@ impl Gadget<Global> for HealthGadget {
         _team: i32,
         _builder: i32,
     ) {
-        // Every gameplay system reads this pool; a unit without it dies on
-        // its first hit or frame in water.
-        if let Err(error) =
-            spring::set_unit_rules_param_f32(id, "health", defs::health(def), PUBLIC)
-        {
-            spring::log_warning!("mycube", "no health pool for unit {id}: {error:?}");
-        }
+        // Every gameplay system reads this pool.
+        health::set_pool(id, defs::health(def));
     }
 
     fn unit_pre_damaged(

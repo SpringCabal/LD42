@@ -2,8 +2,6 @@
 
 use alloc::vec::Vec;
 
-use spring::rules_params::los::PUBLIC;
-
 /// Every unit that can drown (Eskimos and pirates) loses a point of health
 /// per frame in water. Returns the units that drowned.
 pub fn update_drowning(units: impl Iterator<Item = i32>) -> Vec<i32> {
@@ -17,13 +15,15 @@ pub fn update_drowning(units: impl Iterator<Item = i32>) -> Vec<i32> {
             // GameFrame, never inside a unit-script callin, so the module is
             // free here.
             crate::with_cus_module(|module| module.start_drowning(id));
-            let health = spring::get_unit_rules_param_f32(id, "health").unwrap_or(0.0) - 1.0;
+            let Some(health) = crate::health::pool(id).map(|health| health - 1.0) else {
+                continue;
+            };
             if health <= 0.0 {
                 // Use ordinary destruction so Killed plays the authored death
                 // sound/animation and Spring creates the configured corpse.
                 dead.push(id);
             } else {
-                let _ = spring::set_unit_rules_param_f32(id, "health", health, PUBLIC);
+                crate::health::set_pool(id, health);
             }
         }
     }

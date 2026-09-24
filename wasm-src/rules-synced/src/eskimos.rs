@@ -2,8 +2,6 @@
 
 use alloc::vec::Vec;
 
-use spring::rules_params::los::PUBLIC;
-
 use crate::state::{Economy, Eskimo, FRAMES_PER_SECOND, Village};
 use crate::units::set_eskimo_needs;
 
@@ -49,17 +47,13 @@ pub fn update_eskimos(village: &mut Village, economy: &mut Economy) -> Vec<i32> 
         if eskimo.food <= 0.0 {
             health_loss += STARVING_HEALTH_DECAY;
         }
-        let health = spring::get_unit_rules_param_f32(eskimo.id, "health").unwrap_or(0.0);
-        if health_loss > 0.0 {
-            let _ = spring::set_unit_rules_param_f32(
-                eskimo.id,
-                "health",
-                (health - health_loss).max(0.0),
-                PUBLIC,
-            );
-        }
-        if health - health_loss <= 0.0 {
-            dead.push(eskimo.id);
+        if let Some(health) = crate::health::pool(eskimo.id) {
+            if health_loss > 0.0 {
+                crate::health::set_pool(eskimo.id, (health - health_loss).max(0.0));
+            }
+            if health - health_loss <= 0.0 {
+                dead.push(eskimo.id);
+            }
         }
         // Food and heat only drive the HUD. Rotating five lanes keeps every
         // value fresh within five frames without turning a 20-person wave
