@@ -14,7 +14,7 @@ use crate::defs::{self, UnitKind};
 use crate::state::{GameEnd, Global};
 
 /// Checks that must pass; fewer means the run skipped some.
-const EXPECTED_CHECKS: u32 = 28;
+const EXPECTED_CHECKS: u32 = 29;
 
 /// Engine damage for the combat check. The health gadget replaces it with
 /// the attacker's gameplay damage and lets none of it through.
@@ -34,6 +34,14 @@ const RESTART_LOSS_CHECK: i32 = 30;
 const DROWN_START: i32 = 60;
 const DROWN_CHECK: i32 = 70;
 
+/// The warming check puts an Eskimo next to the coal burner on the first
+/// frame and checks its heat on the second.
+const WARM_START: i32 = 80;
+const WARM_CHECK: i32 = 90;
+/// How far from the burner's centre the Eskimo stands; within its 300-elmo
+/// reach and clear of its footprint.
+const WARM_OFFSET: f32 = 120.0;
+
 /// The test's progress, owned by the Integration gadget.
 pub struct Tracker {
     suite: Suite,
@@ -43,6 +51,9 @@ pub struct Tracker {
     combat: Option<(i32, f32, f32)>,
     /// Unit id and its gameplay health when it was put in the water.
     drowning: Option<(i32, f32)>,
+    /// Unit id, its heat and the village's heat when it was moved to the
+    /// burner.
+    warming: Option<(i32, f32, f32)>,
     /// The frame the second round started.
     restart: Option<i32>,
 }
@@ -55,6 +66,7 @@ impl Default for Tracker {
             trade_before: None,
             combat: None,
             drowning: None,
+            warming: None,
             restart: None,
         }
     }
@@ -110,6 +122,8 @@ impl Tracker {
             }
             DROWN_START => self.drown_last_eskimo(global),
             DROWN_CHECK => self.check_drowning(),
+            WARM_START => self.warm_third_eskimo(global),
+            WARM_CHECK => self.check_warming(global),
             140 => self.check(
                 units_of(UnitKind::Parachute).iter().any(|id| {
                     let Ok(position) = spring::get_unit_position(*id, false, false) else {
@@ -276,6 +290,61 @@ impl Tracker {
                     .is_ok_and(|pool| before - pool >= frames - 1.0)
             }),
             "an Eskimo in the sea loses a point of health per frame",
+        );
+    }
+
+    /// Put the third Eskimo next to the coal burner; `unit_eskimos.lua`
+    /// warms it there with the village's heat.
+    fn warm_third_eskimo(&mut self, global: &Global) {
+        let Some(id) = global
+            .village
+            .access()
+            .eskimos
+            .get(2)
+            .map(|eskimo| eskimo.id)
+        else {
+            return;
+        };
+        let Some(burner) = units_of(UnitKind::Coalburner)
+            .first()
+            .and_then(|burner| spring::get_unit_position(*burner, false, false).ok())
+        else {
+            return;
+        };
+        let (x, z) = (burner.x + WARM_OFFSET, burner.z);
+        let ground = spring::get_ground_height(x, z).unwrap_or(burner.y);
+        if let Err(error) =
+            spring::unit_control::set_unit_position(id, spring::Float3::new(x, ground, z))
+        {
+            spring::log_warning!("mycube-test", "moving unit {id} failed: {error:?}");
+            return;
+        }
+        let heat = global
+            .village
+            .access()
+            .eskimos
+            .iter()
+            .find(|eskimo| eskimo.id == id)
+            .map(|eskimo| eskimo.heat);
+        let stock = global.economy.access().heat;
+        self.warming = heat.map(|heat| (id, heat, stock));
+    }
+
+    fn check_warming(&mut self, global: &Global) {
+        let warmed = self.warming.is_some_and(|(id, heat_before, stock_before)| {
+            let heat = global
+                .village
+                .access()
+                .eskimos
+                .iter()
+                .find(|eskimo| eskimo.id == id)
+                .map(|eskimo| eskimo.heat);
+            heat.is_some_and(|heat| heat > heat_before)
+                && global.economy.access().heat < stock_before
+        });
+        self.check(
+            warmed,
+            "an Eskimo by the coal burner warms up on the village's heat",
         );
     }
 
