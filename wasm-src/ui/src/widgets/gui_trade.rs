@@ -12,6 +12,12 @@ const TRADE_SIZE: f32 = 300.0;
 /// `TraceScreenRay` hit type for the ground.
 const HIT_GROUND: i32 = 3;
 const BRUSH_TEXTURE: &str = "Bitmaps/circle.png";
+/// Seconds between two valuations of the ice under a moving cursor: one
+/// valuation samples 676 heights.
+const VALUE_INTERVAL: f32 = 0.1;
+/// Seconds after which the value under a still cursor is recomputed, as
+/// the drills and the sea wear the ice down.
+const VALUE_REFRESH: f32 = 1.0;
 
 const TRADE_BRUSH_FRAGMENT: &str = r#"
 uniform sampler2D brushTex;
@@ -30,6 +36,8 @@ struct TradePreview {
     world_x: f32,
     world_z: f32,
     value: i32,
+    /// The heightmap square `value` was computed for.
+    valued_square: (f32, f32),
 }
 
 /// The trade controls: keys 1-3 (`ui_modes.lua`) and, while selling, the
@@ -38,6 +46,8 @@ struct TradePreview {
 pub struct GuiTradeWidget {
     trading: Cell<bool>,
     preview: Cell<Option<TradePreview>>,
+    /// Seconds since the preview's value was computed.
+    value_age: Cell<f32>,
     brush_shader: Cell<Option<u32>>,
     brush_shader_failed: Cell<bool>,
 }
@@ -71,7 +81,7 @@ impl GuiTradeWidget {
         self.preview.set(None);
     }
 
-    fn update_preview(&self) {
+    fn update_preview(&self, dt: f32) {
         if !self.trading.get() {
             self.preview.set(None);
             return;
@@ -85,21 +95,41 @@ impl GuiTradeWidget {
         }
         let screen_x = mouse.x.round() as i32;
         let screen_y = mouse.y.round() as i32;
-        if self
-            .preview
-            .get()
-            .is_some_and(|preview| preview.screen_x == screen_x && preview.screen_y == screen_y)
-        {
-            return;
+        let mut preview = match self.preview.get() {
+            Some(preview) if preview.screen_x == screen_x && preview.screen_y == screen_y => {
+                preview
+            }
+            last => {
+                let Some(ground) = ground_under(screen_x, screen_y) else {
+                    self.preview.set(None);
+                    return;
+                };
+                TradePreview {
+                    screen_x,
+                    screen_y,
+                    world_x: ground.x,
+                    world_z: ground.z,
+                    // Keep the last value until it is recomputed below.
+                    value: last.map_or(0, |last| last.value),
+                    valued_square: last.map_or((f32::NAN, f32::NAN), |last| last.valued_square),
+                }
+            }
+        };
+        let age = self.value_age.get() + dt;
+        let square = (
+            crate::ice::round_to_square(preview.world_x),
+            crate::ice::round_to_square(preview.world_z),
+        );
+        let valued = !preview.valued_square.0.is_nan();
+        let moved = square != preview.valued_square;
+        if !valued || (moved && age >= VALUE_INTERVAL) || age >= VALUE_REFRESH {
+            preview.value = crate::ice::ice_value(preview.world_x, preview.world_z) as i32;
+            preview.valued_square = square;
+            self.value_age.set(0.0);
+        } else {
+            self.value_age.set(age);
         }
-        self.preview
-            .set(ground_under(screen_x, screen_y).map(|ground| TradePreview {
-                screen_x,
-                screen_y,
-                world_x: ground.x,
-                world_z: ground.z,
-                value: crate::ice::ice_value(ground.x, ground.z) as i32,
-            }));
+        self.preview.set(Some(preview));
     }
 }
 
@@ -125,8 +155,8 @@ impl Widget<Global> for GuiTradeWidget {
         "GuiTrade"
     }
 
-    fn update(&self, _ctx: &spring_addons::AddonContext<'_, Global>, _dt: f32) {
-        self.update_preview();
+    fn update(&self, _ctx: &spring_addons::AddonContext<'_, Global>, dt: f32) {
+        self.update_preview(dt);
     }
 
     fn draw_screen(&self, _ctx: &spring_addons::AddonContext<'_, Global>, width: i32, height: i32) {
