@@ -92,8 +92,6 @@ pub(super) struct HumanState {
     pub(super) moving: bool,
     pub(super) drowning: bool,
     pub(super) has_gun: bool,
-    pub(super) aiming: bool,
-    pub(super) aim_ready: bool,
     pub(super) throwing: bool,
     pub(super) death_pending: bool,
 }
@@ -204,31 +202,19 @@ pub(super) async fn play_aim(
     weapon: spring::cus::WeaponId,
 ) {
     ctx.set_signal_mask(SIG_AIM);
-    // Lua's blocking AimWeapon call is entered later by the legacy unit
-    // script bridge than the asynchronous CUS callback. Preserve that
-    // authored lead-in before changing any visible pieces or pose.
-    ctx.sleep(spring::cus::Duration::from_millis(12 * 33)).await;
-    if state.borrow().drowning {
-        state.borrow_mut().aiming = false;
-        ctx.set_aim_ready(weapon, false);
-        return;
-    }
     let (pieces, offsets) = snapshot(&state);
     if weapon.0 == 0 {
         ctx.show(pieces.get(HumanPart::Spear));
     }
     // run_animation applies the first keyframe immediately and then waits
     // through the authored time interval before each subsequent keyframe.
-    // Starting at index 1 would skip the initial 0->next-keyframe interval,
-    // making CUS report the weapon ready too early.
     run_animation(&ctx, pieces, &offsets, animation, 0).await;
-    state.borrow_mut().aim_ready = true;
-    state.borrow_mut().aiming = false;
     ctx.set_aim_ready(weapon, true);
 }
 
+/// Lua's Throw and Shoot threads start from Shot, outside any thread, so
+/// no signal stops them.
 pub(super) async fn play_throw(state: Rc<RefCell<HumanState>>, ctx: UnitCtx) {
-    ctx.set_signal_mask(SIG_AIM);
     let (pieces, offsets) = snapshot(&state);
     ctx.hide(pieces.get(HumanPart::Spear));
     // PlayAnimation applies the first keyframe before waiting for its first
@@ -237,16 +223,12 @@ pub(super) async fn play_throw(state: Rc<RefCell<HumanState>>, ctx: UnitCtx) {
     state.borrow_mut().throwing = false;
 }
 
+/// eskimo.lua's recoil: the gun jumps back and returns at once, since
+/// `WaitForMove(Gun, z_axis)` waits on an axis that isn't moving.
 pub(super) async fn play_shoot(state: Rc<RefCell<HumanState>>, ctx: UnitCtx) {
-    ctx.set_signal_mask(SIG_AIM);
     let pieces = state.borrow().pieces;
-    // This is the exact short recoil in eskimo.lua.  The original waits on
-    // Gun's z axis after issuing the x-axis move; the CUS wait is intentionally
-    // omitted because that axis is not animated by the recoil call.
     move_piece(&ctx, pieces.get(HumanPart::Gun), Axis::X, 15.0, 0.0);
-    ctx.next_frame().await;
     move_piece(&ctx, pieces.get(HumanPart::Gun), Axis::X, 0.0, 15.0);
-    state.borrow_mut().throwing = false;
 }
 
 pub(super) async fn play_drown(state: Rc<RefCell<HumanState>>, ctx: UnitCtx) {

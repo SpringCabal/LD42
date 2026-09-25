@@ -3,8 +3,8 @@
 use alloc::rc::Rc;
 use core::cell::RefCell;
 
-use spring::UnitId;
 use spring::cus::{Piece, TaskDefinition, UnitCtx, WeaponId, WreckLevel};
+use spring::{ResultExt, UnitId};
 
 use super::common::{PieceMap, SIG_AIM, SIG_IDLE, SIG_WALK, piece_positions, play_unit_sound};
 use super::eskimo::{
@@ -29,8 +29,6 @@ impl HumanScript {
                 moving: false,
                 drowning: false,
                 has_gun: false,
-                aiming: false,
-                aim_ready: false,
                 throwing: false,
                 death_pending: false,
             })),
@@ -72,8 +70,6 @@ impl HumanScript {
             }
             state.drowning = true;
             state.moving = false;
-            state.aiming = false;
-            state.aim_ready = false;
         }
         ctx.signal(SIG_AIM);
         ctx.signal(SIG_IDLE);
@@ -108,53 +104,26 @@ impl HumanScript {
         }
     }
 
+    /// eskimo.lua's AimWeapon: the Eskimo aims its spear (weapon 1, 0
+    /// here), the pirate its gun (weapon 2). Each call that finds the
+    /// weapon loaded, with no throw running, restarts the aim animation,
+    /// which readies the weapon when it ends; every other call leaves the
+    /// weapon unready, as Lua's `nil` does.
     pub(super) fn aim_weapon(&mut self, ctx: &UnitCtx, weapon: WeaponId) -> Option<bool> {
-        let has_gun = self.state.borrow().has_gun;
-        // CUS receives Spring's zero-based weapon index. The Lua adapter adds
-        // one before calling AimWeapon, so the spear is 0 and the gun is 1.
-        let valid = (has_gun && weapon.0 == 1) || (!has_gun && weapon.0 == 0);
-        if !valid {
-            // The CUS bridge can enter the first weapon's callback while the
-            // Lua bridge enters both callbacks for a pirate.  Keep the spear
-            // pending, but start the pirate's gun animation from that callback
-            // so the gun's own ready state and pose remain identical to Lua.
-            if has_gun && weapon.0 == 0 {
-                let can_start = {
-                    let state = self.state.borrow();
-                    !state.drowning && !state.throwing && !state.aim_ready && !state.aiming
-                };
-                if can_start {
-                    self.state.borrow_mut().aiming = true;
-                    ctx.signal(SIG_AIM);
-                    self.spawn("mycube-eskimo-aim-gun", ctx, run_gun);
-                }
-            }
-            // Lua's AimWeapon returns nil for the unit's inactive weapon;
-            // leaving the CUS call incomplete preserves that behavior.
-            return None;
-        }
-        {
+        let (drowning, has_gun, throwing) = {
             let state = self.state.borrow();
-            if state.drowning || state.throwing {
-                return Some(false);
-            }
-            if state.aim_ready {
-                return Some(true);
-            }
-            if state.aiming {
-                return None;
-            }
+            (state.drowning, state.has_gun, state.throwing)
+        };
+        let own_weapon = if has_gun { 1 } else { 0 };
+        if drowning || weapon.0 != own_weapon || throwing || !loaded(ctx.unit(), weapon) {
+            return Some(false);
         }
-        self.state.borrow_mut().aiming = true;
         ctx.signal(SIG_AIM);
         if has_gun {
             self.spawn("mycube-eskimo-aim-gun", ctx, run_gun);
         } else {
             self.spawn("mycube-eskimo-aim-spear", ctx, run_spear);
         }
-        // Keep the weapon pending while the animation task drives it to the
-        // ready state. Lua's AimWeapon call is a blocking coroutine, so the
-        // native weapon must wait for set_aim_ready(true).
         None
     }
 
@@ -164,7 +133,6 @@ impl HumanScript {
             if state.drowning {
                 return;
             }
-            state.aim_ready = false;
             state.throwing = !state.has_gun;
             state.has_gun
         };
@@ -178,8 +146,6 @@ impl HumanScript {
     pub(super) fn killed(&mut self, ctx: &UnitCtx) -> WreckLevel {
         let shot = {
             let mut state = self.state.borrow_mut();
-            state.aiming = false;
-            state.aim_ready = false;
             state.death_pending = true;
             spring::random::synced::float() > 0.5
         };
@@ -222,6 +188,13 @@ impl HumanScript {
     }
 }
 
+/// Lua's `isLoaded`: the weapon's reload has finished.
+fn loaded(unit: UnitId, weapon: WeaponId) -> bool {
+    spring::units_weapons::get_unit_weapon_state(unit.0, weapon.0 + 1, "reloadFrame")
+        .log_err_once("My Cube eskimo script: get unit weapon state")
+        .is_some_and(|state| state.reload_frame <= spring::game::current_frame() as f32)
+}
+
 fn run_gun(state: Rc<RefCell<HumanState>>, ctx: UnitCtx) -> impl core::future::Future<Output = ()> {
     play_aim(state, ctx, eskimo::AIM_GUN, WeaponId(1))
 }
@@ -230,11 +203,7 @@ fn run_spear(
     state: Rc<RefCell<HumanState>>,
     ctx: UnitCtx,
 ) -> impl core::future::Future<Output = ()> {
-    // The spear table ends with an empty keyframe at t=10 after the pose has
-    // settled at t=9. Lua's blocking AimWeapon is ready at t=9; waiting out
-    // the empty interval would miss the engine's firing check by a frame.
-    let settled = &eskimo::AIM_SPEAR[..eskimo::AIM_SPEAR.len() - 1];
-    play_aim(state, ctx, settled, WeaponId(0))
+    play_aim(state, ctx, eskimo::AIM_SPEAR, WeaponId(0))
 }
 
 fn run_death_shot(
