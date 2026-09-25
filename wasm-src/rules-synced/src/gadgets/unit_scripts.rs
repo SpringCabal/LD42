@@ -20,6 +20,11 @@ impl Gadget<Global> for UnitScriptsGadget {
         "UnitScripts"
     }
 
+    /// Units that outlived a rules reload get their scripts here.
+    fn init(&self, _ctx: &spring_addons::AddonContext<'_, Global>) {
+        crate::with_cus_module_or_defer(|host| host.attach_existing());
+    }
+
     fn unit_created(
         &self,
         _ctx: &spring_addons::AddonContext<'_, Global>,
