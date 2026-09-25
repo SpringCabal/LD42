@@ -1,6 +1,19 @@
-//! Map sites the headless integration test uses, found the same way by the
-//! rules' checks and the UI's test driver. `map` is the map's size in elmos
-//! and `ground(x, z)` its height.
+//! What the headless integration test's two halves share: the map sites,
+//! found the same way by the rules' checks and the UI's test driver (`map`
+//! is the map's size in elmos and `ground(x, z)` its height), and the step
+//! the rules ask the UI for.
+
+/// The public unit rules param on the coal burner through which the rules'
+/// check asks the UI's test driver for its next messages. The UI sends them
+/// from its updates, over the network, so how many frames they take depends
+/// on the game speed; each check waits for its messages instead.
+pub const STEP_PARAM: &str = "mycube_test_step";
+/// Buy coal.
+pub const STEP_COAL: i32 = 1;
+/// Sell the ice at [`trade_location`], then buy food.
+pub const STEP_SALE: i32 = 2;
+/// Restart the round, after the first round's checks.
+pub const STEP_RESTART: i32 = 3;
 
 /// The highest point on a 512-elmo grid: the ice, for the trade check.
 pub fn trade_location(

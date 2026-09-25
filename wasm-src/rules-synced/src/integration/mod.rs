@@ -1,5 +1,5 @@
-//! The headless integration test: checks at fixed frames, driven by the
-//! Integration gadget.
+//! The headless integration test, driven by the Integration gadget: checks
+//! at fixed frames, except where it waits for the UI's test driver.
 //!
 //! The checks borrow the shared state only to read it. Anything that calls
 //! the engine (damage, moving or destroying a unit) runs with no borrow held,
@@ -11,7 +11,9 @@ mod second_round;
 
 use alloc::vec::Vec;
 
-use mycube_shared::test_sites::{trade_location, water_location};
+use mycube_shared::test_sites::{
+    STEP_COAL, STEP_PARAM, STEP_RESTART, STEP_SALE, trade_location, water_location,
+};
 use mycube_shared::unit;
 use springcabal::check::Suite;
 
@@ -25,9 +27,24 @@ const EXPECTED_CHECKS: u32 = 32;
 /// the attacker's gameplay damage and lets none of it through.
 const ENGINE_HIT: f32 = 5.0;
 
-/// The UI's test driver asks for a restart at frame 1005; give up on it
-/// after this frame.
-const RESTART_DEADLINE: i32 = 1100;
+/// The opening checks' frame, after which the UI is asked to buy coal.
+const OPENING_CHECK: i32 = 15;
+
+/// The first frame the sale is checked on; later if the UI's messages take
+/// longer, which delays the rest of the first round's schedule by as much.
+const SALE_CHECK: i32 = 45;
+
+/// The last frame of the first round's schedule, after which the UI is
+/// asked for the restart.
+const FIRST_ROUND_END: i32 = 1000;
+
+/// How many frames to wait for the UI's messages. The UI updates about every
+/// 20 frames at 100x, and its messages arrive about 20 frames after that.
+const UI_TIMEOUT: i32 = 200;
+
+/// The money the round starts with, and what is left after the coal.
+const OPENING_MONEY: f32 = 80.0;
+const MONEY_AFTER_COAL: f32 = 30.0;
 
 /// Frames after the restart at which the second round is checked.
 const RESTART_CHECK: i32 = 15;
@@ -51,9 +68,29 @@ const WARM_CHECK: i32 = 90;
 /// reach and clear of its footprint.
 const WARM_OFFSET: f32 = 120.0;
 
+/// Where the test is. The UI's test driver sends its messages from its
+/// updates, over the network, so how many frames they take depends on the
+/// game speed: the test asks for them and waits.
+#[derive(Clone, Copy)]
+enum Stage {
+    /// Before the opening checks.
+    Opening,
+    /// Waiting for the coal the UI was asked for on frame `since`.
+    Coal { since: i32 },
+    /// Waiting for the UI's ice sale and food purchase.
+    Sale { since: i32 },
+    /// The rest of the first round, on its nominal frames, `delay` frames
+    /// late.
+    Schedule { delay: i32 },
+    /// Waiting for the restart the UI was asked for on frame `since`, then
+    /// the second round.
+    SecondRound { since: i32 },
+}
+
 /// The test's progress, owned by the Integration gadget.
 pub struct Tracker {
     suite: Suite,
+    stage: Stage,
     /// The trade site and its height before the trade.
     trade_before: Option<(f32, f32, f32)>,
     /// Unit id, its gameplay and engine health before the hit.
@@ -75,6 +112,7 @@ impl Default for Tracker {
                 "MYCUBE INTEGRATION TESTS",
                 EXPECTED_CHECKS,
             ),
+            stage: Stage::Opening,
             trade_before: None,
             combat: None,
             drowning: None,
@@ -93,27 +131,71 @@ impl Tracker {
         if self.suite.is_finished() {
             return;
         }
-        if self.restart.is_some() || frame > 1000 {
-            self.update_second_round(global, frame);
+        match self.stage {
+            Stage::Opening if frame >= OPENING_CHECK => {
+                self.check_opening(global);
+                ask_ui(STEP_COAL);
+                self.stage = Stage::Coal { since: frame };
+            }
+            Stage::Opening => {}
+            Stage::Coal { since } => self.wait_for_coal(global, frame, since),
+            Stage::Sale { since } => self.wait_for_sale(global, frame, since),
+            Stage::Schedule { delay } => self.update_first_round(global, frame, delay),
+            Stage::SecondRound { since } => self.update_second_round(global, frame, since),
+        }
+    }
+
+    /// The coal arrives: check it, then measure the ice the UI will sell.
+    fn wait_for_coal(&mut self, global: &Global, frame: i32, since: i32) {
+        let economy = *global.economy.access();
+        let arrived = economy.money != OPENING_MONEY;
+        if !arrived && !timed_out(frame, since, "the UI's coal purchase") {
             return;
         }
-        match frame {
-            15 => self.check_opening(global),
-            30 => {
-                let economy = *global.economy.access();
-                self.check(
-                    economy.money == 30.0 && economy.heat >= 99.0,
-                    "buy-coal Lua message updates authoritative resources",
-                );
-            }
-            35 => {
-                self.trade_before = trade_location(map_size(), ground).and_then(|(x, z)| {
-                    spring::get_ground_height(x, z)
-                        .ok()
-                        .map(|height| (x, z, height))
-                });
-            }
-            45 => self.check_first_needs_and_trades(global),
+        self.check(
+            economy.money == MONEY_AFTER_COAL && economy.heat >= 99.0,
+            "buy-coal Lua message updates authoritative resources",
+        );
+        self.trade_before = trade_location(map_size(), ground).and_then(|(x, z)| {
+            spring::get_ground_height(x, z)
+                .ok()
+                .map(|height| (x, z, height))
+        });
+        if arrived {
+            ask_ui(STEP_SALE);
+            self.stage = Stage::Sale { since: frame };
+        } else {
+            self.suite.finish();
+        }
+    }
+
+    /// The sale and the food arrive: check them, then run the rest of the
+    /// first round.
+    fn wait_for_sale(&mut self, global: &Global, frame: i32, since: i32) {
+        let lowered = self.trade_before.is_some_and(|(x, z, before)| {
+            spring::get_ground_height(x, z).is_ok_and(|after| after < before - 0.1)
+        });
+        let arrived = lowered && global.economy.access().food >= 99.0;
+        if !arrived && !timed_out(frame, since, "the UI's ice sale and food purchase") {
+            return;
+        }
+        if frame < SALE_CHECK {
+            return;
+        }
+        self.check_first_needs_and_trades(global);
+        if arrived {
+            self.stage = Stage::Schedule {
+                delay: frame - SALE_CHECK,
+            };
+        } else {
+            self.suite.finish();
+        }
+    }
+
+    /// The first round after the trades, on its nominal frames.
+    fn update_first_round(&mut self, global: &Global, frame: i32, delay: i32) {
+        let nominal = frame - delay;
+        match nominal {
             47 => self.hit_first_eskimo(global),
             48 => first_round::make_first_eskimo_hungry(global),
             53 => self.check_combat(),
@@ -148,17 +230,58 @@ impl Tracker {
             ),
             475 => self.check_story_end(global),
             500 => self.check_drill_orders(global),
-            1000 => self.check(
-                units_of(UnitKind::Parachute).is_empty(),
-                "landed parachutes are reclaimed instead of left on the map",
-            ),
+            FIRST_ROUND_END => {
+                self.check(
+                    units_of(UnitKind::Parachute).is_empty(),
+                    "landed parachutes are reclaimed instead of left on the map",
+                );
+                ask_ui(STEP_RESTART);
+                self.stage = Stage::SecondRound { since: frame };
+            }
             _ => {}
         }
         // Run every authored storyteller branch under its normal spawn path,
         // while spacing waves far enough apart to exercise bounded Core work.
-        if (50..=470).contains(&frame) && (frame - 50) % 30 == 0 {
+        if (50..=470).contains(&nominal) && (nominal - 50) % 30 == 0 {
             global.story.access_mut().next_step = frame;
         }
+    }
+}
+
+/// Whether the UI's `what`, asked for on frame `since`, is overdue. Once it
+/// is, its check runs and fails, and the test ends: the later steps depend on
+/// it.
+fn timed_out(frame: i32, since: i32, what: &str) -> bool {
+    if frame - since <= UI_TIMEOUT {
+        return false;
+    }
+    spring::log_warning!(
+        "mycube-test",
+        "{what} did not arrive within {UI_TIMEOUT} frames"
+    );
+    true
+}
+
+/// Ask the UI's test driver for `step`, through the coal burner.
+fn ask_ui(step: i32) {
+    let Some(&burner) = units_of(UnitKind::Coalburner).first() else {
+        spring::log_warning!(
+            "mycube-test",
+            "no coal burner to ask the UI for step {step}"
+        );
+        return;
+    };
+    let asked = spring::set_unit_rules_param_f32(
+        burner,
+        STEP_PARAM,
+        step as f32,
+        spring::rules_params::los::PUBLIC,
+    );
+    if let Err(error) = asked {
+        spring::log_warning!(
+            "mycube-test",
+            "asking the UI for step {step} failed: {error:?}"
+        );
     }
 }
 

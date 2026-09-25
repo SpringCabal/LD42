@@ -3,14 +3,14 @@
 use super::*;
 
 impl Tracker {
-    /// The UI's test driver restarts the round the way Ctrl+R does. Check
-    /// the new round, then lose it.
-    pub(super) fn update_second_round(&mut self, global: &Global, frame: i32) {
+    /// The UI's test driver restarts the round the way Ctrl+R does, when
+    /// asked on frame `since`. Check the new round, then lose it.
+    pub(super) fn update_second_round(&mut self, global: &Global, frame: i32, since: i32) {
         let Some(start) = self.restart.or_else(|| {
             let story = global.story.access();
-            (story.started && story.start_frame > 1000).then_some(story.start_frame)
+            (story.started && story.start_frame > since).then_some(story.start_frame)
         }) else {
-            if frame > RESTART_DEADLINE {
+            if timed_out(frame, since, "the UI's restart request") {
                 self.check(false, "the UI's restart request reaches the rules");
                 self.suite.finish();
             }
