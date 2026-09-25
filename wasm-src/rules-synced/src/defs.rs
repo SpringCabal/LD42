@@ -1,7 +1,7 @@
 //! Unit defs, resolved by name once and then looked up by def id.
 
 use alloc::vec::Vec;
-use core::cell::OnceCell;
+use springcabal::defs::DefCache;
 
 use mycube_shared::unit;
 
@@ -99,12 +99,10 @@ fn custom_param(def: i32, key: &str) -> Option<alloc::string::String> {
     spring::unit_defs::get_unit_def_custom_param(def, key).ok()
 }
 
-thread_local! {
-    static DEFS: OnceCell<Defs> = const { OnceCell::new() };
-}
+static DEFS: DefCache<Defs> = DefCache::new(Defs::resolve);
 
 fn with_defs<R>(f: impl FnOnce(&Defs) -> R) -> R {
-    DEFS.with(|defs| f(defs.get_or_init(Defs::resolve)))
+    f(DEFS.get())
 }
 
 /// The kind of a def, if it is one of ours.

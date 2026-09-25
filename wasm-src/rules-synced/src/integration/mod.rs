@@ -70,8 +70,11 @@ pub struct Tracker {
 impl Default for Tracker {
     fn default() -> Self {
         Self {
-            suite: Suite::new("[MyCube-Rust-Test]", "MYCUBE INTEGRATION TESTS")
-                .require_at_least(EXPECTED_CHECKS),
+            suite: Suite::new(
+                "[MyCube-Rust-Test]",
+                "MYCUBE INTEGRATION TESTS",
+                EXPECTED_CHECKS,
+            ),
             trade_before: None,
             combat: None,
             drowning: None,

@@ -36,11 +36,7 @@ impl Gadget<Global> for StatusGadget {
             }
         };
         self.status.send_if_changed(status, |status| {
-            spring::send_to_unsynced(&status.encode())
-                .inspect_err(|error| {
-                    spring::log_warning!("mycube", "sending the HUD status failed: {error:?}");
-                })
-                .is_ok()
+            springcabal::message::send_to_ui(&status.encode())
         });
     }
 }

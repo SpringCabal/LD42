@@ -1,6 +1,6 @@
 //! The unit defs the UI treats specially, resolved by name once.
 
-use core::cell::OnceCell;
+use springcabal::defs::DefCache;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum UnitKind {
@@ -20,24 +20,20 @@ struct Defs {
     scenery: [Option<i32>; 3],
 }
 
-thread_local! {
-    static DEFS: OnceCell<Defs> = const { OnceCell::new() };
-}
+static DEFS: DefCache<Defs> = DefCache::new(|| {
+    let id = |name: &str| spring::get_unit_def_id_by_name(name).ok();
+    let (eskimo, pirate, drillship) = (id("eskimo"), id("pirate"), id("drillship"));
+    Defs {
+        eskimo,
+        pirate,
+        drillship,
+        health: [eskimo, pirate, drillship].map(health),
+        scenery: [id("coalburner"), id("iglu"), id("lantern")],
+    }
+});
 
 fn defs() -> Defs {
-    DEFS.with(|defs| {
-        *defs.get_or_init(|| {
-            let id = |name: &str| spring::get_unit_def_id_by_name(name).ok();
-            let (eskimo, pirate, drillship) = (id("eskimo"), id("pirate"), id("drillship"));
-            Defs {
-                eskimo,
-                pirate,
-                drillship,
-                health: [eskimo, pirate, drillship].map(health),
-                scenery: [id("coalburner"), id("iglu"), id("lantern")],
-            }
-        })
-    })
+    *DEFS.get()
 }
 
 /// The kind of a def, if the HUD cares about it.

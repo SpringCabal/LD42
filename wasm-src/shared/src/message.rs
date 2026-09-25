@@ -34,7 +34,7 @@ impl<'a> Status<'a> {
             .field(self.money)
             .field(self.game_end.map_or("", GameEnd::as_str))
             .field(self.survival_frames.unwrap_or(-1))
-            .field(self.intro)
+            .rest(self.intro)
             .finish()
     }
 
