@@ -10,9 +10,6 @@ modules instead of Lua. The Lua original is the sibling `MyCube.sdd`.
   gameplay, the unit scripts and the UI to the modules.
 - `Units/`, `Weapons/`, `GameData/`, models, textures and sounds: the game
   data, as in the Lua original.
-- `port-reference/`: the Lua original's gadgets and widgets, kept for
-  comparison while porting. The game does not load them and releases leave
-  them out.
 
 ## Differences from the Lua version
 
