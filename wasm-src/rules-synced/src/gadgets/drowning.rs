@@ -6,7 +6,7 @@ use spring_addons::rules::{Gadget, UnitDestroyedEvent};
 use crate::defs::{self, UnitKind};
 use crate::drowning;
 use crate::state::Global;
-use crate::units::destroy_later;
+use crate::units::destroy_all;
 
 /// Drowning, ported from `unit_drown_eskimos.lua`. Eskimos come from the
 /// village; the pirates are tracked here.
@@ -58,6 +58,6 @@ impl Gadget<Global> for DrowningGadget {
                 .chain(pirates.iter().copied())
                 .collect()
         };
-        destroy_later(ctx, drowning::update_drowning(units.into_iter()), false);
+        destroy_all(drowning::update_drowning(units.into_iter()), false);
     }
 }

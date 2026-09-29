@@ -1,15 +1,17 @@
 //! The headless integration test, driven by the Integration gadget: checks
 //! at fixed frames, except where it waits for the UI's test driver.
 //!
-//! The checks borrow the shared state only to read it. Anything that calls
-//! the engine (damage, moving or destroying a unit) runs with no borrow held,
-//! because the engine raises its callins (UnitPreDamaged, UnitDestroyed) at
-//! once, and the gadgets handling them borrow the same state.
+//! Engine calls that raise callins (damage, orders, moving or destroying a
+//! unit) are commands, like the gadgets' own: they run once the frame's
+//! callin has returned. A check of what they did runs after them, through
+//! [`Tracker::after_commands`] or [`Tracker::then`].
 
 mod first_round;
 mod second_round;
 
+use alloc::rc::{Rc, Weak};
 use alloc::vec::Vec;
+use core::cell::RefCell;
 
 use mycube_shared::test_sites::{
     STEP_COAL, STEP_PARAM, STEP_RESTART, STEP_SALE, trade_location, water_location,
@@ -89,6 +91,8 @@ enum Stage {
 
 /// The test's progress, owned by the Integration gadget.
 pub struct Tracker {
+    /// The tracker itself, for checks that run after commands.
+    this: Weak<RefCell<Tracker>>,
     suite: Suite,
     stage: Stage,
     /// The trade site and its height before the trade.
@@ -104,25 +108,50 @@ pub struct Tracker {
     restart: Option<i32>,
 }
 
-impl Default for Tracker {
-    fn default() -> Self {
-        Self {
-            suite: Suite::new(
-                "[MyCube-Rust-Test]",
-                "MYCUBE INTEGRATION TESTS",
-                EXPECTED_CHECKS,
-            ),
-            stage: Stage::Opening,
-            trade_before: None,
-            combat: None,
-            drowning: None,
-            warming: None,
-            restart: None,
-        }
-    }
-}
-
 impl Tracker {
+    pub fn new_shared() -> Rc<RefCell<Self>> {
+        Rc::new_cyclic(|this| {
+            RefCell::new(Self {
+                this: this.clone(),
+                suite: Suite::new(
+                    "[MyCube-Rust-Test]",
+                    "MYCUBE INTEGRATION TESTS",
+                    EXPECTED_CHECKS,
+                ),
+                stage: Stage::Opening,
+                trade_before: None,
+                combat: None,
+                drowning: None,
+                warming: None,
+                restart: None,
+            })
+        })
+    }
+
+    /// Run `f` on the tracker once the commands queued so far have run.
+    fn after_commands(&self, f: impl FnOnce(&mut Tracker) + 'static) {
+        let this = self.this.clone();
+        spring::commands::run(move || {
+            if let Some(tracker) = this.upgrade() {
+                f(&mut tracker.borrow_mut());
+            }
+        });
+    }
+
+    /// Run `f` on the tracker with a command's result, right after it ran.
+    fn then<T: 'static>(
+        &self,
+        command: spring::commands::Pending<T>,
+        f: impl FnOnce(&mut Tracker, T) + 'static,
+    ) {
+        let this = self.this.clone();
+        command.then(move |result| {
+            if let Some(tracker) = this.upgrade() {
+                f(&mut tracker.borrow_mut(), result);
+            }
+        });
+    }
+
     fn check(&mut self, condition: bool, message: &str) {
         self.suite.check(condition, message);
     }
@@ -229,7 +258,7 @@ impl Tracker {
                 "enemy parachute remains in flight after spawning",
             ),
             475 => self.check_story_end(global),
-            500 => self.check_drill_orders(global),
+            500 => self.check_drill_orders(),
             FIRST_ROUND_END => {
                 self.check(
                     units_of(UnitKind::Parachute).is_empty(),

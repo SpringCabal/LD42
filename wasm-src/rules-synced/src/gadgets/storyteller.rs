@@ -4,7 +4,7 @@ use spring_addons::rules::Gadget;
 
 use crate::spawning;
 use crate::state::Global;
-use crate::units::destroy_later;
+use crate::units::destroy_all;
 
 /// The authored scenario script, ported from `storyteller.lua`.
 #[derive(Default)]
@@ -38,29 +38,21 @@ impl Gadget<Global> for StorytellerGadget {
         if self.off.get() {
             return;
         }
-        let requests = {
-            let mut story = ctx.global().story.access_mut();
-            if !story.started {
-                story.started = true;
-                story.start_frame = frame;
-                // storyteller.lua's Initialize clears the map and restores
-                // the ice an earlier round dug away.
-                destroy_later(ctx, spring::get_all_units().unwrap_or_default(), true);
-                crate::story::restore_ice();
-            }
-            crate::story::run_story(&mut story, frame)
-        };
-        if requests.is_empty() {
-            return;
+        let mut story = ctx.global().story.access_mut();
+        if !story.started {
+            story.started = true;
+            story.start_frame = frame;
+            // storyteller.lua's Initialize clears the map and restores
+            // the ice an earlier round dug away.
+            destroy_all(spring::get_all_units().unwrap_or_default(), true);
+            crate::story::restore_ice();
         }
-        // Creating a unit raises UnitCreated immediately, and several
-        // gadgets borrow state there, so spawn once this callin is over.
-        ctx.delay(move |global| {
-            for request in requests {
-                if spawning::spawn(request).is_some() {
+        for request in crate::story::run_story(&mut story, frame) {
+            spawning::spawn(request, move |_| {
+                crate::with_global(|global| {
                     spawning::count_story_spawn(&mut global.story.access_mut(), request.kind);
-                }
-            }
-        });
+                });
+            });
+        }
     }
 }

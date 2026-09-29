@@ -3,7 +3,7 @@ use spring_addons::rules::{Gadget, UnitDestroyedEvent};
 use crate::defs::{self, UnitKind};
 use crate::eskimos;
 use crate::state::{Eskimo, Global};
-use crate::units::{destroy_later, set_eskimo_needs};
+use crate::units::{destroy_all, set_eskimo_needs};
 
 const START_FOOD: f32 = 90.0;
 const START_HEAT: f32 = 40.0;
@@ -65,6 +65,6 @@ impl Gadget<Global> for EskimosGadget {
             &mut ctx.global().village.access_mut(),
             &mut ctx.global().economy.access_mut(),
         );
-        destroy_later(ctx, dead, false);
+        destroy_all(dead, false);
     }
 }

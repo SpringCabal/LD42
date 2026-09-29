@@ -76,20 +76,11 @@ pub fn drill(drills: &Drills, frame: i32) {
     }
 }
 
-/// A move order for a drill ship, issued once no state is borrowed:
-/// giving an order raises AllowCommand synchronously.
-pub struct MoveOrder {
-    pub unit: i32,
-    pub target: spring::Float3,
-}
-
 /// `GameFrame`: a ship that has run out of ice nearby goes back to its
 /// target if it has not reached it, and otherwise heads for the closest ice.
-/// Returns the move orders to give.
-pub fn update_drills(drills: &mut Drills, frame: i32) -> Vec<MoveOrder> {
-    let mut orders = Vec::new();
+pub fn update_drills(drills: &mut Drills, frame: i32) {
     if drills.out_of_ice {
-        return orders;
+        return;
     }
     for ship in &mut drills.ships {
         if frame - ship.checked_frame <= CHECK_INTERVAL {
@@ -108,12 +99,12 @@ pub fn update_drills(drills: &mut Drills, frame: i32) -> Vec<MoveOrder> {
         }
         ship.checked_frame = frame;
         if ship.has_order && distance(ship.order_x, ship.order_z, hull.x, hull.z) > NEARBY_SIZE {
-            orders.push(move_order(ship.id, ship.order_x, ship.order_z));
+            order_move(ship.id, ship.order_x, ship.order_z);
             continue;
         }
         match find_closest_ice(hull.x, hull.z) {
             Ok(Some((x, z))) => {
-                orders.push(move_order(ship.id, x, z));
+                order_move(ship.id, x, z);
                 ship.has_order = true;
                 ship.order_x = x;
                 ship.order_z = z;
@@ -127,7 +118,6 @@ pub fn update_drills(drills: &mut Drills, frame: i32) -> Vec<MoveOrder> {
             Err(error) => log_failed_query(error),
         }
     }
-    orders
 }
 
 const LOG_SECTION: &str = "mycube-drills";
@@ -142,31 +132,23 @@ fn log_failed_query(error: spring::ApiError) {
 
 const NEARBY_SIZE: f32 = 100.0;
 
-fn move_order(unit: i32, x: f32, z: f32) -> MoveOrder {
+/// Order the ship to move to `x, z` once the current callin has returned
+/// (AllowCommand runs inside the call).
+fn order_move(unit: i32, x: f32, z: f32) {
     let y = spring::get_ground_height(x, z).unwrap_or(0.0);
-    MoveOrder {
-        unit,
-        target: spring::Float3::new(x, y, z),
-    }
-}
-
-pub fn give_orders(orders: &[MoveOrder]) {
-    for order in orders {
-        let target = order.target;
-        if let Err(error) = spring::give_order_to_unit(
-            order.unit,
-            spring::cmd::MOVE,
-            &[target.x, target.y, target.z],
-            0,
-            0,
-        ) {
-            spring::log_warning!(
-                LOG_SECTION,
-                "move order for drill ship {} failed: {error:?}",
-                order.unit
-            );
-        }
-    }
+    spring::commands::give_order_to_unit(unit, spring::cmd::MOVE, &[x, y, z], 0, 0).then(
+        move |result| {
+            // A ship destroyed earlier in the frame takes no orders.
+            if let Err(error) = result
+                && crate::units::is_alive(unit)
+            {
+                spring::log_warning!(
+                    LOG_SECTION,
+                    "move order for drill ship {unit} failed: {error:?}"
+                );
+            }
+        },
+    );
 }
 
 fn distance(x1: f32, z1: f32, x2: f32, z2: f32) -> f32 {

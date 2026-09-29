@@ -33,8 +33,9 @@ impl Gadget<Global> for UnitScriptsGadget {
         _team: i32,
         _builder: i32,
     ) {
-        // Deferred while the module is busy (a unit created from one of its
-        // own callins) or not initialized yet (the map's units).
+        // Deferred while the unit-script state is not initialized yet (the
+        // map's units). The rules create units with commands, which run once
+        // no unit script is running.
         crate::with_cus_module_or_defer(move |host| host.unit_created(UnitId(id), def));
     }
 

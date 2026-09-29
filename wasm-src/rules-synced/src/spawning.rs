@@ -12,16 +12,20 @@ pub struct SpawnRequest {
     pub team: i32,
 }
 
-/// Create a story unit. Scenery goes to Gaia, neutral and blocking.
-pub fn spawn(request: SpawnRequest) -> Option<i32> {
+/// Create a story unit once the current callin has returned (UnitCreated
+/// runs inside the call), then pass its id to `spawned`. Scenery goes to
+/// Gaia, neutral and blocking.
+pub fn spawn(request: SpawnRequest, spawned: impl FnOnce(i32) + 'static) {
     let kind = request.kind;
-    let id = defs::def_id(kind)?;
+    let Some(id) = defs::def_id(kind) else {
+        return;
+    };
     let team = if kind.is_scenery() {
         spring::game::get_gaia_team_id(0).unwrap_or(request.team)
     } else {
         request.team
     };
-    let created = spring::create_unit(
+    spring::commands::create_unit(
         spring::UnitDefRef {
             name: kind.def_name(),
             id,
@@ -34,36 +38,38 @@ pub fn spawn(request: SpawnRequest) -> Option<i32> {
             unit_id: -1,
             builder_id: -1,
         },
-    );
-    let unit_id = match created {
-        Ok(unit_id) => unit_id,
-        Err(error) => {
-            spring::log_warning!(
-                "mycube",
-                "the story could not create a {} at {:?}: {error:?}",
-                kind.def_name(),
-                request.position
-            );
-            return None;
+    )
+    .then(move |created| {
+        let unit_id = match created {
+            Ok(unit_id) => unit_id,
+            Err(error) => {
+                spring::log_warning!(
+                    "mycube",
+                    "the story could not create a {} at {:?}: {error:?}",
+                    kind.def_name(),
+                    request.position
+                );
+                return;
+            }
+        };
+        if kind.is_scenery() {
+            spring::set_unit_neutral(unit_id, true).log_err("making the scenery neutral failed");
+            spring::set_unit_blocking(
+                unit_id,
+                spring::types::SetUnitBlockingOptions {
+                    blocking: true,
+                    solid_objects: true,
+                    projectiles: false,
+                    quad_map_rays: false,
+                    crushable: false,
+                    block_enemy_pushing: true,
+                    block_height_changes: false,
+                },
+            )
+            .log_err("making the scenery blocking failed");
         }
-    };
-    if kind.is_scenery() {
-        spring::set_unit_neutral(unit_id, true).log_err("making the scenery neutral failed");
-        spring::set_unit_blocking(
-            unit_id,
-            spring::types::SetUnitBlockingOptions {
-                blocking: true,
-                solid_objects: true,
-                projectiles: false,
-                quad_map_rays: false,
-                crushable: false,
-                block_enemy_pushing: true,
-                block_height_changes: false,
-            },
-        )
-        .log_err("making the scenery blocking failed");
-    }
-    Some(unit_id)
+        spawned(unit_id);
+    });
 }
 
 /// Count a unit the story spawned.

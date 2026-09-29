@@ -1,5 +1,8 @@
 //! The first round's checks, frames 15 to 1000.
 
+use alloc::rc::Rc;
+use core::cell::Cell;
+
 use spring::cmd::options::ALT_KEY;
 use spring::cmd::{ATTACK, INSERT, MOVE};
 
@@ -32,7 +35,8 @@ impl Tracker {
     /// Orders through the engine, whose AllowCommand reaches the
     /// Untargetable gadget: attacks on the coal burner are dropped, while an
     /// attack on an Eskimo and a move are queued. Each order is cleared
-    /// again at once, so no shot is fired and nobody walks off.
+    /// again at once, so no shot is fired and nobody walks off. The orders
+    /// are commands, so the queues are checked once they have run.
     pub(super) fn check_scenery_orders(&mut self, eskimos: &[i32]) {
         let burner = units_of(UnitKind::Coalburner).first().copied();
         let (Some(&unit), Some(&other), Some(burner)) = (eskimos.get(3), eskimos.get(4), burner)
@@ -57,20 +61,23 @@ impl Tracker {
         let insert_other = queued_orders(unit, &[(MOVE, &step), (INSERT, &insert_attack(other))]);
         let insert_burner = queued_orders(unit, &[(MOVE, &step), (INSERT, &insert_attack(burner))]);
         let move_step = queued_orders(unit, &[(MOVE, &step)]);
-        self.check(
-            spring::get_unit_rules_param_f32(burner, unit::UNTARGETABLE) == Ok(1.0)
-                && attack_other == [ATTACK]
-                && attack_burner.is_empty(),
-            "an attack order on the coal burner is dropped, one on an Eskimo is kept",
-        );
-        self.check(
-            insert_other == [MOVE, ATTACK] && insert_burner == [MOVE],
-            "an inserted attack order on the coal burner is dropped",
-        );
-        self.check(
-            move_step == [MOVE],
-            "a move order next to the scenery is kept",
-        );
+        self.after_commands(move |tracker| {
+            let attack_burner = attack_burner.take();
+            tracker.check(
+                spring::get_unit_rules_param_f32(burner, unit::UNTARGETABLE) == Ok(1.0)
+                    && attack_other.take() == [ATTACK]
+                    && attack_burner.is_empty(),
+                "an attack order on the coal burner is dropped, one on an Eskimo is kept",
+            );
+            tracker.check(
+                insert_other.take() == [MOVE, ATTACK] && insert_burner.take() == [MOVE],
+                "an inserted attack order on the coal burner is dropped",
+            );
+            tracker.check(
+                move_step.take() == [MOVE],
+                "a move order next to the scenery is kept",
+            );
+        });
     }
 
     pub(super) fn check_first_needs_and_trades(&mut self, global: &Global) {
@@ -123,7 +130,7 @@ impl Tracker {
         ) else {
             return;
         };
-        let hit = spring::unit_control::add_unit_damage(
+        let hit = spring::commands::add_unit_damage(
             target,
             ENGINE_HIT,
             0.0,
@@ -131,11 +138,12 @@ impl Tracker {
             attacker,
             spring::Float3::new(0.0, 0.0, 0.0),
         );
-        if let Err(error) = hit {
-            spring::log_warning!("mycube-test", "damaging unit {target} failed: {error:?}");
-            return;
-        }
-        self.combat = Some((target, pool, engine.health));
+        self.then(hit, move |tracker, hit| match hit {
+            Ok(_) => tracker.combat = Some((target, pool, engine.health)),
+            Err(error) => {
+                spring::log_warning!("mycube-test", "damaging unit {target} failed: {error:?}");
+            }
+        });
     }
 
     pub(super) fn check_combat(&mut self) {
@@ -166,12 +174,13 @@ impl Tracker {
             return;
         };
         let ground = spring::get_ground_height(x, z).unwrap_or(0.0);
-        match spring::unit_control::set_unit_position(id, spring::Float3::new(x, ground, z)) {
-            Ok(_) => self.drowning = Some((id, pool)),
+        let moved = spring::commands::set_unit_position(id, spring::Float3::new(x, ground, z));
+        self.then(moved, move |tracker, moved| match moved {
+            Ok(_) => tracker.drowning = Some((id, pool)),
             Err(error) => {
                 spring::log_warning!("mycube-test", "moving unit {id} failed: {error:?}");
             }
-        }
+        });
     }
 
     pub(super) fn check_drowning(&mut self) {
@@ -216,21 +225,24 @@ impl Tracker {
         };
         let (x, z) = (burner.x + WARM_OFFSET, burner.z);
         let ground = spring::get_ground_height(x, z).unwrap_or(burner.y);
-        if let Err(error) =
-            spring::unit_control::set_unit_position(id, spring::Float3::new(x, ground, z))
-        {
-            spring::log_warning!("mycube-test", "moving unit {id} failed: {error:?}");
-            return;
-        }
-        let heat = global
-            .village
-            .access()
-            .eskimos
-            .iter()
-            .find(|eskimo| eskimo.id == id)
-            .map(|eskimo| eskimo.heat);
-        let stock = global.economy.access().heat;
-        self.warming = heat.map(|heat| (id, heat, stock));
+        let moved = spring::commands::set_unit_position(id, spring::Float3::new(x, ground, z));
+        self.then(moved, move |tracker, moved| {
+            if let Err(error) = moved {
+                spring::log_warning!("mycube-test", "moving unit {id} failed: {error:?}");
+                return;
+            }
+            let (heat, stock) = crate::with_global(|global| {
+                let heat = global
+                    .village
+                    .access()
+                    .eskimos
+                    .iter()
+                    .find(|eskimo| eskimo.id == id)
+                    .map(|eskimo| eskimo.heat);
+                (heat, global.economy.access().heat)
+            });
+            tracker.warming = heat.map(|heat| (id, heat, stock));
+        });
     }
 
     pub(super) fn check_warming(&mut self, global: &Global) {
@@ -276,16 +288,23 @@ impl Tracker {
     }
 
     /// The drill gadget orders ships toward ice; the order must be in the
-    /// engine's command queue, not only in the gadget's bookkeeping.
-    pub(super) fn check_drill_orders(&mut self, global: &Global) {
-        let targets: Vec<(i32, f32, f32)> = global
-            .drills
-            .access()
-            .ships
-            .iter()
-            .filter(|ship| ship.has_order)
-            .map(|ship| (ship.id, ship.order_x, ship.order_z))
-            .collect();
+    /// engine's command queue, not only in the gadget's bookkeeping. The
+    /// gadget gives this frame's orders as commands, so check after them.
+    pub(super) fn check_drill_orders(&mut self) {
+        self.after_commands(Self::check_drill_queues);
+    }
+
+    fn check_drill_queues(&mut self) {
+        let targets: Vec<(i32, f32, f32)> = crate::with_global(|global| {
+            global
+                .drills
+                .access()
+                .ships
+                .iter()
+                .filter(|ship| ship.has_order)
+                .map(|ship| (ship.id, ship.order_x, ship.order_z))
+                .collect()
+        });
         self.check(
             targets.iter().any(|&(id, x, z)| {
                 spring::units_commands::get_unit_commands(id, 1).is_ok_and(|commands| {
@@ -311,20 +330,33 @@ pub(super) fn make_first_eskimo_hungry(global: &Global) {
     global.economy.access_mut().food = 100.0;
 }
 
-/// Give `unit` these orders through the engine, then the commands in its
-/// queue, and clear the queue.
-fn queued_orders(unit: i32, orders: &[(i32, &[f32])]) -> Vec<i32> {
+/// Give `unit` these orders through the engine, then read the commands in
+/// its queue, and clear the queue. The orders are commands, run in turn once
+/// the callin has returned; the queue lands in the returned cell.
+fn queued_orders(unit: i32, orders: &[(i32, &[f32])]) -> Rc<Cell<Vec<i32>>> {
     for &(command, params) in orders {
         let options = if command == INSERT { ALT_KEY } else { 0 };
-        if let Err(error) = spring::give_order_to_unit(unit, command, params, options, 0) {
-            spring::log_warning!("mycube-test", "ordering unit {unit} failed: {error:?}");
+        spring::commands::give_order_to_unit(unit, command, params, options, 0).then(
+            move |result| {
+                if let Err(error) = result {
+                    spring::log_warning!("mycube-test", "ordering unit {unit} failed: {error:?}");
+                }
+            },
+        );
+    }
+    let queue = Rc::new(Cell::new(Vec::new()));
+    let read = Rc::clone(&queue);
+    spring::commands::run(move || {
+        read.set(
+            spring::units_commands::get_unit_commands(unit, 4)
+                .map(|queue| queue.iter().map(|command| command.cmd_id).collect())
+                .unwrap_or_default(),
+        );
+    });
+    spring::commands::give_order_to_unit(unit, spring::cmd::STOP, &[], 0, 0).then(move |result| {
+        if let Err(error) = result {
+            spring::log_warning!("mycube-test", "stopping unit {unit} failed: {error:?}");
         }
-    }
-    let queue = spring::units_commands::get_unit_commands(unit, 4)
-        .map(|queue| queue.iter().map(|command| command.cmd_id).collect())
-        .unwrap_or_default();
-    if let Err(error) = spring::give_order_to_unit(unit, spring::cmd::STOP, &[], 0, 0) {
-        spring::log_warning!("mycube-test", "stopping unit {unit} failed: {error:?}");
-    }
+    });
     queue
 }

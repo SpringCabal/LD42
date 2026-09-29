@@ -53,9 +53,6 @@ impl Gadget<Global> for DrillsGadget {
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
         let mut state = ctx.global().drills.access_mut();
         drills::drill(&state, frame);
-        let orders = drills::update_drills(&mut state, frame);
-        // Giving an order raises AllowCommand, so release the state first.
-        drop(state);
-        drills::give_orders(&orders);
+        drills::update_drills(&mut state, frame);
     }
 }
