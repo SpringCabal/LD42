@@ -5,8 +5,6 @@ use spring_addons::ui::Widget;
 
 use crate::state::Global;
 
-/// The key legend and the restart/quit keys, ported from `keybinds.lua`.
-/// The trade keys (1-3) belong to [`super::GuiTradeWidget`].
 #[derive(Default)]
 pub struct GuiKeybindsWidget;
 
@@ -27,7 +25,6 @@ impl Widget<Global> for GuiKeybindsWidget {
         _width: i32,
         _height: i32,
     ) {
-        // The strings from keybinds.lua, without its Chili colour escapes.
         let _ = spring::gfx::begin_text(false);
         let _ = spring::gfx::color(1.0, 1.0, 1.0, 1.0);
         for (line, text) in [
@@ -50,7 +47,6 @@ impl Widget<Global> for GuiKeybindsWidget {
         event: &KeyEvent<'_>,
     ) -> EventResult {
         if event.ctrl && event.matches("r") {
-            // ui_endgame.lua's Restart button.
             crate::rules::send(Command::Restart);
             return EventResult::Handled;
         }

@@ -1,39 +1,25 @@
-//! The autonomous drill controller, ported from `unit_drill.lua`.
-
 use alloc::vec::Vec;
 
 use spring::consts::SQUARE_SIZE;
 
 use crate::terrain::{self, ICE_HEIGHT, round_to_square};
 
-/// A drill ship, like the Lua drill gadget's per-ship table.
 #[derive(Clone, Copy)]
 pub struct DrillShip {
     pub id: i32,
-    /// The frame the ship was created; its script drills every half second
-    /// from then on.
-    pub created_frame: i32,
-    /// The `icemine` piece at the tip of the drill (1-based piece number).
-    pub mine_piece: Option<i32>,
-    pub has_order: bool,
-    pub order_x: f32,
-    pub order_z: f32,
-    /// The last frame the ship had run out of ice (`checkedFrame`).
+    created_frame: i32,
+    mine_piece: Option<i32>,
+    pub order: Option<(f32, f32)>,
     checked_frame: i32,
 }
 
-/// The drill ships.
 #[derive(Default)]
 pub struct Drills {
     pub ships: Vec<DrillShip>,
-    /// No ice is left anywhere, so the ships no longer look for it
-    /// (`DISABLE_GADGET`).
     out_of_ice: bool,
 }
 
-/// Frames between a ship's searches for new ice (`CHECK_FRAME_INTERVAL`).
 const CHECK_INTERVAL: i32 = 30;
-/// `shipscript.lua` drills after every `Sleep(500)`: 15 frames.
 const DRILL_PERIOD: i32 = 15;
 const DRILL_SIZE: i32 = 250;
 const DRILL_AMOUNT: f32 = 2.0;
@@ -49,16 +35,12 @@ impl DrillShip {
             id,
             created_frame,
             mine_piece,
-            has_order: false,
-            order_x: 0.0,
-            order_z: 0.0,
+            order: None,
             checked_frame: -1,
         }
     }
 }
 
-/// `GG.Drill.DrillUnit`: every drill ship digs a crater under its drill tip
-/// every half second, drilling or not.
 pub fn drill(drills: &Drills, frame: i32) {
     for ship in &drills.ships {
         let age = frame - ship.created_frame;
@@ -76,8 +58,6 @@ pub fn drill(drills: &Drills, frame: i32) {
     }
 }
 
-/// `GameFrame`: a ship that has run out of ice nearby goes back to its
-/// target if it has not reached it, and otherwise heads for the closest ice.
 pub fn update_drills(drills: &mut Drills, frame: i32) {
     if drills.out_of_ice {
         return;
@@ -98,19 +78,19 @@ pub fn update_drills(drills: &mut Drills, frame: i32) {
             }
         }
         ship.checked_frame = frame;
-        if ship.has_order && distance(ship.order_x, ship.order_z, hull.x, hull.z) > NEARBY_SIZE {
-            order_move(ship.id, ship.order_x, ship.order_z);
+        if let Some((x, z)) = ship.order
+            && distance(x, z, hull.x, hull.z) > NEARBY_SIZE
+        {
+            order_move(ship.id, x, z);
             continue;
         }
         match find_closest_ice(hull.x, hull.z) {
             Ok(Some((x, z))) => {
                 order_move(ship.id, x, z);
-                ship.has_order = true;
-                ship.order_x = x;
-                ship.order_z = z;
+                ship.order = Some((x, z));
             }
             Ok(None) => {
-                ship.has_order = false;
+                ship.order = None;
                 spring::log_info!(LOG_SECTION, "no more ice");
                 drills.out_of_ice = true;
                 break;
@@ -132,13 +112,10 @@ fn log_failed_query(error: spring::ApiError) {
 
 const NEARBY_SIZE: f32 = 100.0;
 
-/// Order the ship to move to `x, z` once the current callin has returned
-/// (AllowCommand runs inside the call).
 fn order_move(unit: i32, x: f32, z: f32) {
     let y = spring::get_ground_height(x, z).unwrap_or(0.0);
     spring::commands::give_order_to_unit(unit, spring::cmd::MOVE, &[x, y, z], 0, 0).then(
         move |result| {
-            // A ship destroyed earlier in the frame takes no orders.
             if let Err(error) = result
                 && crate::units::is_alive(unit)
             {
@@ -157,8 +134,6 @@ fn distance(x1: f32, z1: f32, x2: f32, z2: f32) -> f32 {
     spring::Float3::new(dx, 0.0, dz).length()
 }
 
-/// `NearbyIce`: whether any point of the 13x13 grid (every heightmap square
-/// of `NEARBY_SIZE`) around the ship is still ice.
 fn nearby_ice(x: f32, z: f32) -> spring::Result<bool> {
     let half = NEARBY_SIZE / 2.0;
     let start_x = round_to_square(x - half);
@@ -175,11 +150,6 @@ fn nearby_ice(x: f32, z: f32) -> spring::Result<bool> {
         .any(|height| height > ICE_HEIGHT))
 }
 
-/// `FindClosestIce`: the first ice on squares of growing size around the
-/// ship, top and bottom rows first, then the left and right columns, like
-/// Lua. The squares grow by one heightmap square at a time (Lua: one elmo,
-/// which samples nearly the same points eight times over), and points off
-/// the map are skipped. `None` when no ice is left.
 fn find_closest_ice(x: f32, z: f32) -> spring::Result<Option<(f32, f32)>> {
     let (map_x, map_z) = spring::game::map_size_elmos()?;
     let center_x = round_to_square(x) as i32;
@@ -205,9 +175,10 @@ fn find_closest_ice(x: f32, z: f32) -> spring::Result<Option<(f32, f32)>> {
         }
         let points: Vec<[f32; 2]> = ring.iter().map(|&(x, z)| [x as f32, z as f32]).collect();
         let heights = spring::ground_heights(&points)?;
-        if let Some(index) = heights.iter().position(|height| *height > ICE_HEIGHT) {
-            let (x, z) = ring[index];
-            return Ok(Some((x as f32, z as f32)));
+        for ((x, z), height) in ring.iter().copied().zip(heights) {
+            if height > ICE_HEIGHT {
+                return Ok(Some((x as f32, z as f32)));
+            }
         }
     }
     Ok(None)

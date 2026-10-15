@@ -1,5 +1,3 @@
-//! The Eskimo and pirate script (`scripts/eskimo.lua`).
-
 use alloc::rc::Rc;
 use core::cell::RefCell;
 
@@ -55,13 +53,11 @@ impl HumanScript {
         ctx.spawn(idle_task(&self.state));
     }
 
-    /// Whether `StartDrowning` has run.
     #[cfg(feature = "headless-integration")]
     pub(super) fn is_drowning(&self) -> bool {
         self.state.borrow().drowning
     }
 
-    /// `StartDrowning`: stop everything and flounder until dead.
     pub(super) fn start_drowning(&mut self, ctx: &UnitCtx) {
         {
             let mut state = self.state.borrow_mut();
@@ -104,11 +100,6 @@ impl HumanScript {
         }
     }
 
-    /// eskimo.lua's AimWeapon: the Eskimo aims its spear (weapon 1, 0
-    /// here), the pirate its gun (weapon 2). Each call that finds the
-    /// weapon loaded, with no throw running, restarts the aim animation,
-    /// which readies the weapon when it ends; every other call leaves the
-    /// weapon unready, as Lua's `nil` does.
     pub(super) fn aim_weapon(&mut self, ctx: &UnitCtx, weapon: WeaponId) -> Option<bool> {
         let (drowning, has_gun, throwing) = {
             let state = self.state.borrow();
@@ -152,7 +143,6 @@ impl HumanScript {
         ctx.signal(SIG_AIM);
         ctx.signal(SIG_IDLE);
         ctx.signal(SIG_WALK);
-        // deathSound is the SoundItem name from customParams, not a file.
         let sound = if self.pirate {
             "DeathPirate"
         } else {
@@ -188,7 +178,6 @@ impl HumanScript {
     }
 }
 
-/// Lua's `isLoaded`: the weapon's reload has finished.
 fn loaded(unit: UnitId, weapon: WeaponId) -> bool {
     spring::units_weapons::get_unit_weapon_state(unit.0, weapon.0 + 1, "reloadFrame")
         .log_err_once("My Cube eskimo script: get unit weapon state")

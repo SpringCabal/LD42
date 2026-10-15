@@ -4,12 +4,11 @@ use core::cell::RefCell;
 use spring_addons::rules::{Gadget, UnitDestroyedEvent};
 
 use crate::defs::{self, UnitKind};
-use crate::drowning;
 use crate::state::Global;
 use crate::units::destroy_all;
 
-/// Drowning, ported from `unit_drown_eskimos.lua`. Eskimos come from the
-/// village; the pirates are tracked here.
+const DROWNING_DAMAGE_PER_FRAME: f32 = 1.0;
+
 #[derive(Default)]
 pub struct DrowningGadget {
     pirates: RefCell<Vec<i32>>,
@@ -58,6 +57,30 @@ impl Gadget<Global> for DrowningGadget {
                 .chain(pirates.iter().copied())
                 .collect()
         };
-        destroy_all(drowning::update_drowning(units.into_iter()), false);
+        destroy_all(update_drowning(units.into_iter()), false);
     }
+}
+
+fn update_drowning(units: impl Iterator<Item = i32>) -> Vec<i32> {
+    let mut dead = Vec::new();
+    for id in units {
+        if let Ok(position) = spring::get_unit_position(id, false, false)
+            && spring::get_ground_height(position.x, position.z).unwrap_or(1.0) <= 0.0
+        {
+            crate::with_cus_module(|host| {
+                host.with_script(spring::UnitId(id), |ctx, script| script.start_drowning(ctx))
+            });
+            let Some(health) = crate::gadgets::health::behavior::pool(id)
+                .map(|health| health - DROWNING_DAMAGE_PER_FRAME)
+            else {
+                continue;
+            };
+            if health <= 0.0 {
+                dead.push(id);
+            } else {
+                crate::gadgets::health::behavior::set_pool(id, health);
+            }
+        }
+    }
+    dead
 }

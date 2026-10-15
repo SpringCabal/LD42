@@ -1,5 +1,3 @@
-//! The unit defs the UI treats specially, resolved by name once.
-
 use springcabal::defs::DefCache;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -14,9 +12,7 @@ struct Defs {
     eskimo: Option<i32>,
     pirate: Option<i32>,
     drillship: Option<i32>,
-    /// `customParams.health` of the eskimo, pirate and drillship defs.
     health: [f32; 3],
-    /// The coal burner, the iglu and the lantern.
     scenery: [Option<i32>; 3],
 }
 
@@ -36,7 +32,6 @@ fn defs() -> Defs {
     *DEFS.get()
 }
 
-/// The kind of a def, if the HUD cares about it.
 pub fn kind(def: i32) -> Option<UnitKind> {
     let defs = defs();
     if defs.eskimo == Some(def) {
@@ -50,13 +45,10 @@ pub fn kind(def: i32) -> Option<UnitKind> {
     }
 }
 
-/// Whether units of this def are scenery, which their unit scripts make
-/// unselectable and hide from the minimap.
 pub fn is_scenery(def: i32) -> bool {
     defs().scenery.contains(&Some(def))
 }
 
-/// A def's full gameplay health pool, `customParams.health`.
 fn health(def: Option<i32>) -> f32 {
     let param =
         def.and_then(|def| spring::unit_defs::get_unit_def_custom_param(def, "health").ok());
@@ -64,7 +56,6 @@ fn health(def: Option<i32>) -> f32 {
 }
 
 impl UnitKind {
-    /// The full gameplay health pool.
     pub fn max_health(self) -> f32 {
         let index = match self {
             Self::Eskimo => 0,

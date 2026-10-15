@@ -1,3 +1,5 @@
+mod story;
+
 use core::cell::Cell;
 
 use spring_addons::rules::Gadget;
@@ -6,12 +8,8 @@ use crate::spawning;
 use crate::state::Global;
 use crate::units::destroy_all;
 
-/// The authored scenario script, ported from `storyteller.lua`.
 #[derive(Default)]
 pub struct StorytellerGadget {
-    /// Off in the verification gallery (mod option `gallery`), which
-    /// photographs one unit at a time: the story's village and ships would
-    /// stand in front of it.
     off: Cell<bool>,
 }
 
@@ -42,12 +40,10 @@ impl Gadget<Global> for StorytellerGadget {
         if !story.started {
             story.started = true;
             story.start_frame = frame;
-            // storyteller.lua's Initialize clears the map and restores
-            // the ice an earlier round dug away.
             destroy_all(spring::get_all_units().unwrap_or_default(), true);
-            crate::story::restore_ice();
+            story::restore_ice();
         }
-        for request in crate::story::run_story(&mut story, frame) {
+        for request in story::run_story(&mut story, frame) {
             spawning::spawn(request, move |_| {
                 crate::with_global(|global| {
                     spawning::count_story_spawn(&mut global.story.access_mut(), request.kind);

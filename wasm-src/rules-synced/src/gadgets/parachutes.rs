@@ -4,11 +4,9 @@ use core::cell::RefCell;
 use spring_addons::rules::{Gadget, UnitDestroyedEvent};
 
 use crate::defs::{self, UnitKind};
-use crate::parachutes;
 use crate::state::Global;
 use crate::units::destroy_all;
 
-/// Parachute cleanup, ported from `unit_parachute_remover.lua`.
 #[derive(Default)]
 pub struct ParachutesGadget {
     parachutes: RefCell<Vec<i32>>,
@@ -49,9 +47,22 @@ impl Gadget<Global> for ParachutesGadget {
     }
 
     fn game_frame(&self, _ctx: &spring_addons::AddonContext<'_, Global>, _frame: i32) {
-        destroy_all(
-            parachutes::update_parachutes(&self.parachutes.borrow()),
-            true,
-        );
+        destroy_all(update_parachutes(&self.parachutes.borrow()), true);
     }
+}
+
+fn update_parachutes(parachutes: &[i32]) -> Vec<i32> {
+    let mut landed = Vec::new();
+    for id in parachutes {
+        let Ok(position) = spring::get_unit_position(*id, false, false) else {
+            continue;
+        };
+        let Ok(ground) = spring::get_ground_height(position.x, position.z) else {
+            continue;
+        };
+        if ground >= position.y {
+            landed.push(*id);
+        }
+    }
+    landed
 }

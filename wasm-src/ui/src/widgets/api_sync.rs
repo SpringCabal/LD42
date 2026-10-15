@@ -4,7 +4,6 @@ use spring_addons::ui::Widget;
 
 use crate::state::{Global, Meters};
 
-/// Receives the rules' [`Status`] for the HUD.
 #[derive(Default)]
 pub struct ApiSyncWidget;
 

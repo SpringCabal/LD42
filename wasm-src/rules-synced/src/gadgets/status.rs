@@ -4,8 +4,6 @@ use springcabal::message::SendOnChange;
 
 use crate::state::Global;
 
-/// Sends the HUD state (resources, story text, game end) to the UI as a
-/// [`Status`], whenever it changes.
 #[derive(Default)]
 pub struct StatusGadget {
     status: SendOnChange<Status<'static>>,

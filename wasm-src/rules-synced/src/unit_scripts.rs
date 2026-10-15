@@ -1,10 +1,3 @@
-//! My Cube's unit scripts, implemented with the portable CUS API.
-//!
-//! The gameplay gadgets remain the authority for health, drowning, drilling
-//! and spawning; the scripts here animate the units and answer the
-//! engine's unit-script callins. The engine's `CusHost` attaches a script to
-//! each unit and forwards the engine's calls to it.
-
 mod common;
 mod eskimo;
 mod human;
@@ -23,8 +16,6 @@ use self::scenery::{CoalburnerScript, IgluScript};
 use self::ship::{ShipScript, SinkingSoundLock};
 use crate::defs::{self, UnitKind};
 
-/// The module's unit scripts. Rules code reaches them through
-/// `crate::with_cus_module`. The drill ships share one [`SinkingSoundLock`].
 pub type MyCubeCusModule = CusHost<MyCubeUnitScript, SinkingSoundLock>;
 
 fn capabilities(kind: UnitKind) -> ScriptCapabilities {
@@ -52,7 +43,6 @@ pub enum MyCubeUnitScript {
     Human(HumanScript),
     Iglu(IgluScript),
     Lantern,
-    /// A unit without a script.
     None,
 }
 
@@ -78,15 +68,12 @@ impl MyCubeUnitScript {
 }
 
 impl MyCubeUnitScript {
-    /// `env.StartDrowning()`, which the drowning rules call on Eskimos and
-    /// pirates in the water. Other scripts have no such function.
     pub fn start_drowning(&mut self, ctx: &UnitCtx) {
         if let Self::Human(script) = self {
             script.start_drowning(ctx);
         }
     }
 
-    /// Whether this is an Eskimo's or pirate's script that is drowning.
     #[cfg(feature = "headless-integration")]
     pub fn is_drowning(&self) -> bool {
         matches!(self, Self::Human(script) if script.is_drowning())

@@ -1,18 +1,14 @@
-//! Unit defs, resolved by name once and then looked up by def id.
-
 use alloc::vec::Vec;
 use springcabal::defs::DefCache;
 
 use mycube_shared::unit;
 
-/// The unit types the rules and unit scripts care about.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum UnitKind {
     Coalburner,
     Drillship,
     Eskimo,
     Iglu,
-    /// The second iglu model. Its Lua script, `igluscript2.lua`, is empty.
     Iglu2,
     Lantern,
     Parachute,
@@ -20,18 +16,14 @@ pub enum UnitKind {
 }
 
 impl UnitKind {
-    /// Scenery is created for Gaia, neutral and untargetable.
     pub const fn is_scenery(self) -> bool {
         matches!(self, Self::Coalburner | Self::Iglu | Self::Lantern)
     }
 
-    /// Parachutes and the second iglu have no unit script (`parachut.lua`
-    /// does not exist, `igluscript2.lua` is empty).
     pub const fn has_script(self) -> bool {
         !matches!(self, Self::Parachute | Self::Iglu2)
     }
 
-    /// The def the story spawns for this kind.
     pub const fn def_name(self) -> &'static str {
         match self {
             Self::Coalburner => "coalburner",
@@ -46,7 +38,6 @@ impl UnitKind {
     }
 }
 
-/// Every def name with its kind.
 const DEF_NAMES: [(&str, UnitKind); 8] = [
     ("coalburner", UnitKind::Coalburner),
     ("drillship", UnitKind::Drillship),
@@ -62,9 +53,7 @@ const DEF_NAMES: [(&str, UnitKind); 8] = [
 struct DefInfo {
     id: i32,
     kind: UnitKind,
-    /// `customParams.health`: the gameplay health pool.
     health: f32,
-    /// `customParams.damage`: what this unit's attacks take off that pool.
     damage: f32,
 }
 
@@ -105,12 +94,10 @@ fn with_defs<R>(f: impl FnOnce(&Defs) -> R) -> R {
     f(DEFS.get())
 }
 
-/// The kind of a def, if it is one of ours.
 pub fn kind(def: i32) -> Option<UnitKind> {
     with_defs(|defs| defs.info(def).map(|info| info.kind))
 }
 
-/// The def id the story spawns for `kind`.
 pub fn def_id(kind: UnitKind) -> Option<i32> {
     with_defs(|defs| {
         defs.entries
@@ -120,7 +107,6 @@ pub fn def_id(kind: UnitKind) -> Option<i32> {
     })
 }
 
-/// The gameplay health a unit of this def starts with (`game_health.lua`).
 pub fn health(def: i32) -> f32 {
     with_defs(|defs| {
         defs.info(def)
@@ -128,7 +114,6 @@ pub fn health(def: i32) -> f32 {
     })
 }
 
-/// The gameplay damage a unit of this def deals per hit.
 pub fn damage(def: i32) -> f32 {
     with_defs(|defs| defs.info(def).map_or(0.0, |info| info.damage))
 }

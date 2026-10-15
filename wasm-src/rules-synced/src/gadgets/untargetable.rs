@@ -1,10 +1,8 @@
+use mycube_shared::unit;
 use spring_addons::rules::{CommandEvent, Gadget};
 
 use crate::state::Global;
-use crate::untargetable;
 
-/// Command filtering, ported from `unit_untargetable.lua`: units whose
-/// script marked them `untargetable` (the scenery) can't be targeted.
 #[derive(Default)]
 pub struct UntargetableGadget;
 
@@ -24,6 +22,11 @@ impl Gadget<Global> for UntargetableGadget {
         _ctx: &spring_addons::AddonContext<'_, Global>,
         event: &CommandEvent<'_>,
     ) -> bool {
-        untargetable::allow_command(event.command_id, event.command_params)
+        let target = match event.command_params {
+            [_, _, _, target] if event.command_id == spring::cmd::INSERT => *target,
+            [target] if event.command_id != spring::cmd::INSERT => *target,
+            _ => return true,
+        };
+        spring::get_unit_rules_param_f32(target as i32, unit::UNTARGETABLE) != Ok(1.0)
     }
 }

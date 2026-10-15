@@ -47,7 +47,6 @@ impl HumanPart {
         self as usize
     }
 
-    /// The model piece this part animates.
     pub(super) const fn name(self) -> &'static str {
         match self {
             Self::Abs => "Abs",
@@ -206,25 +205,17 @@ pub(super) async fn play_aim(
     if weapon.0 == 0 {
         ctx.show(pieces.get(HumanPart::Spear));
     }
-    // run_animation applies the first keyframe immediately and then waits
-    // through the authored time interval before each subsequent keyframe.
     run_animation(&ctx, pieces, &offsets, animation, 0).await;
     ctx.set_aim_ready(weapon, true);
 }
 
-/// Lua's Throw and Shoot threads start from Shot, outside any thread, so
-/// no signal stops them.
 pub(super) async fn play_throw(state: Rc<RefCell<HumanState>>, ctx: UnitCtx) {
     let (pieces, offsets) = snapshot(&state);
     ctx.hide(pieces.get(HumanPart::Spear));
-    // PlayAnimation applies the first keyframe before waiting for its first
-    // authored interval; do not skip THROW[0] -> THROW[1].
     run_animation(&ctx, pieces, &offsets, THROW, 0).await;
     state.borrow_mut().throwing = false;
 }
 
-/// eskimo.lua's recoil: the gun jumps back and returns at once, since
-/// `WaitForMove(Gun, z_axis)` waits on an axis that isn't moving.
 pub(super) async fn play_shoot(state: Rc<RefCell<HumanState>>, ctx: UnitCtx) {
     let pieces = state.borrow().pieces;
     move_piece(&ctx, pieces.get(HumanPart::Gun), Axis::X, 15.0, 0.0);
@@ -247,8 +238,6 @@ pub(super) async fn play_death(
 ) {
     ctx.set_signal_mask(SIG_IDLE);
     let (pieces, offsets) = snapshot(&state);
-    // PlayAnimation applies keyframe zero and waits through its first
-    // authored interval before applying keyframe one.
     run_animation(&ctx, pieces, &offsets, animation, 0).await;
     state.borrow_mut().death_pending = false;
     ctx.set_killed_finished(wreck_level);

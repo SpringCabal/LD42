@@ -13,21 +13,11 @@ const BAR_WIDTH: f32 = 46.0;
 const BAR_HEIGHT: f32 = 4.0;
 const BAR_GAP: f32 = 2.0;
 const UNIT_HEIGHT_SCALE: f32 = 1.8;
-/// `gui_healthbars.lua` draws a unit's bars only within this squared
-/// distance of the camera (`infoDistance`, about 894 elmos).
 const INFO_DISTANCE_SQ: f32 = 800_000.0;
 
-/// The original healthbar widget is a billboarded world draw call. Core's
-/// portable drawing API does not expose the widget's old display-list path,
-/// so project the same unit anchor to screen space and draw the bars there.
-/// This keeps the bars attached to the units and, unlike engine bars, uses the
-/// game's public health/food/heat rules parameters.
 #[derive(Default)]
 pub struct GuiHealthbarsWidget {
-    /// Kind per unit id; `None` for units without bars.
     tracked: RefCell<BTreeMap<i32, Option<UnitKind>>>,
-    /// The units with bars, as of `listed_frame`: units only come and go
-    /// between game frames, and there are several draws per frame.
     bars: RefCell<Vec<(i32, UnitKind)>>,
     listed_frame: Cell<Option<i32>>,
 }
@@ -46,7 +36,6 @@ impl GuiHealthbarsWidget {
         let mut units = spring::get_all_units().unwrap_or_default();
         units.sort_unstable();
         let mut tracked = self.tracked.borrow_mut();
-        // Resolve each unit's kind once; forget units that are gone.
         tracked.retain(|id, _| units.binary_search(id).is_ok());
         let mut bars = self.bars.borrow_mut();
         bars.clear();
@@ -72,7 +61,6 @@ impl GuiHealthbarsWidget {
     }
 
     fn health_color(&self, fraction: f32) -> (f32, f32, f32) {
-        // Same red -> yellow -> green ramp used by gui_healthbars.lua.
         let fraction = fraction.clamp(0.0, 1.0);
         if fraction < 0.5 {
             (1.0, fraction * 2.0, 0.0)
@@ -93,7 +81,6 @@ impl Widget<Global> for GuiHealthbarsWidget {
             return;
         };
         for &(unit_id, kind) in self.bars.borrow().iter() {
-            // The unit script sets the radius after creation, so read it here.
             let radius = spring::units_info::get_unit_radius(unit_id).unwrap_or(20.0);
             let Ok(position) = spring::unit_rendering::get_unit_view_position(unit_id, false)
             else {

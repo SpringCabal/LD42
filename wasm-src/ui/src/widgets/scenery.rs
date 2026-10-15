@@ -3,9 +3,6 @@ use spring_addons::ui::Widget;
 use crate::defs;
 use crate::state::Global;
 
-/// The unsynced half of the scenery scripts' Create
-/// (`coalburnerscript.lua`, `igluscript.lua`, `lantern.lua`):
-/// `SetUnitNoSelect` and `SetUnitNoMinimap`, which only the UI can call here.
 #[derive(Default)]
 pub struct SceneryWidget;
 
@@ -38,8 +35,6 @@ impl Widget<Global> for SceneryWidget {
         make_unselectable(unit_id, def);
     }
 
-    /// The scenery belongs to Gaia, whose new units the UI only hears about
-    /// when they enter its line of sight.
     fn unit_entered_los(
         &self,
         _ctx: &spring_addons::AddonContext<'_, Global>,

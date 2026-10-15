@@ -1,10 +1,6 @@
-//! The second round, after the UI's restart request.
-
 use super::*;
 
 impl Tracker {
-    /// The UI's test driver restarts the round the way Ctrl+R does, when
-    /// asked on frame `since`. Check the new round, then lose it.
     pub(super) fn update_second_round(&mut self, global: &Global, frame: i32, since: i32) {
         let Some(start) = self.restart.or_else(|| {
             let story = global.story.access();
@@ -33,8 +29,6 @@ impl Tracker {
                     end == Some(GameEnd::Loss),
                     "losing every Eskimo ends the round in a loss",
                 );
-                // The Eskimos die on RESTART_CONDEMN; the loss is called on
-                // the next frame.
                 self.check(
                     survived == Some(RESTART_CONDEMN + 1),
                     "the survival time counts only the restarted round",

@@ -8,23 +8,18 @@ pub(super) const SIG_WALK: spring::cus::SignalMask = spring::cus::SignalMask::ne
 pub(super) const SIG_IDLE: spring::cus::SignalMask = spring::cus::SignalMask::new(2);
 pub(super) const SIG_AIM: spring::cus::SignalMask = spring::cus::SignalMask::new(4);
 
-/// Every piece of a unit by model name, in model order (`InitCtx::pieces`).
 pub(super) type PieceMap<'a> = [(&'a str, Piece)];
 
-/// A piece by model name, or `Piece::INVALID`.
 pub(super) fn piece_in(map: &PieceMap, name: &str) -> Piece {
     map.iter()
         .find(|(entry, _)| *entry == name)
         .map_or(Piece::INVALID, |(_, piece)| *piece)
 }
 
-/// The engine's piece number (1-based) of a script piece.
 fn piece_num(piece: Piece) -> i32 {
     piece.0 + 1
 }
 
-/// The rest positions (model-space offsets) of the named pieces, from one
-/// walk of the piece tree. Missing pieces get `ZERO`.
 pub(super) fn piece_positions<const N: usize>(
     unit: UnitId,
     map: &PieceMap,
@@ -86,7 +81,6 @@ pub(super) fn move_piece(ctx: &UnitCtx, piece: Piece, axis: Axis, target: f32, s
     }
 }
 
-/// Lua's `math.random(0, 1) == 1`: a synced coin flip.
 pub(super) fn coin_flip() -> bool {
     spring::random::synced::int(0, 1) == 1
 }
@@ -95,17 +89,12 @@ pub(super) fn all_named_pieces(map: &PieceMap) -> Vec<Piece> {
     map.iter().map(|(_, piece)| *piece).collect()
 }
 
-/// The group and number of a piece named like `Build3` or `Deco005`, the way
-/// Lua's `getPieceTableByNameGroups` splits names: the trailing digits are
-/// the number, the rest is the group. Pieces without a number are in none.
 fn group_and_number(name: &str) -> Option<(&str, u32)> {
     let group = name.trim_end_matches(|character: char| character.is_ascii_digit());
     let number = name[group.len()..].parse().ok()?;
     Some((group, number))
 }
 
-/// `TableOfPieceGroups[group]`: the pieces of a group with their numbers,
-/// in number order (Lua keys the table by number).
 pub(super) fn numbered_group(map: &PieceMap, group: &str) -> Vec<(u32, Piece)> {
     let mut pieces = map
         .iter()
@@ -118,7 +107,6 @@ pub(super) fn numbered_group(map: &PieceMap, group: &str) -> Vec<(u32, Piece)> {
     pieces
 }
 
-/// The pieces of a group, in number order.
 pub(super) fn matching_pieces(map: &PieceMap, group: &str) -> Vec<Piece> {
     numbered_group(map, group)
         .into_iter()
@@ -126,8 +114,6 @@ pub(super) fn matching_pieces(map: &PieceMap, group: &str) -> Vec<Piece> {
         .collect()
 }
 
-/// Every piece that belongs to a numbered group, i.e. everything in Lua's
-/// `TableOfPieceGroups`.
 pub(super) fn grouped_pieces(map: &PieceMap) -> Vec<Piece> {
     let mut pieces = map
         .iter()

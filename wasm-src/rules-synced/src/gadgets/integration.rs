@@ -6,8 +6,6 @@ use spring_addons::rules::Gadget;
 use crate::integration;
 use crate::state::Global;
 
-/// The headless integration test (feature `headless-integration`). The
-/// UI's test driver sends the trades and the restart it checks.
 pub struct IntegrationGadget {
     tracker: Rc<RefCell<integration::Tracker>>,
 }

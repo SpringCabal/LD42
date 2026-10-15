@@ -1,5 +1,3 @@
-//! The first round's checks, frames 15 to 1000.
-
 use alloc::rc::Rc;
 use core::cell::Cell;
 
@@ -32,11 +30,6 @@ impl Tracker {
         self.check_scenery_orders(&eskimos);
     }
 
-    /// Orders through the engine, whose AllowCommand reaches the
-    /// Untargetable gadget: attacks on the coal burner are dropped, while an
-    /// attack on an Eskimo and a move are queued. Each order is cleared
-    /// again at once, so no shot is fired and nobody walks off. The orders
-    /// are commands, so the queues are checked once they have run.
     pub(super) fn check_scenery_orders(&mut self, eskimos: &[i32]) {
         let burner = units_of(UnitKind::Coalburner).first().copied();
         let (Some(&unit), Some(&other), Some(burner)) = (eskimos.get(3), eskimos.get(4), burner)
@@ -54,7 +47,6 @@ impl Tracker {
         };
         let position = spring::get_unit_position(unit, false, false).unwrap_or_default();
         let step = [position.x + MOVE_STEP, position.y, position.z];
-        // INSERT with ALT_KEY takes a queue position: -1 is the end.
         let insert_attack = |target: i32| [-1.0, ATTACK as f32, 0.0, target as f32];
         let attack_other = queued_orders(unit, &[(ATTACK, &[other as f32])]);
         let attack_burner = queued_orders(unit, &[(ATTACK, &[burner as f32])]);
@@ -115,10 +107,6 @@ impl Tracker {
         );
     }
 
-    /// One Eskimo hits another through the engine: `AddUnitDamage` raises
-    /// UnitPreDamaged, where the health gadget takes the attacker's
-    /// gameplay damage off the pool. Frame 53 checks that the loss survived
-    /// the Eskimo needs updates in between.
     pub(super) fn hit_first_eskimo(&mut self, global: &Global) {
         let eskimos = eskimo_ids(global);
         let (Some(&target), Some(&attacker)) = (eskimos.first(), eskimos.get(1)) else {
@@ -161,8 +149,6 @@ impl Tracker {
         );
     }
 
-    /// Put the last Eskimo in the sea; `unit_drown_eskimos.lua` takes a
-    /// point of health on every frame there.
     pub(super) fn drown_last_eskimo(&mut self, global: &Global) {
         let Some(&id) = eskimo_ids(global).last() else {
             return;
@@ -205,8 +191,6 @@ impl Tracker {
         );
     }
 
-    /// Put the third Eskimo next to the coal burner; `unit_eskimos.lua`
-    /// warms it there with the village's heat.
     pub(super) fn warm_third_eskimo(&mut self, global: &Global) {
         let Some(id) = global
             .village
@@ -287,9 +271,6 @@ impl Tracker {
         );
     }
 
-    /// The drill gadget orders ships toward ice; the order must be in the
-    /// engine's command queue, not only in the gadget's bookkeeping. The
-    /// gadget gives this frame's orders as commands, so check after them.
     pub(super) fn check_drill_orders(&mut self) {
         self.after_commands(Self::check_drill_queues);
     }
@@ -301,8 +282,7 @@ impl Tracker {
                 .access()
                 .ships
                 .iter()
-                .filter(|ship| ship.has_order)
-                .map(|ship| (ship.id, ship.order_x, ship.order_z))
+                .filter_map(|ship| ship.order.map(|(x, z)| (ship.id, x, z)))
                 .collect()
         });
         self.check(
@@ -321,7 +301,6 @@ impl Tracker {
     }
 }
 
-/// Drive the first Eskimo into the EATING state across multiple frames.
 pub(super) fn make_first_eskimo_hungry(global: &Global) {
     if let Some(eskimo) = global.village.access_mut().eskimos.first_mut() {
         eskimo.food = 19.0;
@@ -330,9 +309,6 @@ pub(super) fn make_first_eskimo_hungry(global: &Global) {
     global.economy.access_mut().food = 100.0;
 }
 
-/// Give `unit` these orders through the engine, then read the commands in
-/// its queue, and clear the queue. The orders are commands, run in turn once
-/// the callin has returned; the queue lands in the returned cell.
 fn queued_orders(unit: i32, orders: &[(i32, &[f32])]) -> Rc<Cell<Vec<i32>>> {
     for &(command, params) in orders {
         let options = if command == INSERT { ALT_KEY } else { 0 };

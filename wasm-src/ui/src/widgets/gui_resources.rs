@@ -2,7 +2,6 @@ use spring_addons::ui::Widget;
 
 use crate::state::Global;
 
-/// The three resource meters, ported from `gui_resources.lua`.
 #[derive(Default)]
 pub struct GuiResourcesWidget;
 
@@ -39,9 +38,6 @@ impl Widget<Global> for GuiResourcesWidget {
 
     fn draw_screen(&self, ctx: &spring_addons::AddonContext<'_, Global>, width: i32, _height: i32) {
         let meters = *ctx.global().meters.access();
-        // gui_resources.lua places three 100x30 bars in a 500x60 control at
-        // x="40%", ten pixels above the bottom edge. Reproduce that authored
-        // layout rather than replacing the hidden Spring bar with a new header.
         let panel_x = width as f32 * 0.4;
         let panel_y = 10.0;
         let _ = spring::gfx::color(0.02, 0.02, 0.02, 0.78);

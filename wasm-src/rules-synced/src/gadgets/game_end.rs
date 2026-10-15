@@ -2,7 +2,6 @@ use spring_addons::rules::Gadget;
 
 use crate::state::{GameEnd, Global};
 
-/// Loss detection, ported from `game_end.lua`.
 #[derive(Default)]
 pub struct GameEndGadget;
 
@@ -12,8 +11,6 @@ impl GameEndGadget {
     }
 }
 
-/// `game_end.lua` checks for a loss only once five frames of the round have
-/// passed; the opening Eskimos arrive on its first frame.
 const GRACE_FRAMES: i32 = 5;
 
 impl Gadget<Global> for GameEndGadget {

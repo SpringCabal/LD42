@@ -3,11 +3,6 @@ use spring_addons::rules::Gadget;
 
 use crate::state::Global;
 
-/// Starts the round over when the player asks (Ctrl+R).
-///
-/// `ui_endgame.lua` restarts with `luarules reload`, which runs every
-/// gadget's Initialize again. That command reloads only the Lua gadgets, not
-/// this module, so the rules reset their round themselves.
 #[derive(Default)]
 pub struct RestartGadget;
 

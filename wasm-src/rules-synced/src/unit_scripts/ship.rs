@@ -1,6 +1,3 @@
-//! The drill ship script (`scripts/shipscript.lua`). The drilling itself
-//! (`GG.Drill.DrillUnit`) is the drills gadget's job.
-
 use alloc::rc::Rc;
 use alloc::vec::Vec;
 use core::cell::{Cell, RefCell};
@@ -12,17 +9,13 @@ use super::common::{
     reset_all, show_all, turn,
 };
 
-/// Chips of ice after which the hold is full (`setIceDrillLoad`).
 const FULL_LOAD_CHIPS: u32 = 100;
 const SINKING_SOUND: &str = "sounds/sinkingship.ogg";
 
-/// The frame until which a sinking sound is playing, shared by every drill
-/// ship: `PlaySoundByUnitDefID` plays one at a time per unit def.
 pub(super) type SinkingSoundLock = Rc<Cell<u32>>;
 
 struct MiningState {
     active: bool,
-    /// Ice chips mined so far (`minetime`).
     chips: u32,
     mine: Piece,
     icecubes: Vec<Piece>,
@@ -84,7 +77,6 @@ impl ShipScript {
         ));
     }
 
-    /// `startIcedrill(1.0, math.random(10, 30))` / `stopIcedrill(1.0)`.
     pub(super) fn set_active(&mut self, ctx: &UnitCtx, active: bool) {
         if active {
             self.start_drill(ctx);
@@ -94,7 +86,6 @@ impl ShipScript {
         self.mining.borrow_mut().active = active;
     }
 
-    /// Killed: the sinking sound, unless another drill ship's is playing.
     pub(super) fn killed(&mut self, ctx: &UnitCtx) {
         let length_ms = spring::random::synced::int(1000, 1500);
         let frame = spring::game::current_frame().max(0) as u32;
@@ -143,12 +134,9 @@ impl ShipScript {
     }
 }
 
-/// `sfxIceMining`: every half second while drilling, on a coin flip, ice
-/// chips fly off the drill and the hold fills up.
 async fn mine_task(state: Rc<RefCell<MiningState>>, ctx: UnitCtx) {
     loop {
         ctx.sleep(spring::cus::Duration::from_millis(500)).await;
-        // shipscript.lua: `bIceMiningActive == true and math.random(1, 50) > 25`.
         if !state.borrow().active || spring::random::synced::int(1, 50) <= 25 {
             continue;
         }
@@ -165,8 +153,6 @@ async fn mine_task(state: Rc<RefCell<MiningState>>, ctx: UnitCtx) {
     }
 }
 
-/// `setIceDrillLoad`: show the first `load` share of the ice cubes in the
-/// hold, each turned and spun at random again.
 fn show_ice_load(ctx: &UnitCtx, icecubes: &[Piece], load: f32) {
     let total = icecubes.len() as f32;
     for (index, piece) in icecubes.iter().copied().enumerate() {
@@ -174,13 +160,11 @@ fn show_ice_load(ctx: &UnitCtx, icecubes: &[Piece], load: f32) {
             break;
         }
         ctx.show(piece);
-        // turnPieceRandDir(id, math.random(0.5, 5)); Lua truncates 0.5 to 0.
         let speed = spring::random::synced::int(0, 5) as f32;
         for axis in [Axis::X, Axis::Y, Axis::Z] {
             let angle = spring::random::synced::int(-360, 360) as f32;
             turn(ctx, piece, axis, angle.to_radians(), speed);
         }
-        // spinRand(id, -3, 3, 2)
         for axis in [Axis::X, Axis::Y, Axis::Z] {
             let speed = spring::random::synced::int(-3, 3) as f32;
             ctx.spin(

@@ -1,7 +1,3 @@
-//! What the rules and UI modules must agree on: the round's constants, the
-//! unit rules params, the ice-trade yield, and the two messages between
-//! them, [`Status`] (rules to UI) and [`Command`] (UI to rules).
-
 #![no_std]
 
 extern crate alloc;

@@ -1,5 +1,3 @@
-//! The authored scenario script, ported from `storyteller.lua`.
-
 use alloc::vec::Vec;
 
 use spring::Float3;
@@ -95,14 +93,8 @@ pub fn run_story(state: &mut Story, frame: i32) -> Vec<SpawnRequest> {
 }
 
 const IGLU_MIN_DISTANCE: f32 = 400.0;
-/// Tries at placing an iglu or the coal burner clear of the others.
-/// `storyteller.lua` tries until it succeeds; a crowded village would hang
-/// the game there.
 const MAX_PLACEMENT_TRIES: u32 = 1000;
 
-/// A position for `unit`, at a random spot like `storyteller.lua`'s
-/// `findPosition`. Iglus and the coal burner keep IGLU_MIN_DISTANCE from
-/// each other; if no such spot turns up, the last one tried is used.
 fn place(unit: UnitKind, supports: &[(f32, f32)]) -> (f32, f32, f32) {
     let clear = |(x, _, z): (f32, f32, f32)| {
         supports.iter().all(|(support_x, support_z)| {
@@ -131,7 +123,6 @@ fn place(unit: UnitKind, supports: &[(f32, f32)]) -> (f32, f32, f32) {
     candidate
 }
 
-/// `Spring.RevertHeightMap` over the whole map.
 pub fn restore_ice() {
     let (map_x, map_z) = map_size();
     if let Err(error) = spring::terrain_control::revert_height_map(0.0, 0.0, map_x, map_z, 1.0) {
@@ -145,12 +136,10 @@ fn map_size() -> (f32, f32) {
         .unwrap_or((8192.0, 8192.0))
 }
 
-/// `math.random(min, max)` from the synced stream Lua's storyteller uses.
 fn random_int(min: i32, max: i32) -> i32 {
     spring::random::synced::int(min, max)
 }
 
-/// `math.sgn(math.random() - 0.5)`.
 fn random_sign() -> f32 {
     if spring::random::synced::float() < 0.5 {
         -1.0
@@ -178,7 +167,6 @@ fn find_position(unit: UnitKind) -> (f32, f32, f32) {
     (x, y + if unit == Pirate { 5000.0 } else { 0.0 }, z)
 }
 
-/// Iglus and the coal burner keep IGLU_MIN_DISTANCE from each other.
 fn is_support(kind: UnitKind) -> bool {
     matches!(kind, Iglu | Coalburner)
 }

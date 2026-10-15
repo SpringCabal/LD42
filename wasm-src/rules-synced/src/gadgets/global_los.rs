@@ -2,9 +2,6 @@ use spring_addons::rules::Gadget;
 
 use crate::state::Global;
 
-/// Global LOS, ported from `globals.lua`: MyCube is a single-player
-/// scenario, so both ally teams see the whole map; otherwise the enemy
-/// ships spawn at the map edge but stay invisible to the player.
 #[derive(Default)]
 pub struct GlobalLosGadget;
 

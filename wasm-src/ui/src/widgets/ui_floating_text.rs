@@ -3,12 +3,9 @@ use spring_addons::ui::Widget;
 use crate::state::Global;
 use mycube_shared::round::LUA_FRAMES_PER_SECOND;
 
-/// `ui_floating_text.lua` shows a story event for five seconds...
 const SHOW_FRAMES: i32 = 5 * LUA_FRAMES_PER_SECOND;
-/// ...and moves it up by this many screen units over that time.
 const RISE: f32 = 50.0;
 
-/// The story overlay, ported from `ui_floating_text.lua`.
 #[derive(Default)]
 pub struct UiFloatingTextWidget;
 

@@ -6,26 +6,18 @@ use spring_addons::ui::Widget;
 
 use crate::state::Global;
 
-/// A command the headless integration test sends to the rules, from the
-/// first update at or after `frame` once the rules ask for `step`.
 struct Step {
     step: i32,
     frame: i32,
     command: fn() -> Option<Command>,
 }
 
-/// In order. The rules ask for each step through [`STEP_PARAM`] and wait
-/// for its result (`rules-synced/src/integration/`): this widget updates
-/// only every so many frames, and the messages go over the network, so the
-/// frame they arrive on depends on the game speed. The frames keep the
-/// steps' timing at 1x.
 const STEPS: [Step; 4] = [
     Step {
         step: STEP_COAL,
         frame: 20,
         command: || Some(Command::BuyHeat),
     },
-    // Sell the ice the rules measured after the coal arrived.
     Step {
         step: STEP_SALE,
         frame: 36,
@@ -37,13 +29,11 @@ const STEPS: [Step; 4] = [
             Some(Command::Trade { x, z })
         },
     },
-    // Buy food with the trade's money.
     Step {
         step: STEP_SALE,
         frame: 38,
         command: || Some(Command::BuyFood),
     },
-    // Restart the round the way Ctrl+R does.
     Step {
         step: STEP_RESTART,
         frame: 0,
@@ -51,7 +41,6 @@ const STEPS: [Step; 4] = [
     },
 ];
 
-/// The step the rules ask for, from the coal burner.
 fn asked_step() -> i32 {
     let Ok(burner) = spring::get_unit_def_id_by_name("coalburner") else {
         return 0;
@@ -64,8 +53,6 @@ fn asked_step() -> i32 {
         .fold(0, |asked, step| asked.max(step as i32))
 }
 
-/// Sends the headless integration test's trades and restart through the
-/// same channel as the player's keys and clicks.
 #[derive(Default)]
 pub struct DbgUiMessagesWidget {
     sent: Cell<usize>,

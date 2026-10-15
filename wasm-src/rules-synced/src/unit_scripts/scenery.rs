@@ -1,6 +1,3 @@
-//! Scripts for the village scenery: the coal burner
-//! (`scripts/coalburnerscript.lua`) and the iglus (`scripts/igluscript.lua`).
-
 use alloc::vec::Vec;
 
 use spring::cus::{Angle, AngularSpeed, Axis, Piece, SfxFlags, UnitCtx};
@@ -59,8 +56,6 @@ impl CoalburnerScript {
     }
 }
 
-/// A numbered `Build` block of an iglu and the decorations that belong to
-/// it (`XY<n>Deco*` and `Y<n>Deco*`).
 struct IgluBlock {
     piece: Piece,
     xy_deco: Vec<Piece>,
@@ -90,10 +85,6 @@ impl IgluScript {
         }
     }
 
-    /// `buildUnit`: the first block always shows. Each block shows on a coin
-    /// flip, turned at random, and only a shown block gets decorations, each
-    /// on its own coin flip: `XY` ones turn around Y and tilt -80..15 degrees
-    /// around X, `Y` ones only turn around Y.
     pub(super) fn create(&mut self, ctx: &UnitCtx) {
         hide_all(ctx, &self.all);
         if let Some(block) = self.blocks.first() {
@@ -121,7 +112,6 @@ impl IgluScript {
         }
     }
 
-    /// Every block and decoration, shown or not, falls or shatters.
     pub(super) fn killed(&mut self, ctx: &UnitCtx) {
         for piece in self.grouped.iter().copied() {
             let effect = if coin_flip() {
@@ -134,7 +124,6 @@ impl IgluScript {
     }
 }
 
-/// Turn a piece at once to `math.random(lower, upper)` degrees.
 fn turn_degrees(ctx: &UnitCtx, piece: Piece, axis: Axis, lower: i32, upper: i32) {
     let angle = spring::random::synced::int(lower, upper) as f32;
     ctx.turn_now(piece, axis, Angle::degrees(angle));

@@ -1,5 +1,3 @@
-//! The messages between the rules and the UI.
-
 use alloc::string::String;
 
 use springcabal::message::{Encoder, fields};
@@ -11,10 +9,6 @@ const MODE: &str = "MODE";
 const TRADE: &str = "TRADE";
 const RESTART: &str = "RESTART";
 
-/// What the HUD shows, sent by the rules whenever it changes:
-/// `MYCUBE_STATUS|food|heat|money|end|survived|intro`, where `survived` is
-/// the round's length in frames once it has ended, else -1. The story text
-/// comes last and may contain anything.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Status<'a> {
     pub food: i32,
@@ -22,7 +16,6 @@ pub struct Status<'a> {
     pub money: i32,
     pub game_end: Option<GameEnd>,
     pub survival_frames: Option<i32>,
-    /// The last story text (`introEvent`).
     pub intro: &'a str,
 }
 
@@ -45,7 +38,6 @@ impl<'a> Status<'a> {
         let money = fields.i32()?;
         let game_end = GameEnd::parse(fields.next()?);
         let survived = fields.i32()?;
-        // `rest` is `None` for an empty last field.
         let intro = fields.rest().unwrap_or("");
         Some(Self {
             food,
@@ -58,18 +50,12 @@ impl<'a> Status<'a> {
     }
 }
 
-/// What the player asks the rules for (`ui_modes.lua`, `game_trade.lua`).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Command {
-    /// Key 1: start or stop selling ice. The rules only hear of it.
     SellMode,
-    /// Key 2: buy a load of coal.
     BuyHeat,
-    /// Key 3: buy a load of food.
     BuyFood,
-    /// A click while selling: sell the ice around this map point.
     Trade { x: f32, z: f32 },
-    /// Ctrl+R: start the round over.
     Restart,
 }
 

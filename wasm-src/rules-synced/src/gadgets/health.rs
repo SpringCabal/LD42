@@ -1,9 +1,9 @@
+pub mod behavior;
 use spring_addons::rules::{Gadget, UnitPreDamagedEvent};
 
+use crate::defs;
 use crate::state::Global;
-use crate::{defs, health};
 
-/// The gameplay health pool, ported from `game_health.lua`.
 #[derive(Default)]
 pub struct HealthGadget;
 
@@ -26,8 +26,7 @@ impl Gadget<Global> for HealthGadget {
         _team: i32,
         _builder: i32,
     ) {
-        // Every gameplay system reads this pool.
-        health::set_pool(id, defs::health(def));
+        behavior::set_pool(id, defs::health(def));
     }
 
     fn unit_pre_damaged(
@@ -35,7 +34,7 @@ impl Gadget<Global> for HealthGadget {
         _ctx: &spring_addons::AddonContext<'_, Global>,
         event: &UnitPreDamagedEvent,
     ) -> Option<spring::DamageResult> {
-        Some(health::unit_pre_damaged(
+        Some(behavior::unit_pre_damaged(
             event.unit_id,
             event.attacker_def_id,
         ))

@@ -9,11 +9,7 @@ use spring_addons::ui::Widget;
 use crate::state::Global;
 
 const BRUSH_TEXTURE: &str = "Bitmaps/circle.png";
-/// Seconds between two valuations of the ice under a moving cursor: one
-/// valuation samples 676 heights.
 const VALUE_INTERVAL: f32 = 0.1;
-/// Seconds after which the value under a still cursor is recomputed, as
-/// the drills and the sea wear the ice down.
 const VALUE_REFRESH: f32 = 1.0;
 
 const TRADE_BRUSH_FRAGMENT: &str = r#"
@@ -25,7 +21,6 @@ void main() {
 }
 "#;
 
-/// The ice trade under the cursor.
 #[derive(Clone, Copy, Debug)]
 struct TradePreview {
     screen_x: i32,
@@ -33,17 +28,13 @@ struct TradePreview {
     world_x: f32,
     world_z: f32,
     value: i32,
-    /// The heightmap square `value` was computed for.
-    valued_square: (f32, f32),
+    valued_square: Option<(f32, f32)>,
 }
 
-/// The trade controls: keys 1-3 (`ui_modes.lua`) and, while selling, the
-/// harvest preview and click (`game_trade.lua`).
 #[derive(Default)]
 pub struct GuiTradeWidget {
     trading: Cell<bool>,
     preview: Cell<Option<TradePreview>>,
-    /// Seconds since the preview's value was computed.
     value_age: Cell<f32>,
     brush_shader: Cell<Option<u32>>,
     brush_shader_failed: Cell<bool>,
@@ -92,38 +83,33 @@ impl GuiTradeWidget {
         }
         let screen_x = mouse.x.round() as i32;
         let screen_y = mouse.y.round() as i32;
-        let mut preview = match self.preview.get() {
-            Some(preview) if preview.screen_x == screen_x && preview.screen_y == screen_y => {
-                preview
-            }
-            last => {
-                let Some(ground) = ground_under(screen_x, screen_y) else {
-                    self.preview.set(None);
-                    return;
-                };
-                TradePreview {
-                    screen_x,
-                    screen_y,
-                    world_x: ground.x,
-                    world_z: ground.z,
-                    // Keep the last value until it is recomputed below.
-                    value: last.map_or(0, |last| last.value),
-                    valued_square: last.map_or((f32::NAN, f32::NAN), |last| last.valued_square),
-                }
-            }
+        let Some(ground) = ground_under(screen_x, screen_y) else {
+            self.preview.set(None);
+            return;
+        };
+        let last = self.preview.get();
+        let mut preview = TradePreview {
+            screen_x,
+            screen_y,
+            world_x: ground.x,
+            world_z: ground.z,
+            value: last.map_or(0, |last| last.value),
+            valued_square: last.and_then(|last| last.valued_square),
         };
         let age = self.value_age.get() + dt;
         let square = (
             round_to_square(preview.world_x),
             round_to_square(preview.world_z),
         );
-        let valued = !preview.valued_square.0.is_nan();
-        let moved = square != preview.valued_square;
-        if !valued || (moved && age >= VALUE_INTERVAL) || age >= VALUE_REFRESH {
+        let moved = preview.valued_square != Some(square);
+        if preview.valued_square.is_none()
+            || (moved && age >= VALUE_INTERVAL)
+            || age >= VALUE_REFRESH
+        {
             preview.value = ice_value(preview.world_x, preview.world_z, |x, z| {
                 spring::get_ground_height(x, z).unwrap_or(0.0)
             }) as i32;
-            preview.valued_square = square;
+            preview.valued_square = Some(square);
             self.value_age.set(0.0);
         } else {
             self.value_age.set(age);
@@ -132,7 +118,6 @@ impl GuiTradeWidget {
     }
 }
 
-/// The ground point under a screen position, if the cursor is over ground.
 fn ground_under(x: i32, y: i32) -> Option<spring::Float3> {
     spring::pick::ground_at(x as f32, y as f32)
 }
@@ -140,6 +125,14 @@ fn ground_under(x: i32, y: i32) -> Option<spring::Float3> {
 impl Widget<Global> for GuiTradeWidget {
     fn name(&self) -> &'static str {
         "GuiTrade"
+    }
+
+    fn shutdown(&self, _ctx: &spring_addons::AddonContext<'_, Global>) {
+        self.stop_trading();
+        if let Some(shader) = self.brush_shader.take() {
+            let _ = spring::gfx::delete_shader(shader);
+        }
+        self.brush_shader_failed.set(false);
     }
 
     fn update(&self, _ctx: &spring_addons::AddonContext<'_, Global>, dt: f32) {
@@ -181,10 +174,12 @@ impl Widget<Global> for GuiTradeWidget {
         let Some(preview) = self.preview.get() else {
             return;
         };
-        // game_trade.lua's 300x300 ground quad, masked by Bitmaps/circle.png.
         let Some(shader) = self.brush_shader() else {
             return;
         };
+        if spring::gfx::push_attrib(gl::ALL_ATTRIB_BITS).is_err() {
+            return;
+        }
         let _ = spring::gfx::bind_texture(BRUSH_TEXTURE, 0, true);
         let _ = spring::gfx::use_shader(shader);
         let _ = spring::gfx::blending(true);
@@ -204,9 +199,7 @@ impl Widget<Global> for GuiTradeWidget {
         );
         let _ = spring::gfx::use_shader(0);
         let _ = spring::gfx::bind_texture(BRUSH_TEXTURE, 0, false);
-        let _ = spring::gfx::blend_func(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
-        let _ = spring::gfx::color(1.0, 1.0, 1.0, 1.0);
-        let _ = spring::gfx::blending(false);
+        let _ = spring::gfx::pop_attrib(0);
     }
 
     fn key_press(
@@ -215,7 +208,6 @@ impl Widget<Global> for GuiTradeWidget {
         event: &KeyEvent<'_>,
     ) -> EventResult {
         let command = if event.matches("1") {
-            // ui_modes.lua toggles MODE 1; pressing 1 again cancels selling.
             let trading = !self.trading.get();
             self.stop_trading();
             self.trading.set(trading);
@@ -241,7 +233,6 @@ impl Widget<Global> for GuiTradeWidget {
         button: i32,
     ) -> EventResult {
         if button != spring::mouse::LEFT || !self.trading.get() {
-            // Leave normal clicks to Spring's selection handler.
             return EventResult::Ignored;
         }
         let Some(ground) = ground_under(x, y) else {

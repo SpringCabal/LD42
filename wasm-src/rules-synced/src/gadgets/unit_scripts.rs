@@ -3,9 +3,6 @@ use spring_addons::rules::Gadget;
 
 use crate::state::Global;
 
-/// Attaches each new unit's script to the unit-script module, and wakes the
-/// scripts' sleeping tasks in GameFrame, before the units update and aim, as
-/// Lua unit scripts wake.
 #[derive(Default)]
 pub struct UnitScriptsGadget;
 
@@ -20,7 +17,6 @@ impl Gadget<Global> for UnitScriptsGadget {
         "UnitScripts"
     }
 
-    /// Units that outlived a rules reload get their scripts here.
     fn init(&self, _ctx: &spring_addons::AddonContext<'_, Global>) {
         crate::with_cus_module_or_defer(|host| host.attach_existing());
     }
@@ -33,9 +29,6 @@ impl Gadget<Global> for UnitScriptsGadget {
         _team: i32,
         _builder: i32,
     ) {
-        // Deferred while the unit-script state is not initialized yet (the
-        // map's units). The rules create units with commands, which run once
-        // no unit script is running.
         crate::with_cus_module_or_defer(move |host| host.unit_created(UnitId(id), def));
     }
 

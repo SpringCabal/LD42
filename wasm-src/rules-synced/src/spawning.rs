@@ -1,5 +1,3 @@
-//! Creating the story's units, ported from `storyteller.lua`.
-
 use spring::{Float3, ResultExt};
 
 use crate::defs::{self, UnitKind};
@@ -12,9 +10,6 @@ pub struct SpawnRequest {
     pub team: i32,
 }
 
-/// Create a story unit once the current callin has returned (UnitCreated
-/// runs inside the call), then pass its id to `spawned`. Scenery goes to
-/// Gaia, neutral and blocking.
 pub fn spawn(request: SpawnRequest, spawned: impl FnOnce(i32) + 'static) {
     let kind = request.kind;
     let Some(id) = defs::def_id(kind) else {
@@ -72,7 +67,6 @@ pub fn spawn(request: SpawnRequest, spawned: impl FnOnce(i32) + 'static) {
     });
 }
 
-/// Count a unit the story spawned.
 pub fn count_story_spawn(story: &mut Story, kind: UnitKind) {
     match kind {
         UnitKind::Eskimo => story.story_eskimos += 1,

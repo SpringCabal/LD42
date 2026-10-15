@@ -1,15 +1,15 @@
+mod behavior;
+
 use spring_addons::rules::{Gadget, UnitDestroyedEvent};
 
+use self::behavior as eskimos;
 use crate::defs::{self, UnitKind};
-use crate::eskimos;
 use crate::state::{Eskimo, Global};
 use crate::units::{destroy_all, set_eskimo_needs};
 
 const START_FOOD: f32 = 90.0;
 const START_HEAT: f32 = 40.0;
 
-/// Eskimo food/heat/health bookkeeping, ported from `unit_eskimos.lua`.
-/// Tracks the Eskimos and the coal burners that warm them.
 #[derive(Default)]
 pub struct EskimosGadget;
 

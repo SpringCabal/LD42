@@ -2,7 +2,6 @@ use spring_addons::ui::Widget;
 
 use crate::state::{GameEnd, Global};
 
-/// The victory banner, ported from `ui_endgame.lua`.
 #[derive(Default)]
 pub struct UiEndgameWidget;
 
@@ -23,7 +22,6 @@ impl Widget<Global> for UiEndgameWidget {
             return;
         };
 
-        // A centred card, clear of the resource meters at the bottom.
         let card_width = 460.0;
         let card_height = 220.0;
         let card_x = (width as f32 - card_width) / 2.0;

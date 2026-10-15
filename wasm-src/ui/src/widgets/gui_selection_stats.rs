@@ -11,12 +11,6 @@ const UNIT_STEP: f32 = 40.0;
 const FIRST_UNIT_Y: f32 = 50.0;
 const UNIT_PANEL_HEIGHT: f32 = 32.0;
 
-/// The selected-unit panel from `gui_eskimo_bars.lua`.
-///
-/// The original uses Chili controls at the lower-left of the screen. Keeping
-/// this as a screen widget is important: the world healthbar widget above the
-/// units is a separate Lua widget and does not replace the selected-unit
-/// readout.
 #[derive(Default)]
 pub struct GuiSelectionStatsWidget;
 
@@ -53,9 +47,6 @@ impl Widget<Global> for GuiSelectionStatsWidget {
             let Ok(def) = spring::units_info::get_unit_def_id(unit_id) else {
                 continue;
             };
-            // Chili's y coordinate is measured from the top. Core screen
-            // primitives use a bottom origin, so mirror the selected-unit
-            // panel into the top-left instead of drawing it at the bottom.
             let y = height as f32 - FIRST_UNIT_Y - UNIT_PANEL_HEIGHT - UNIT_STEP * index as f32;
             if defs::kind(def) == Some(UnitKind::Eskimo) {
                 self.draw_bar(

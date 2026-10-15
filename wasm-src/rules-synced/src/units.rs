@@ -1,5 +1,3 @@
-//! Small unit helpers shared by several gadgets.
-
 use mycube_shared::unit;
 use spring::ResultExt;
 use spring::rules_params::los::PUBLIC;
@@ -11,14 +9,10 @@ pub fn set_eskimo_needs(id: i32, food: f32, heat: f32) {
         .log_err_once("publishing an Eskimo's heat failed");
 }
 
-/// Whether the unit exists and has not died.
 pub fn is_alive(id: i32) -> bool {
     spring::valid_unit_id(id).unwrap_or(false) && !spring::get_unit_is_dead(id).unwrap_or(true)
 }
 
-/// Destroy a unit once the current callin has returned (UnitDestroyed runs
-/// inside the call), unless it is gone by then: several gadgets can condemn
-/// the same unit in one frame (a drowning Eskimo also runs out of health).
 pub fn destroy(id: i32, reclaimed: bool) {
     spring::commands::run(move || {
         if !is_alive(id) {

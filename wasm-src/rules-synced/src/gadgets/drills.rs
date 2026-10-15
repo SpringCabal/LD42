@@ -1,10 +1,11 @@
+pub(crate) mod behavior;
+
 use spring_addons::rules::{Gadget, UnitDestroyedEvent};
 
+use self::behavior::{self as drills, DrillShip};
 use crate::defs::{self, UnitKind};
-use crate::drills::{self, DrillShip};
 use crate::state::Global;
 
-/// The autonomous drill controller, ported from `unit_drill.lua`.
 #[derive(Default)]
 pub struct DrillsGadget;
 

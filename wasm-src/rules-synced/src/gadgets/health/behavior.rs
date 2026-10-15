@@ -1,17 +1,9 @@
-//! The gameplay health pool, ported from `game_health.lua`.
-//!
-//! Spring's engine health is deliberately not the authority for this game.
-
 use mycube_shared::unit;
 use spring::ResultExt;
 use spring::rules_params::los::PUBLIC;
 
-/// Returned once the pool is exhausted, so the engine kills the unit.
 const LETHAL_DAMAGE: f32 = 1.0e16;
 
-/// A unit's health pool (its `health` rules param). The Health gadget sets
-/// it when the unit is created, so a failed read is a bug: the first one is
-/// logged, and the caller leaves the unit alone.
 pub fn pool(id: i32) -> Option<f32> {
     spring::get_unit_rules_param_f32(id, unit::HEALTH)
         .map_err(|error| (id, error))
@@ -27,10 +19,6 @@ pub fn set_pool(id: i32, health: f32) {
     }
 }
 
-/// `game_health.lua`'s UnitPreDamaged: subtract the attacker's gameplay
-/// damage from the unit's health pool and suppress the engine damage, unless
-/// the pool has run out. Damage without a known attacker (falling,
-/// environment) is suppressed too, and so is damage to a unit without a pool.
 pub fn unit_pre_damaged(id: i32, attacker_def: i32) -> spring::DamageResult {
     let attacker_damage = crate::defs::damage(attacker_def);
     let health = if attacker_damage == 0.0 {

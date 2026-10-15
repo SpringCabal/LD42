@@ -8,17 +8,14 @@ use springcabal::music::MusicLoop;
 use super::*;
 use crate::state::Global;
 
-/// `snd_music.lua`'s track, looped.
 const MUSIC_FILE: &str = "sounds/remixed_background.ogg";
 const MUSIC_VOLUME: f32 = 0.15;
 
-/// hide_default_layout.lua: the console, resource bar, tooltip, clock, player
-/// list and minimap; units never turn into icons.
 pub const HIDDEN_INTERFACE: u32 =
     CONSOLE | RESOURCE_BAR | TOOLTIP | CLOCK | PLAYER_INFO | MINIMAP | UNIT_ICONS;
 
 pub fn setup(handler: &mut WidgetHandler<Global>) {
-    if springcabal::gallery::active() {
+    if springcabal::verification::world_only() {
         gallery::setup(handler);
         return;
     }

@@ -1,4 +1,3 @@
-// Transcribed from the original Lua animation keyframes.
 
 #[allow(clippy::excessive_precision)]
 pub(super) static AIM_GUN: &[Keyframe] = &[
