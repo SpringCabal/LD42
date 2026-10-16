@@ -18,19 +18,7 @@ local x,y,h
 local purple = "\255\255\10\255"
 local white = "\255\255\255\255"
 
-local gameMode
-local function SetGameMode(gameMode)
-    if gameMode == "play" then
-        Spring.SendCommands("unbindkeyset enter chat") --because because.
-    else
-        Spring.SendCommands("bind enter chat")
-    end
-end
-
 function widget:Initialize()
-    gameMode = Spring.GetGameRulesParam("gameMode")
-    SetGameMode(gameMode)
-
     bindText = { -- keybinds told to player
         --purple .. "Q : " .. white .. "swap pull / push",
         purple .. "1 (+ left mouse): " .. white .. "sell ice",
@@ -87,12 +75,4 @@ function  AddLine(text,x,y,h)
         parent = screen0,
         caption = text,
     }
-end
-
-function widget:Update()
-    local newGameMode = Spring.GetGameRulesParam("gameMode")
-    if gameMode ~= newGameMode then
-        gameMode = newGameMode
-        SetGameMode(gameMode)
-    end
 end
