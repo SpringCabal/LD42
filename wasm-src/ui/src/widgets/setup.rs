@@ -15,7 +15,10 @@ pub const HIDDEN_INTERFACE: u32 =
     CONSOLE | RESOURCE_BAR | TOOLTIP | CLOCK | PLAYER_INFO | MINIMAP | UNIT_ICONS;
 
 pub fn setup(handler: &mut WidgetHandler<Global>) {
-    register_widgets!(handler, [springcabal::controls::GameControls::new()]);
+    register_widgets!(
+        handler,
+        [springcabal::controls::GameControls::new().with_rts_controls()]
+    );
     if springcabal::verification::world_only() {
         gallery::setup(handler);
         return;
@@ -24,7 +27,7 @@ pub fn setup(handler: &mut WidgetHandler<Global>) {
         handler,
         [
             ApiSyncWidget::new(),
-            HideDefaultInterface::new(HIDDEN_INTERFACE),
+            HideDefaultInterface::new(HIDDEN_INTERFACE & !CONSOLE),
             SceneryWidget::new(),
             MusicLoop::new(MUSIC_FILE, MUSIC_VOLUME),
             GuiHealthbarsWidget::new(),

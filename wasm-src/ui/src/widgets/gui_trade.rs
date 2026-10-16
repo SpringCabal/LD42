@@ -207,6 +207,9 @@ impl Widget<Global> for GuiTradeWidget {
         _ctx: &spring_addons::AddonContext<'_, Global>,
         event: &KeyEvent<'_>,
     ) -> EventResult {
+        if event.ctrl || event.alt || event.meta || event.shift {
+            return EventResult::Ignored;
+        }
         let command = if event.matches("1") {
             let trading = !self.trading.get();
             self.stop_trading();
