@@ -18,34 +18,13 @@ local x,y,h
 local purple = "\255\255\10\255"
 local white = "\255\255\255\255"
 
-local function SetBindings()
-    local binds = { --real keybinds
-
-        --"Alt+b  debug",
-        --"--Alt+v  debugcolvol",
-
-		"ctrl+q reloadforce",
-
-		"Any+w moveforward ",
-		"Any+a moveleft ",
-		"Any+d moveright",
-		"Any+s moveback",
-
-    }
-
-    for _,binding in pairs(binds) do
-        Spring.SendCommands("bind ".. binding)
-    end
-end
-
 local gameMode
 local function SetGameMode(gameMode)
     if gameMode == "play" then
         Spring.SendCommands("unbindkeyset enter chat") --because because.
     else
-        Spring.SendCommands("bindkeyset enter chat")
+        Spring.SendCommands("bind enter chat")
     end
-    SetBindings()
 end
 
 function widget:Initialize()
