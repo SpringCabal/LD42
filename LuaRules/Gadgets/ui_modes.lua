@@ -59,7 +59,10 @@ end
 
 else
 
-function gadget:KeyPress(key)
+function gadget:KeyPress(key, mods)
+    if mods.ctrl or mods.alt or mods.meta or mods.shift then
+        return
+    end
     local keyNum = -1
     for i = 1, 3 do
         if Spring.GetKeyCode(tostring(i)) == key then
