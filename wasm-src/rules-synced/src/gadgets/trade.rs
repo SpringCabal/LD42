@@ -30,6 +30,7 @@ impl Gadget<Global> for TradeGadget {
         _mode: i32,
         data: &[u8],
     ) {
+        let spring = ctx.spring();
         if let Some(command) = core::str::from_utf8(data).ok().and_then(Command::decode) {
             let mut economy = ctx.global().economy.access_mut();
             match command {
@@ -39,15 +40,15 @@ impl Gadget<Global> for TradeGadget {
                 Command::BuyFood if economy.consume(Supply::Money, PURCHASE_PRICE as f32) => {
                     economy.add(Supply::Food, PURCHASE_AMOUNT);
                 }
-                Command::Trade { x, z } => economy.add(Supply::Money, harvest_ice(x, z)),
+                Command::Trade { x, z } => economy.add(Supply::Money, harvest_ice(spring, x, z)),
                 _ => {}
             }
         }
     }
 }
 
-fn harvest_ice(x: f32, z: f32) -> f32 {
-    let value = ice::ice_value(x, z, terrain::ground_height);
-    terrain::decrease_terrain(x, z, TRADE_SIZE, 1.0);
+fn harvest_ice(spring: &spring::Spring<'_, spring::RulesSynced>, x: f32, z: f32) -> f32 {
+    let value = ice::ice_value(x, z, |x, z| terrain::ground_height(spring, x, z));
+    terrain::decrease_terrain(spring, x, z, TRADE_SIZE, 1.0);
     value
 }

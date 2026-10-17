@@ -4,7 +4,7 @@ use spring::cus::{Angle, AngularSpeed, Axis, Piece, SfxFlags, UnitCtx};
 
 use super::common::{
     PieceMap, all_named_pieces, coin_flip, grouped_pieces, hide_all, matching_pieces,
-    numbered_group, piece_in, show_all,
+    numbered_group, piece_in, random_int, show_all,
 };
 
 pub struct CoalburnerScript {
@@ -91,20 +91,20 @@ impl IgluScript {
             ctx.show(block.piece);
         }
         for block in &self.blocks {
-            if !coin_flip() {
+            if !coin_flip(ctx) {
                 continue;
             }
             ctx.show(block.piece);
             turn_degrees(ctx, block.piece, Axis::Y, -360, 360);
             for piece in block.xy_deco.iter().copied() {
-                if coin_flip() {
+                if coin_flip(ctx) {
                     turn_degrees(ctx, piece, Axis::Y, -360, 360);
                     turn_degrees(ctx, piece, Axis::X, -80, 15);
                     ctx.show(piece);
                 }
             }
             for piece in block.y_deco.iter().copied() {
-                if coin_flip() {
+                if coin_flip(ctx) {
                     turn_degrees(ctx, piece, Axis::Y, -360, 360);
                     ctx.show(piece);
                 }
@@ -114,7 +114,7 @@ impl IgluScript {
 
     pub(super) fn killed(&mut self, ctx: &UnitCtx) {
         for piece in self.grouped.iter().copied() {
-            let effect = if coin_flip() {
+            let effect = if coin_flip(ctx) {
                 SfxFlags::FALL
             } else {
                 SfxFlags::SHATTER
@@ -125,6 +125,6 @@ impl IgluScript {
 }
 
 fn turn_degrees(ctx: &UnitCtx, piece: Piece, axis: Axis, lower: i32, upper: i32) {
-    let angle = spring::random::synced::int(lower, upper) as f32;
+    let angle = random_int(ctx, lower, upper) as f32;
     ctx.turn_now(piece, axis, Angle::degrees(angle));
 }

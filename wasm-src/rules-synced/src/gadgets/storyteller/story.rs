@@ -7,7 +7,11 @@ use crate::spawning::SpawnRequest;
 use crate::state::{GameEnd, Story};
 use mycube_shared::round::LUA_FRAMES_PER_SECOND;
 
-pub fn run_story(state: &mut Story, frame: i32) -> Vec<SpawnRequest> {
+pub fn run_story(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    state: &mut Story,
+    frame: i32,
+) -> Vec<SpawnRequest> {
     if frame < state.next_step {
         return Vec::new();
     }
@@ -58,7 +62,7 @@ pub fn run_story(state: &mut Story, frame: i32) -> Vec<SpawnRequest> {
     }
     let mut requests = Vec::with_capacity(units.len());
     for &unit in units {
-        let (x, y, z) = place(unit, &state.supports);
+        let (x, y, z) = place(spring, unit, &state.supports);
         requests.push(SpawnRequest {
             kind: unit,
             position: Float3::new(x, y, z),
@@ -68,13 +72,16 @@ pub fn run_story(state: &mut Story, frame: i32) -> Vec<SpawnRequest> {
             state.supports.push((x, z));
         }
         if unit == Iglu {
-            let lantern_x = x + random_int(130, 150) as f32 * random_sign();
-            let lantern_z = z + random_int(130, 150) as f32 * random_sign();
+            let lantern_x = x + random_int(spring, 130, 150) as f32 * random_sign(spring);
+            let lantern_z = z + random_int(spring, 130, 150) as f32 * random_sign(spring);
             requests.push(SpawnRequest {
                 kind: Lantern,
                 position: Float3::new(
                     lantern_x,
-                    spring::get_ground_height(lantern_x, lantern_z).unwrap_or(y),
+                    spring
+                        .terrain()
+                        .get_ground_height(lantern_x, lantern_z)
+                        .unwrap_or(y),
                     lantern_z,
                 ),
                 team,
@@ -95,7 +102,11 @@ pub fn run_story(state: &mut Story, frame: i32) -> Vec<SpawnRequest> {
 const IGLU_MIN_DISTANCE: f32 = 400.0;
 const MAX_PLACEMENT_TRIES: u32 = 1000;
 
-fn place(unit: UnitKind, supports: &[(f32, f32)]) -> (f32, f32, f32) {
+fn place(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    unit: UnitKind,
+    supports: &[(f32, f32)],
+) -> (f32, f32, f32) {
     let clear = |(x, _, z): (f32, f32, f32)| {
         supports.iter().all(|(support_x, support_z)| {
             let dx = x - support_x;
@@ -103,7 +114,7 @@ fn place(unit: UnitKind, supports: &[(f32, f32)]) -> (f32, f32, f32) {
             dx * dx + dz * dz > IGLU_MIN_DISTANCE * IGLU_MIN_DISTANCE
         })
     };
-    let mut candidate = find_position(unit);
+    let mut candidate = find_position(spring, unit);
     if !is_support(unit) {
         return candidate;
     }
@@ -111,10 +122,11 @@ fn place(unit: UnitKind, supports: &[(f32, f32)]) -> (f32, f32, f32) {
         if clear(candidate) {
             return candidate;
         }
-        candidate = find_position(unit);
+        candidate = find_position(spring, unit);
     }
     if !clear(candidate) {
         spring::log_warning!(
+            spring,
             "mycube",
             "no room for a {} after {MAX_PLACEMENT_TRIES} tries; placing it at {candidate:?}",
             unit.def_name()
@@ -123,47 +135,65 @@ fn place(unit: UnitKind, supports: &[(f32, f32)]) -> (f32, f32, f32) {
     candidate
 }
 
-pub fn restore_ice() {
-    let (map_x, map_z) = map_size();
-    if let Err(error) = spring::terrain_control::revert_height_map(0.0, 0.0, map_x, map_z, 1.0) {
-        spring::log_warning!("mycube", "restoring the ice failed: {error:?}");
+pub fn restore_ice(spring: &spring::Spring<'_, spring::RulesSynced>) {
+    let (map_x, map_z) = map_size(spring);
+    if let Err(error) = spring
+        .terrain_control()
+        .revert_height_map(0.0, 0.0, map_x, map_z, 1.0)
+    {
+        spring::log_warning!(spring, "mycube", "restoring the ice failed: {error:?}");
     }
 }
 
-fn map_size() -> (f32, f32) {
-    spring::game::map_size_elmos()
+fn map_size(spring: &spring::Spring<'_, spring::RulesSynced>) -> (f32, f32) {
+    spring
+        .game()
+        .map_size_elmos()
         .map(|(x, z)| (x as f32, z as f32))
         .unwrap_or((8192.0, 8192.0))
 }
 
-fn random_int(min: i32, max: i32) -> i32 {
-    spring::random::synced::int(min, max)
+fn random_int(spring: &spring::Spring<'_, spring::RulesSynced>, min: i32, max: i32) -> i32 {
+    spring
+        .synced_random()
+        .next_int(min, max)
+        .expect("synced random int")
 }
 
-fn random_sign() -> f32 {
-    if spring::random::synced::float() < 0.5 {
+fn random_sign(spring: &spring::Spring<'_, spring::RulesSynced>) -> f32 {
+    if spring
+        .synced_random()
+        .next_float()
+        .expect("synced random float")
+        < 0.5
+    {
         -1.0
     } else {
         1.0
     }
 }
 
-fn find_position(unit: UnitKind) -> (f32, f32, f32) {
-    let (map_x, map_z) = map_size();
+fn find_position(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    unit: UnitKind,
+) -> (f32, f32, f32) {
+    let (map_x, map_z) = map_size(spring);
     let (x, z) = if unit == Drillship {
         (
             map_x * 0.5
-                + random_int((map_x / 4.0) as i32, (map_x / 2.0) as i32) as f32 * random_sign(),
+                + random_int(spring, (map_x / 4.0) as i32, (map_x / 2.0) as i32) as f32
+                    * random_sign(spring),
             map_z * 0.5
-                + random_int((map_z / 4.0) as i32, (map_z / 2.0) as i32) as f32 * random_sign(),
+                + random_int(spring, (map_z / 4.0) as i32, (map_z / 2.0) as i32) as f32
+                    * random_sign(spring),
         )
     } else {
         (
-            map_x * 0.5 + random_int(-(map_x / 8.0) as i32, (map_x / 8.0) as i32) as f32,
-            map_z * 0.5 + random_int(-(map_z / 8.0) as i32, (map_z / 8.0) as i32) as f32,
+            map_x * 0.5 + random_int(spring, -(map_x / 8.0) as i32, (map_x / 8.0) as i32) as f32,
+            map_z * 0.5 + random_int(spring, -(map_z / 8.0) as i32, (map_z / 8.0) as i32) as f32,
         )
     };
-    let y = spring::get_ground_height(x, z).unwrap_or(0.0);
+    let y = spring.terrain().get_ground_height(x, z).unwrap_or(0.0);
     (x, y + if unit == Pirate { 5000.0 } else { 0.0 }, z)
 }
 

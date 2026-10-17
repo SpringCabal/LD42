@@ -21,15 +21,26 @@ const FOOD_RES_USAGE: f32 = 0.1 / FPS;
 const FREEZING_HEALTH_DECAY: f32 = 1.0 / FPS;
 const STARVING_HEALTH_DECAY: f32 = 0.2 / FPS;
 
-pub fn update_eskimos(village: &mut Village, economy: &mut Economy) -> Vec<i32> {
+pub fn update_eskimos(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    village: &mut Village,
+    economy: &mut Economy,
+) -> Vec<i32> {
     let burner_positions: Vec<spring::Float3> = village
         .burners
         .iter()
-        .filter_map(|id| spring::get_unit_position(*id, false, false).ok())
+        .filter_map(|id| {
+            spring
+                .units_info()
+                .get_unit_position(*id, Default::default())
+                .ok()
+        })
         .collect();
     let mut dead = Vec::new();
     for eskimo in &mut village.eskimos {
-        let near_burner = spring::get_unit_position(eskimo.id, false, false)
+        let near_burner = spring
+            .units_info()
+            .get_unit_position(eskimo.id, Default::default())
             .ok()
             .is_some_and(|position| {
                 burner_positions.iter().any(|burner| {
@@ -47,9 +58,10 @@ pub fn update_eskimos(village: &mut Village, economy: &mut Economy) -> Vec<i32> 
         if eskimo.food <= 0.0 {
             health_loss += STARVING_HEALTH_DECAY;
         }
-        if let Some(health) = crate::gadgets::health::behavior::pool(eskimo.id) {
+        if let Some(health) = crate::gadgets::health::behavior::pool(spring, eskimo.id) {
             if health_loss > 0.0 {
                 crate::gadgets::health::behavior::set_pool(
+                    spring,
                     eskimo.id,
                     (health - health_loss).max(0.0),
                 );
@@ -58,7 +70,7 @@ pub fn update_eskimos(village: &mut Village, economy: &mut Economy) -> Vec<i32> 
                 dead.push(eskimo.id);
             }
         }
-        set_eskimo_needs(eskimo.id, eskimo.food, eskimo.heat);
+        set_eskimo_needs(spring, eskimo.id, eskimo.food, eskimo.heat);
     }
     dead
 }

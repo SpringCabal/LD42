@@ -26,7 +26,8 @@ impl Gadget<Global> for HealthGadget {
         _team: i32,
         _builder: i32,
     ) {
-        behavior::set_pool(id, defs::health(def));
+        let spring = _ctx.spring();
+        behavior::set_pool(spring, id, defs::health(spring, def));
     }
 
     fn unit_pre_damaged(
@@ -34,7 +35,9 @@ impl Gadget<Global> for HealthGadget {
         _ctx: &spring_addons::AddonContext<'_, Global>,
         event: &UnitPreDamagedEvent,
     ) -> Option<spring::DamageResult> {
+        let spring = _ctx.spring();
         Some(behavior::unit_pre_damaged(
+            spring,
             event.unit_id,
             event.attacker_def_id,
         ))

@@ -21,12 +21,13 @@ impl Widget<Global> for GuiKeybindsWidget {
 
     fn draw_screen(
         &self,
-        _ctx: &spring_addons::AddonContext<'_, Global>,
+        _ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>,
         _width: i32,
         _height: i32,
     ) {
-        let _ = spring::gfx::begin_text(false);
-        let _ = spring::gfx::color(1.0, 1.0, 1.0, 1.0);
+        let spring = _ctx.spring();
+        let _ = spring.gfx().begin_text(false);
+        let _ = spring.gfx().color(1.0, 1.0, 1.0, 1.0);
         for (line, text) in [
             "Ctrl+Q : Quit",
             "1 (+ left mouse): sell ice",
@@ -36,22 +37,25 @@ impl Widget<Global> for GuiKeybindsWidget {
         .into_iter()
         .enumerate()
         {
-            let _ = spring::gfx::text(text, 10.0, 80.0 - line as f32 * 20.0, 14.0, "o");
+            let _ = spring
+                .gfx()
+                .text(text, 10.0, 80.0 - line as f32 * 20.0, 14.0, "o");
         }
-        let _ = spring::gfx::end_text(0);
+        let _ = spring.gfx().end_text();
     }
 
     fn key_press(
         &self,
-        _ctx: &spring_addons::AddonContext<'_, Global>,
+        _ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>,
         event: &KeyEvent<'_>,
     ) -> EventResult {
+        let spring = _ctx.spring();
         if event.ctrl && event.matches("r") {
-            crate::rules::send(Command::Restart);
+            crate::rules::send(spring, Command::Restart);
             return EventResult::Handled;
         }
         if springcabal::menu::is_quit_to_menu(event) {
-            springcabal::menu::quit_to_menu();
+            springcabal::menu::quit_to_menu(spring);
             return EventResult::Handled;
         }
         EventResult::Ignored

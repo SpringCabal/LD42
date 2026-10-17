@@ -22,11 +22,15 @@ impl Gadget<Global> for UntargetableGadget {
         _ctx: &spring_addons::AddonContext<'_, Global>,
         event: &CommandEvent<'_>,
     ) -> bool {
+        let spring = _ctx.spring();
         let target = match event.command_params {
             [_, _, _, target] if event.command_id == spring::cmd::INSERT => *target,
             [target] if event.command_id != spring::cmd::INSERT => *target,
             _ => return true,
         };
-        spring::get_unit_rules_param_f32(target as i32, unit::UNTARGETABLE) != Ok(1.0)
+        spring
+            .rules_params()
+            .get_unit_rules_param_f32(target as i32, unit::UNTARGETABLE)
+            != Ok(1.0)
     }
 }

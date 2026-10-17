@@ -25,12 +25,20 @@ const DRILL_SIZE: i32 = 250;
 const DRILL_AMOUNT: f32 = 2.0;
 
 impl DrillShip {
-    pub fn new(id: i32, created_frame: i32) -> Self {
-        let mine_piece = spring::get_unit_piece_map(id).ok().and_then(|map| {
-            map.iter()
-                .find(|entry| entry.name == "icemine")
-                .map(|entry| entry.piece_num)
-        });
+    pub fn new(
+        spring: &spring::Spring<'_, spring::RulesSynced>,
+        id: i32,
+        created_frame: i32,
+    ) -> Self {
+        let mine_piece = spring
+            .units_pieces()
+            .get_unit_piece_map(id)
+            .ok()
+            .and_then(|map| {
+                map.iter()
+                    .find(|entry| entry.name == "icemine")
+                    .map(|entry| entry.piece_num)
+            });
         Self {
             id,
             created_frame,
@@ -41,7 +49,7 @@ impl DrillShip {
     }
 }
 
-pub fn drill(drills: &Drills, frame: i32) {
+pub fn drill(spring: &spring::Spring<'_, spring::RulesSynced>, drills: &Drills, frame: i32) {
     for ship in &drills.ships {
         let age = frame - ship.created_frame;
         if age <= 0 || age % DRILL_PERIOD != 0 {
@@ -49,16 +57,31 @@ pub fn drill(drills: &Drills, frame: i32) {
         }
         let tip = ship
             .mine_piece
-            .and_then(|piece| spring::get_unit_piece_pos_dir(ship.id, piece).ok())
+            .and_then(|piece| {
+                spring
+                    .units_pieces()
+                    .get_unit_piece_pos_dir(ship.id, piece)
+                    .ok()
+            })
             .map(|pos_dir| pos_dir.position)
-            .or_else(|| spring::get_unit_position(ship.id, false, false).ok());
+            .or_else(|| {
+                spring
+                    .units_info()
+                    .get_unit_position(ship.id, Default::default())
+                    .ok()
+            });
         if let Some(tip) = tip {
-            terrain::decrease_terrain(tip.x, tip.z, DRILL_SIZE, DRILL_AMOUNT);
+            terrain::decrease_terrain(spring, tip.x, tip.z, DRILL_SIZE, DRILL_AMOUNT);
         }
     }
 }
 
-pub fn update_drills(drills: &mut Drills, frame: i32) {
+pub fn update_drills(
+    ctx: &spring_addons::AddonContext<'_, crate::state::Global>,
+    drills: &mut Drills,
+    frame: i32,
+) {
+    let spring = ctx.spring();
     if drills.out_of_ice {
         return;
     }
@@ -66,14 +89,17 @@ pub fn update_drills(drills: &mut Drills, frame: i32) {
         if frame - ship.checked_frame <= CHECK_INTERVAL {
             continue;
         }
-        let Ok(hull) = spring::get_unit_position(ship.id, false, false) else {
+        let Ok(hull) = spring
+            .units_info()
+            .get_unit_position(ship.id, Default::default())
+        else {
             continue;
         };
-        match nearby_ice(hull.x, hull.z) {
+        match nearby_ice(spring, hull.x, hull.z) {
             Ok(false) => {}
             Ok(true) => continue,
             Err(error) => {
-                log_failed_query(error);
+                log_failed_query(spring, error);
                 continue;
             }
         }
@@ -81,29 +107,30 @@ pub fn update_drills(drills: &mut Drills, frame: i32) {
         if let Some((x, z)) = ship.order
             && distance(x, z, hull.x, hull.z) > NEARBY_SIZE
         {
-            order_move(ship.id, x, z);
+            order_move(ctx, ship.id, x, z);
             continue;
         }
-        match find_closest_ice(hull.x, hull.z) {
+        match find_closest_ice(spring, hull.x, hull.z) {
             Ok(Some((x, z))) => {
-                order_move(ship.id, x, z);
+                order_move(ctx, ship.id, x, z);
                 ship.order = Some((x, z));
             }
             Ok(None) => {
                 ship.order = None;
-                spring::log_info!(LOG_SECTION, "no more ice");
+                spring::log_info!(spring, LOG_SECTION, "no more ice");
                 drills.out_of_ice = true;
                 break;
             }
-            Err(error) => log_failed_query(error),
+            Err(error) => log_failed_query(spring, error),
         }
     }
 }
 
 const LOG_SECTION: &str = "mycube-drills";
 
-fn log_failed_query(error: spring::ApiError) {
+fn log_failed_query(spring: &spring::Spring<'_, spring::RulesSynced>, error: spring::ApiError) {
     spring::log_once!(
+        spring,
         spring::log_level::WARNING,
         LOG_SECTION,
         "reading the ground heights around a drill ship failed: {error:?}"
@@ -112,20 +139,34 @@ fn log_failed_query(error: spring::ApiError) {
 
 const NEARBY_SIZE: f32 = 100.0;
 
-fn order_move(unit: i32, x: f32, z: f32) {
-    let y = spring::get_ground_height(x, z).unwrap_or(0.0);
-    spring::commands::give_order_to_unit(unit, spring::cmd::MOVE, &[x, y, z], 0, 0).then(
-        move |result| {
+fn order_move(
+    ctx: &spring_addons::AddonContext<'_, crate::state::Global>,
+    unit: i32,
+    x: f32,
+    z: f32,
+) {
+    let y = ctx
+        .spring()
+        .terrain()
+        .get_ground_height(x, z)
+        .unwrap_or(0.0);
+    ctx.commands()
+        .queue(move |spring| {
+            spring
+                .unit_control()
+                .give_order_to_unit(unit, spring::cmd::MOVE, &[x, y, z], 0, 0)
+        })
+        .then(move |spring, result| {
             if let Err(error) = result
-                && crate::units::is_alive(unit)
+                && crate::units::is_alive(spring, unit)
             {
                 spring::log_warning!(
+                    spring,
                     LOG_SECTION,
                     "move order for drill ship {unit} failed: {error:?}"
                 );
             }
-        },
-    );
+        });
 }
 
 fn distance(x1: f32, z1: f32, x2: f32, z2: f32) -> f32 {
@@ -134,7 +175,11 @@ fn distance(x1: f32, z1: f32, x2: f32, z2: f32) -> f32 {
     spring::Float3::new(dx, 0.0, dz).length()
 }
 
-fn nearby_ice(x: f32, z: f32) -> spring::Result<bool> {
+fn nearby_ice(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    x: f32,
+    z: f32,
+) -> spring::Result<bool> {
     let half = NEARBY_SIZE / 2.0;
     let start_x = round_to_square(x - half);
     let start_z = round_to_square(z - half);
@@ -145,13 +190,19 @@ fn nearby_ice(x: f32, z: f32) -> spring::Result<bool> {
             points.push([start_x + dx as f32, start_z + dz as f32]);
         }
     }
-    Ok(spring::ground_heights(&points)?
+    Ok(spring
+        .terrain()
+        .ground_heights(&points)?
         .into_iter()
         .any(|height| height > ICE_HEIGHT))
 }
 
-fn find_closest_ice(x: f32, z: f32) -> spring::Result<Option<(f32, f32)>> {
-    let (map_x, map_z) = spring::game::map_size_elmos()?;
+fn find_closest_ice(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    x: f32,
+    z: f32,
+) -> spring::Result<Option<(f32, f32)>> {
+    let (map_x, map_z) = spring.game().map_size_elmos()?;
     let center_x = round_to_square(x) as i32;
     let center_z = round_to_square(z) as i32;
     let on_map = |x: i32, z: i32| (0..=map_x).contains(&x) && (0..=map_z).contains(&z);
@@ -174,7 +225,7 @@ fn find_closest_ice(x: f32, z: f32) -> spring::Result<Option<(f32, f32)>> {
             continue;
         }
         let points: Vec<[f32; 2]> = ring.iter().map(|&(x, z)| [x as f32, z as f32]).collect();
-        let heights = spring::ground_heights(&points)?;
+        let heights = spring.terrain().ground_heights(&points)?;
         for ((x, z), height) in ring.iter().copied().zip(heights) {
             if height > ICE_HEIGHT {
                 return Ok(Some((x as f32, z as f32)));

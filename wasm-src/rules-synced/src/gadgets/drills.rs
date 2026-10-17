@@ -28,13 +28,14 @@ impl Gadget<Global> for DrillsGadget {
         _team: i32,
         _builder: i32,
     ) {
-        if defs::kind(def) == Some(UnitKind::Drillship) {
-            let frame = spring::game::current_frame();
+        let spring = ctx.spring();
+        if defs::kind(spring, def) == Some(UnitKind::Drillship) {
+            let frame = spring.game().current_frame().unwrap_or(0);
             ctx.global()
                 .drills
                 .access_mut()
                 .ships
-                .push(DrillShip::new(id, frame));
+                .push(DrillShip::new(spring, id, frame));
         }
     }
 
@@ -52,8 +53,9 @@ impl Gadget<Global> for DrillsGadget {
     }
 
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
+        let spring = ctx.spring();
         let mut state = ctx.global().drills.access_mut();
-        drills::drill(&state, frame);
-        drills::update_drills(&mut state, frame);
+        drills::drill(spring, &state, frame);
+        drills::update_drills(ctx, &mut state, frame);
     }
 }

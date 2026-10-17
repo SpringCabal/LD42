@@ -6,7 +6,7 @@ use spring::cus::{Angle, AngularSpeed, Axis, Piece, SfxFlags, TaskDefinition, Un
 
 use super::common::{
     PieceMap, all_named_pieces, coin_flip, hide_all, matching_pieces, piece_in, play_unit_sound,
-    reset_all, show_all, turn,
+    random_int, reset_all, set_unit_geometry, show_all, turn,
 };
 
 const FULL_LOAD_CHIPS: u32 = 100;
@@ -50,13 +50,7 @@ impl ShipScript {
     }
 
     pub(super) fn create(&mut self, ctx: &UnitCtx) {
-        let _ = spring::set_unit_mid_and_aim_pos(
-            ctx.unit().0,
-            spring::Float3::new(0.0, 30.0, 0.0),
-            spring::Float3::new(0.0, 30.0, 0.0),
-            true,
-        );
-        let _ = spring::set_unit_radius_and_height(ctx.unit().0, 80.0, 60.0);
+        set_unit_geometry(ctx, 80.0, 60.0);
         reset_all(ctx, &self.all);
         hide_all(ctx, &self.all);
         show_all(ctx, &self.body);
@@ -66,7 +60,7 @@ impl ShipScript {
         show_all(ctx, &self.drill);
         self.stop_drill(ctx, 0.0);
         for piece in &self.deco {
-            if coin_flip() {
+            if coin_flip(ctx) {
                 ctx.show(*piece);
             }
         }
@@ -87,18 +81,18 @@ impl ShipScript {
     }
 
     pub(super) fn killed(&mut self, ctx: &UnitCtx) {
-        let length_ms = spring::random::synced::int(1000, 1500);
-        let frame = spring::game::current_frame().max(0) as u32;
+        let length_ms = random_int(ctx, 1000, 1500);
+        let frame = ctx.frame() as u32;
         if frame < self.sinking_sound.get() {
             return;
         }
         self.sinking_sound
             .set(frame + (length_ms as u32) * spring::consts::GAME_SPEED as u32 / 1000);
-        play_unit_sound(ctx.unit(), SINKING_SOUND, 0.75);
+        play_unit_sound(ctx, SINKING_SOUND, 0.75);
     }
 
     fn start_drill(&mut self, ctx: &UnitCtx) {
-        let angle = spring::random::synced::int(10, 30) as f32;
+        let angle = random_int(ctx, 10, 30) as f32;
         let speed = AngularSpeed::radians_per_second(1.0);
         for piece in &self.drill {
             for axis in [Axis::X, Axis::Y, Axis::Z] {
@@ -137,7 +131,7 @@ impl ShipScript {
 async fn mine_task(state: Rc<RefCell<MiningState>>, ctx: UnitCtx) {
     loop {
         ctx.sleep(spring::cus::Duration::from_millis(500)).await;
-        if !state.borrow().active || spring::random::synced::int(1, 50) <= 25 {
+        if !state.borrow().active || random_int(&ctx, 1, 50) <= 25 {
             continue;
         }
         let mine = state.borrow().mine;
@@ -145,7 +139,7 @@ async fn mine_task(state: Rc<RefCell<MiningState>>, ctx: UnitCtx) {
             mine,
             SfxFlags(SfxFlags::SHATTER.0 | SfxFlags::FALL.0 | SfxFlags::NO_HEATCLOUD.0),
         );
-        play_unit_sound(ctx.unit(), "sounds/icedrill.ogg", 1.0);
+        play_unit_sound(&ctx, "sounds/icedrill.ogg", 1.0);
         let mut state = state.borrow_mut();
         state.chips += 1;
         let load = state.chips.min(FULL_LOAD_CHIPS) as f32 / FULL_LOAD_CHIPS as f32;
@@ -160,13 +154,13 @@ fn show_ice_load(ctx: &UnitCtx, icecubes: &[Piece], load: f32) {
             break;
         }
         ctx.show(piece);
-        let speed = spring::random::synced::int(0, 5) as f32;
+        let speed = random_int(ctx, 0, 5) as f32;
         for axis in [Axis::X, Axis::Y, Axis::Z] {
-            let angle = spring::random::synced::int(-360, 360) as f32;
+            let angle = random_int(ctx, -360, 360) as f32;
             turn(ctx, piece, axis, angle.to_radians(), speed);
         }
         for axis in [Axis::X, Axis::Y, Axis::Z] {
-            let speed = spring::random::synced::int(-3, 3) as f32;
+            let speed = random_int(ctx, -3, 3) as f32;
             ctx.spin(
                 piece,
                 axis,

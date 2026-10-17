@@ -1,51 +1,74 @@
 use alloc::rc::Rc;
 use core::cell::Cell;
 
+use spring::ResultExt;
 use spring::cmd::options::ALT_KEY;
 use spring::cmd::{ATTACK, INSERT, MOVE};
 
 use super::*;
 
 impl Tracker {
-    pub(super) fn check_opening(&mut self, global: &Global) {
+    pub(super) fn check_opening(
+        &mut self,
+        spring: &spring::Spring<'_, spring::RulesSynced>,
+        global: &Global,
+    ) {
         let (started, step) = {
             let story = global.story.access();
             (story.started, story.step)
         };
         let eskimos = eskimo_ids(global);
         let economy = *global.economy.access();
-        self.check(started, "resource state initialized");
-        self.check(eskimos.len() == 10, "initial expedition has ten eskimos");
+        self.check(spring, started, "resource state initialized");
         self.check(
-            eskimos
-                .iter()
-                .all(|id| spring::get_unit_position(*id, false, false).is_ok()),
+            spring,
+            eskimos.len() == 10,
+            "initial expedition has ten eskimos",
+        );
+        self.check(
+            spring,
+            eskimos.iter().all(|id| {
+                spring
+                    .units_info()
+                    .get_unit_position(*id, Default::default())
+                    .is_ok()
+            }),
             "initial eskimos have valid storyteller positions",
         );
         self.check(
+            spring,
             opening_stocks(&economy),
             "initial resources begin balanced before normal simulation consumption",
         );
-        self.check(step >= 1, "storyteller dispatched initial scenario");
-        self.check_scenery_orders(&eskimos);
+        self.check(spring, step >= 1, "storyteller dispatched initial scenario");
+        self.check_scenery_orders(spring, &eskimos);
     }
 
-    pub(super) fn check_scenery_orders(&mut self, eskimos: &[i32]) {
-        let burner = units_of(UnitKind::Coalburner).first().copied();
+    pub(super) fn check_scenery_orders(
+        &mut self,
+        spring: &spring::Spring<'_, spring::RulesSynced>,
+        eskimos: &[i32],
+    ) {
+        let burner = units_of(spring, UnitKind::Coalburner).first().copied();
         let (Some(&unit), Some(&other), Some(burner)) = (eskimos.get(3), eskimos.get(4), burner)
         else {
             self.check(
+                spring,
                 false,
                 "an attack order on the coal burner is dropped, one on an Eskimo is kept",
             );
             self.check(
+                spring,
                 false,
                 "an inserted attack order on the coal burner is dropped",
             );
-            self.check(false, "a move order next to the scenery is kept");
+            self.check(spring, false, "a move order next to the scenery is kept");
             return;
         };
-        let position = spring::get_unit_position(unit, false, false).unwrap_or_default();
+        let position = spring
+            .units_info()
+            .get_unit_position(unit, Default::default())
+            .unwrap_or_default();
         let step = [position.x + MOVE_STEP, position.y, position.z];
         let insert_attack = |target: i32| [-1.0, ATTACK as f32, 0.0, target as f32];
         let attack_other = queued_orders(unit, &[(ATTACK, &[other as f32])]);
@@ -53,145 +76,206 @@ impl Tracker {
         let insert_other = queued_orders(unit, &[(MOVE, &step), (INSERT, &insert_attack(other))]);
         let insert_burner = queued_orders(unit, &[(MOVE, &step), (INSERT, &insert_attack(burner))]);
         let move_step = queued_orders(unit, &[(MOVE, &step)]);
-        self.after_commands(move |tracker| {
+        self.after_commands(move |tracker, spring| {
             let attack_burner = attack_burner.take();
             tracker.check(
-                spring::get_unit_rules_param_f32(burner, unit::UNTARGETABLE) == Ok(1.0)
+                spring,
+                spring
+                    .rules_params()
+                    .get_unit_rules_param_f32(burner, unit::UNTARGETABLE)
+                    == Ok(1.0)
                     && attack_other.take() == [ATTACK]
                     && attack_burner.is_empty(),
                 "an attack order on the coal burner is dropped, one on an Eskimo is kept",
             );
             tracker.check(
+                spring,
                 insert_other.take() == [MOVE, ATTACK] && insert_burner.take() == [MOVE],
                 "an inserted attack order on the coal burner is dropped",
             );
             tracker.check(
+                spring,
                 move_step.take() == [MOVE],
                 "a move order next to the scenery is kept",
             );
         });
     }
 
-    pub(super) fn check_first_needs_and_trades(&mut self, global: &Global) {
+    pub(super) fn check_first_needs_and_trades(
+        &mut self,
+        spring: &spring::Spring<'_, spring::RulesSynced>,
+        global: &Global,
+    ) {
         let intro_forwarded = global.story.access().intro_event
             == "The last remaining good people, bundled on a block of ice.";
         let (alive, hungry) = {
             let village = global.village.access();
             (
                 village.eskimos.iter().all(|unit| {
-                    spring::get_unit_rules_param_f32(unit.id, unit::HEALTH).is_ok_and(|hp| hp > 0.0)
+                    spring
+                        .rules_params()
+                        .get_unit_rules_param_f32(unit.id, unit::HEALTH)
+                        .is_ok_and(|hp| hp > 0.0)
                 }),
                 village.eskimos.iter().any(|unit| unit.food < 90.0),
             )
         };
         let economy = *global.economy.access();
         self.check(
+            spring,
             intro_forwarded,
             "authored opening story event is forwarded to the UI",
         );
-        self.check(alive, "initial expedition survives early hunger/heat tick");
-        self.check(hungry, "hunger simulation consumes individual food");
         self.check(
+            spring,
+            alive,
+            "initial expedition survives early hunger/heat tick",
+        );
+        self.check(spring, hungry, "hunger simulation consumes individual food");
+        self.check(
+            spring,
             economy.money > 30.0,
             "terrain trade Lua message pays authoritative money",
         );
         self.check(
+            spring,
             self.trade_before.is_some_and(|(x, z, before)| {
-                spring::get_ground_height(x, z).is_ok_and(|after| after < before - 0.1)
+                spring
+                    .terrain()
+                    .get_ground_height(x, z)
+                    .is_ok_and(|after| after < before - 0.1)
             }),
             "terrain trade lowers the clicked ice",
         );
         self.check(
+            spring,
             economy.food >= 99.0,
             "buy-food Lua message consumes trade money and restores food",
         );
     }
 
-    pub(super) fn hit_first_eskimo(&mut self, global: &Global) {
+    pub(super) fn hit_first_eskimo(
+        &mut self,
+        spring: &spring::Spring<'_, spring::RulesSynced>,
+        global: &Global,
+    ) {
         let eskimos = eskimo_ids(global);
         let (Some(&target), Some(&attacker)) = (eskimos.first(), eskimos.get(1)) else {
             return;
         };
         let (Ok(pool), Ok(engine)) = (
-            spring::get_unit_rules_param_f32(target, unit::HEALTH),
-            spring::get_unit_health(target),
+            spring
+                .rules_params()
+                .get_unit_rules_param_f32(target, unit::HEALTH),
+            spring.units_info().get_unit_health(target),
         ) else {
             return;
         };
-        let hit = spring::commands::add_unit_damage(
-            target,
-            ENGINE_HIT,
-            0.0,
-            -1,
-            attacker,
-            spring::Float3::new(0.0, 0.0, 0.0),
-        );
-        self.then(hit, move |tracker, hit| match hit {
+        let hit = queue(move |spring| {
+            spring.unit_control().add_unit_damage(
+                target,
+                ENGINE_HIT,
+                0.0,
+                -1,
+                attacker,
+                spring::Float3::new(0.0, 0.0, 0.0),
+            )
+        });
+        self.then(hit, move |tracker, spring, hit| match hit {
             Ok(_) => tracker.combat = Some((target, pool, engine.health)),
             Err(error) => {
-                spring::log_warning!("mycube-test", "damaging unit {target} failed: {error:?}");
+                spring::log_warning!(
+                    spring,
+                    "mycube-test",
+                    "damaging unit {target} failed: {error:?}"
+                );
             }
         });
     }
 
-    pub(super) fn check_combat(&mut self) {
-        let eskimo_damage = defs::def_id(UnitKind::Eskimo).map_or(0.0, defs::damage);
+    pub(super) fn check_combat(&mut self, spring: &spring::Spring<'_, spring::RulesSynced>) {
+        let eskimo_damage =
+            defs::def_id(spring, UnitKind::Eskimo).map_or(0.0, |def| defs::damage(spring, def));
         let combat = self.combat;
         self.check(
+            spring,
             eskimo_damage > 0.0
                 && combat.is_some_and(|(id, pool_before, engine_before)| {
-                    spring::get_unit_rules_param_f32(id, unit::HEALTH)
+                    spring
+                        .rules_params()
+                        .get_unit_rules_param_f32(id, unit::HEALTH)
                         .is_ok_and(|pool| (pool - (pool_before - eskimo_damage)).abs() < 0.01)
-                        && spring::get_unit_health(id)
+                        && spring
+                            .units_info()
+                            .get_unit_health(id)
                             .is_ok_and(|engine| engine.health == engine_before)
                 }),
             "an engine hit takes the attacker's damage off the health pool and none off the unit",
         );
     }
 
-    pub(super) fn drown_last_eskimo(&mut self, global: &Global) {
+    pub(super) fn drown_last_eskimo(
+        &mut self,
+        spring: &spring::Spring<'_, spring::RulesSynced>,
+        global: &Global,
+    ) {
         let Some(&id) = eskimo_ids(global).last() else {
             return;
         };
         let (Some((x, z)), Ok(pool)) = (
-            water_location(map_size(), ground),
-            spring::get_unit_rules_param_f32(id, unit::HEALTH),
+            water_location(map_size(spring), |x, z| ground(spring, x, z)),
+            spring
+                .rules_params()
+                .get_unit_rules_param_f32(id, unit::HEALTH),
         ) else {
             return;
         };
-        let ground = spring::get_ground_height(x, z).unwrap_or(0.0);
-        let moved = spring::commands::set_unit_position(id, spring::Float3::new(x, ground, z));
-        self.then(moved, move |tracker, moved| match moved {
+        let ground = spring.terrain().get_ground_height(x, z).unwrap_or(0.0);
+        let moved = queue(move |spring| {
+            spring
+                .unit_control()
+                .set_unit_position(id, spring::Float3::new(x, ground, z))
+        });
+        self.then(moved, move |tracker, spring, moved| match moved {
             Ok(_) => tracker.drowning = Some((id, pool)),
             Err(error) => {
-                spring::log_warning!("mycube-test", "moving unit {id} failed: {error:?}");
+                spring::log_warning!(spring, "mycube-test", "moving unit {id} failed: {error:?}");
             }
         });
     }
 
-    pub(super) fn check_drowning(&mut self) {
+    pub(super) fn check_drowning(&mut self, spring: &spring::Spring<'_, spring::RulesSynced>) {
         let frames = (DROWN_CHECK - DROWN_START) as f32;
         let drowning = self.drowning;
         self.check(
+            spring,
             drowning.is_some_and(|(id, before)| {
-                spring::get_unit_rules_param_f32(id, unit::HEALTH)
+                spring
+                    .rules_params()
+                    .get_unit_rules_param_f32(id, unit::HEALTH)
                     .is_ok_and(|pool| before - pool >= frames - 1.0)
             }),
             "an Eskimo in the sea loses a point of health per frame",
         );
         let floundering = drowning.and_then(|(id, _)| {
-            crate::with_cus_module(|host| {
-                host.with_state(spring::UnitId(id), |script| script.is_drowning())
+            crate::with_cus_module(|host, _| {
+                Ok(host.with_state(spring::UnitId(id), |script| script.is_drowning()))
             })
+            .log_err_once(spring, "reading a drowning animation's state failed")
             .flatten()
         });
         self.check(
+            spring,
             floundering == Some(true),
             "an Eskimo in the sea runs its script's StartDrowning",
         );
     }
 
-    pub(super) fn warm_third_eskimo(&mut self, global: &Global) {
+    pub(super) fn warm_third_eskimo(
+        &mut self,
+        spring: &spring::Spring<'_, spring::RulesSynced>,
+        global: &Global,
+    ) {
         let Some(id) = global
             .village
             .access()
@@ -201,18 +285,27 @@ impl Tracker {
         else {
             return;
         };
-        let Some(burner) = units_of(UnitKind::Coalburner)
+        let Some(burner) = units_of(spring, UnitKind::Coalburner)
             .first()
-            .and_then(|burner| spring::get_unit_position(*burner, false, false).ok())
+            .and_then(|burner| {
+                spring
+                    .units_info()
+                    .get_unit_position(*burner, Default::default())
+                    .ok()
+            })
         else {
             return;
         };
         let (x, z) = (burner.x + WARM_OFFSET, burner.z);
-        let ground = spring::get_ground_height(x, z).unwrap_or(burner.y);
-        let moved = spring::commands::set_unit_position(id, spring::Float3::new(x, ground, z));
-        self.then(moved, move |tracker, moved| {
+        let ground = spring.terrain().get_ground_height(x, z).unwrap_or(burner.y);
+        let moved = queue(move |spring| {
+            spring
+                .unit_control()
+                .set_unit_position(id, spring::Float3::new(x, ground, z))
+        });
+        self.then(moved, move |tracker, spring, moved| {
             if let Err(error) = moved {
-                spring::log_warning!("mycube-test", "moving unit {id} failed: {error:?}");
+                spring::log_warning!(spring, "mycube-test", "moving unit {id} failed: {error:?}");
                 return;
             }
             let (heat, stock) = crate::with_global(|global| {
@@ -229,7 +322,11 @@ impl Tracker {
         });
     }
 
-    pub(super) fn check_warming(&mut self, global: &Global) {
+    pub(super) fn check_warming(
+        &mut self,
+        spring: &spring::Spring<'_, spring::RulesSynced>,
+        global: &Global,
+    ) {
         let warmed = self.warming.is_some_and(|(id, heat_before, stock_before)| {
             let heat = global
                 .village
@@ -242,12 +339,17 @@ impl Tracker {
                 && global.economy.access().heat < stock_before
         });
         self.check(
+            spring,
             warmed,
             "an Eskimo by the coal burner warms up on the village's heat",
         );
     }
 
-    pub(super) fn check_story_end(&mut self, global: &Global) {
+    pub(super) fn check_story_end(
+        &mut self,
+        spring: &spring::Spring<'_, spring::RulesSynced>,
+        global: &Global,
+    ) {
         let story = global.story.access();
         let victory = story.game_end == Some(GameEnd::Victory);
         let eskimos = story.story_eskimos;
@@ -258,14 +360,17 @@ impl Tracker {
         );
         drop(story);
         self.check(
+            spring,
             victory,
             "storyteller terminal branch publishes victory state",
         );
         self.check(
+            spring,
             eskimos == 20,
             "all initial and reinforcement Eskimo story spawns completed",
         );
         self.check(
+            spring,
             waves == (10, 5, 5),
             "all authored pirate, drillship, and parachute waves completed",
         );
@@ -275,7 +380,7 @@ impl Tracker {
         self.after_commands(Self::check_drill_queues);
     }
 
-    fn check_drill_queues(&mut self) {
+    fn check_drill_queues(&mut self, spring: &spring::Spring<'_, spring::RulesSynced>) {
         let targets: Vec<(i32, f32, f32)> = crate::with_global(|global| {
             global
                 .drills
@@ -286,15 +391,19 @@ impl Tracker {
                 .collect()
         });
         self.check(
+            spring,
             targets.iter().any(|&(id, x, z)| {
-                spring::units_commands::get_unit_commands(id, 1).is_ok_and(|commands| {
-                    commands.first().is_some_and(|command| {
-                        command.cmd_id == MOVE
-                            && command.params.len() >= 3
-                            && (command.params[0] - x).abs() < 1.0
-                            && (command.params[2] - z).abs() < 1.0
+                spring
+                    .units_commands()
+                    .get_unit_commands(id, 1)
+                    .is_ok_and(|commands| {
+                        commands.first().is_some_and(|command| {
+                            command.cmd_id == MOVE
+                                && command.params.len() >= 3
+                                && (command.params[0] - x).abs() < 1.0
+                                && (command.params[2] - z).abs() < 1.0
+                        })
                     })
-                })
             }),
             "drillships are ordered to move to the ice they found",
         );
@@ -312,27 +421,48 @@ pub(super) fn make_first_eskimo_hungry(global: &Global) {
 fn queued_orders(unit: i32, orders: &[(i32, &[f32])]) -> Rc<Cell<Vec<i32>>> {
     for &(command, params) in orders {
         let options = if command == INSERT { ALT_KEY } else { 0 };
-        spring::commands::give_order_to_unit(unit, command, params, options, 0).then(
-            move |result| {
-                if let Err(error) = result {
-                    spring::log_warning!("mycube-test", "ordering unit {unit} failed: {error:?}");
-                }
-            },
-        );
+        let params = params.to_vec();
+        queue(move |spring| {
+            spring
+                .unit_control()
+                .give_order_to_unit(unit, command, &params, options, 0)
+        })
+        .then(move |spring, result| {
+            if let Err(error) = result {
+                spring::log_warning!(
+                    spring,
+                    "mycube-test",
+                    "ordering unit {unit} failed: {error:?}"
+                );
+            }
+        });
     }
-    let queue = Rc::new(Cell::new(Vec::new()));
-    let read = Rc::clone(&queue);
-    spring::commands::run(move || {
-        read.set(
-            spring::units_commands::get_unit_commands(unit, 4)
-                .map(|queue| queue.iter().map(|command| command.cmd_id).collect())
-                .unwrap_or_default(),
-        );
+    let observed_orders = Rc::new(Cell::new(Vec::new()));
+    let read = Rc::clone(&observed_orders);
+    crate::with_addon_context(|ctx| {
+        ctx.commands().run(move |spring| {
+            read.set(
+                spring
+                    .units_commands()
+                    .get_unit_commands(unit, 4)
+                    .map(|queue| queue.iter().map(|command| command.cmd_id).collect())
+                    .unwrap_or_default(),
+            );
+        })
     });
-    spring::commands::give_order_to_unit(unit, spring::cmd::STOP, &[], 0, 0).then(move |result| {
+    queue(move |spring| {
+        spring
+            .unit_control()
+            .give_order_to_unit(unit, spring::cmd::STOP, &[], 0, 0)
+    })
+    .then(move |spring, result| {
         if let Err(error) = result {
-            spring::log_warning!("mycube-test", "stopping unit {unit} failed: {error:?}");
+            spring::log_warning!(
+                spring,
+                "mycube-test",
+                "stopping unit {unit} failed: {error:?}"
+            );
         }
     });
-    queue
+    observed_orders
 }

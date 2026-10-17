@@ -45,20 +45,28 @@ impl GuiTradeWidget {
         Self::default()
     }
 
-    fn brush_shader(&self) -> Option<u32> {
+    fn brush_shader(&self, spring: &spring::Spring<'_, spring::Ui>) -> Option<u32> {
         if let Some(shader) = self.brush_shader.get() {
             return Some(shader);
         }
         if self.brush_shader_failed.get() {
             return None;
         }
-        let shader = spring::gfx::create_shader(spring::gfx::ShaderCreateParams {
-            fragment: TRADE_BRUSH_FRAGMENT,
-            ..Default::default()
-        })
-        .ok()
-        .map(|shader| shader.shader_id)
-        .filter(|id| *id != 0);
+        let shader = spring
+            .gfx()
+            .create_shader(
+                "",
+                "",
+                "",
+                "",
+                "",
+                TRADE_BRUSH_FRAGMENT,
+                "",
+                Default::default(),
+            )
+            .ok()
+            .map(|shader| shader.shader_id)
+            .filter(|id| *id != 0);
         self.brush_shader.set(shader);
         self.brush_shader_failed.set(shader.is_none());
         shader
@@ -69,12 +77,12 @@ impl GuiTradeWidget {
         self.preview.set(None);
     }
 
-    fn update_preview(&self, dt: f32) {
+    fn update_preview(&self, spring: &spring::Spring<'_, spring::Ui>, dt: f32) {
         if !self.trading.get() {
             self.preview.set(None);
             return;
         }
-        let Ok(mouse) = spring::input::get_mouse_state(0) else {
+        let Ok(mouse) = spring.input().get_mouse_state() else {
             return;
         };
         if mouse.offscreen {
@@ -83,7 +91,7 @@ impl GuiTradeWidget {
         }
         let screen_x = mouse.x.round() as i32;
         let screen_y = mouse.y.round() as i32;
-        let Some(ground) = ground_under(screen_x, screen_y) else {
+        let Some(ground) = ground_under(spring, screen_x, screen_y) else {
             self.preview.set(None);
             return;
         };
@@ -107,7 +115,7 @@ impl GuiTradeWidget {
             || age >= VALUE_REFRESH
         {
             preview.value = ice_value(preview.world_x, preview.world_z, |x, z| {
-                spring::get_ground_height(x, z).unwrap_or(0.0)
+                spring.terrain().get_ground_height(x, z).unwrap_or(0.0)
             }) as i32;
             preview.valued_square = Some(square);
             self.value_age.set(0.0);
@@ -118,8 +126,11 @@ impl GuiTradeWidget {
     }
 }
 
-fn ground_under(x: i32, y: i32) -> Option<spring::Float3> {
-    spring::pick::ground_at(x as f32, y as f32)
+fn ground_under(spring: &spring::Spring<'_, spring::Ui>, x: i32, y: i32) -> Option<spring::Float3> {
+    spring
+        .camera()
+        .ground_at(x as f32, y as f32)
+        .unwrap_or(None)
 }
 
 impl Widget<Global> for GuiTradeWidget {
@@ -127,19 +138,27 @@ impl Widget<Global> for GuiTradeWidget {
         "GuiTrade"
     }
 
-    fn shutdown(&self, _ctx: &spring_addons::AddonContext<'_, Global>) {
+    fn shutdown(&self, _ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>) {
+        let spring = _ctx.spring();
         self.stop_trading();
         if let Some(shader) = self.brush_shader.take() {
-            let _ = spring::gfx::delete_shader(shader);
+            let _ = spring.gfx().delete_shader(shader);
         }
         self.brush_shader_failed.set(false);
     }
 
-    fn update(&self, _ctx: &spring_addons::AddonContext<'_, Global>, dt: f32) {
-        self.update_preview(dt);
+    fn update(&self, _ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>, dt: f32) {
+        let spring = _ctx.spring();
+        self.update_preview(spring, dt);
     }
 
-    fn draw_screen(&self, _ctx: &spring_addons::AddonContext<'_, Global>, width: i32, height: i32) {
+    fn draw_screen(
+        &self,
+        _ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>,
+        width: i32,
+        height: i32,
+    ) {
+        let spring = _ctx.spring();
         let Some(preview) = self.preview.get() else {
             return;
         };
@@ -149,44 +168,45 @@ impl Widget<Global> for GuiTradeWidget {
         let bottom = (preview.screen_y as f32 + 18.0)
             .min(height as f32 - 64.0)
             .max(8.0);
-        let _ = spring::gfx::color(0.02, 0.08, 0.14, 0.92);
-        let _ = spring::gfx::rect(left, bottom, left + 220.0, bottom + 54.0);
-        let _ = spring::gfx::begin_text(false);
-        let _ = spring::gfx::color(0.75, 0.95, 1.0, 1.0);
-        let _ = spring::gfx::text(
+        let _ = spring.gfx().color(0.02, 0.08, 0.14, 0.92);
+        let _ = spring.gfx().rect(left, bottom, left + 220.0, bottom + 54.0);
+        let _ = spring.gfx().begin_text(false);
+        let _ = spring.gfx().color(0.75, 0.95, 1.0, 1.0);
+        let _ = spring.gfx().text(
             &alloc::format!("Harvest: +{} money", preview.value),
             left + 10.0,
             bottom + 33.0,
             15.0,
             "o",
         );
-        let _ = spring::gfx::text(
+        let _ = spring.gfx().text(
             &alloc::format!("Area: {TRADE_SIZE} x {TRADE_SIZE}"),
             left + 10.0,
             bottom + 13.0,
             13.0,
             "o",
         );
-        let _ = spring::gfx::end_text(0);
+        let _ = spring.gfx().end_text();
     }
 
-    fn draw_world(&self, _ctx: &spring_addons::AddonContext<'_, Global>) {
+    fn draw_world(&self, _ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>) {
+        let spring = _ctx.spring();
         let Some(preview) = self.preview.get() else {
             return;
         };
-        let Some(shader) = self.brush_shader() else {
+        let Some(shader) = self.brush_shader(spring) else {
             return;
         };
-        if spring::gfx::push_attrib(gl::ALL_ATTRIB_BITS).is_err() {
+        if spring.gfx().push_attrib(gl::ALL_ATTRIB_BITS).is_err() {
             return;
         }
-        let _ = spring::gfx::bind_texture(BRUSH_TEXTURE, 0, true);
-        let _ = spring::gfx::use_shader(shader);
-        let _ = spring::gfx::blending(true);
-        let _ = spring::gfx::blend_func(gl::SRC_ALPHA, gl::ONE);
+        let _ = spring.gfx().bind_texture(BRUSH_TEXTURE, 0, true);
+        let _ = spring.gfx().use_shader(shader);
+        let _ = spring.gfx().blending(true);
+        let _ = spring.gfx().blend_func(gl::SRC_ALPHA, gl::ONE);
         let half = TRADE_SIZE as f32 / 2.0;
-        let _ = spring::gfx::color(0.05, 0.45, 0.95, 0.32);
-        let _ = spring::gfx::draw_ground_quad(
+        let _ = spring.gfx().color(0.05, 0.45, 0.95, 0.32);
+        let _ = spring.gfx().draw_ground_quad(
             preview.world_x - half,
             preview.world_z - half,
             preview.world_x + half,
@@ -197,16 +217,17 @@ impl Widget<Global> for GuiTradeWidget {
             1.0,
             1.0,
         );
-        let _ = spring::gfx::use_shader(0);
-        let _ = spring::gfx::bind_texture(BRUSH_TEXTURE, 0, false);
-        let _ = spring::gfx::pop_attrib(0);
+        let _ = spring.gfx().use_shader(0);
+        let _ = spring.gfx().bind_texture(BRUSH_TEXTURE, 0, false);
+        let _ = spring.gfx().pop_attrib();
     }
 
     fn key_press(
         &self,
-        _ctx: &spring_addons::AddonContext<'_, Global>,
+        _ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>,
         event: &KeyEvent<'_>,
     ) -> EventResult {
+        let spring = _ctx.spring();
         if event.ctrl || event.alt || event.meta || event.shift {
             return EventResult::Ignored;
         }
@@ -224,27 +245,31 @@ impl Widget<Global> for GuiTradeWidget {
         } else {
             return EventResult::Ignored;
         };
-        crate::rules::send(command);
+        crate::rules::send(spring, command);
         EventResult::Handled
     }
 
     fn mouse_press(
         &self,
-        _ctx: &spring_addons::AddonContext<'_, Global>,
+        _ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>,
         x: i32,
         y: i32,
         button: i32,
     ) -> EventResult {
+        let spring = _ctx.spring();
         if button != spring::mouse::LEFT || !self.trading.get() {
             return EventResult::Ignored;
         }
-        let Some(ground) = ground_under(x, y) else {
+        let Some(ground) = ground_under(spring, x, y) else {
             return EventResult::Handled;
         };
-        crate::rules::send(Command::Trade {
-            x: ground.x,
-            z: ground.z,
-        });
+        crate::rules::send(
+            spring,
+            Command::Trade {
+                x: ground.x,
+                z: ground.z,
+            },
+        );
         self.stop_trading();
         EventResult::Handled
     }

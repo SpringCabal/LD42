@@ -4,7 +4,10 @@ use core::cell::RefCell;
 use spring::cus::{Piece, TaskDefinition, UnitCtx, WeaponId, WreckLevel};
 use spring::{ResultExt, UnitId};
 
-use super::common::{PieceMap, SIG_AIM, SIG_IDLE, SIG_WALK, piece_positions, play_unit_sound};
+use super::common::{
+    PieceMap, SIG_AIM, SIG_IDLE, SIG_WALK, piece_positions, play_unit_sound, random_float,
+    set_unit_geometry,
+};
 use super::eskimo::{
     self, HumanPart, HumanPieces, HumanState, apply_idle_frame, idle_task, play_aim, play_death,
     play_drown, play_shoot, play_throw, play_walk,
@@ -16,9 +19,14 @@ pub struct HumanScript {
 }
 
 impl HumanScript {
-    pub(super) fn new(unit: UnitId, map: &PieceMap, pirate: bool) -> Self {
+    pub(super) fn new(
+        spring: &spring::Spring<'_, spring::RulesSynced>,
+        unit: UnitId,
+        map: &PieceMap,
+        pirate: bool,
+    ) -> Self {
         let pieces = HumanPieces::from_map(map);
-        let offsets = piece_positions(unit, map, HumanPart::ALL.map(HumanPart::name));
+        let offsets = piece_positions(spring, unit, map, HumanPart::ALL.map(HumanPart::name));
         Self {
             pirate,
             state: Rc::new(RefCell::new(HumanState {
@@ -34,13 +42,7 @@ impl HumanScript {
     }
 
     pub(super) fn create(&mut self, ctx: &UnitCtx) {
-        let _ = spring::set_unit_mid_and_aim_pos(
-            ctx.unit().0,
-            spring::Float3::new(0.0, 30.0, 0.0),
-            spring::Float3::new(0.0, 30.0, 0.0),
-            true,
-        );
-        let _ = spring::set_unit_radius_and_height(ctx.unit().0, 20.0, 40.0);
+        set_unit_geometry(ctx, 20.0, 40.0);
         let has_gun = self.pirate;
         self.state.borrow_mut().has_gun = has_gun;
         let pieces = self.state.borrow().pieces;
@@ -106,7 +108,7 @@ impl HumanScript {
             (state.drowning, state.has_gun, state.throwing)
         };
         let own_weapon = if has_gun { 1 } else { 0 };
-        if drowning || weapon.0 != own_weapon || throwing || !loaded(ctx.unit(), weapon) {
+        if drowning || weapon.0 != own_weapon || throwing || !loaded(ctx, weapon) {
             return Some(false);
         }
         ctx.signal(SIG_AIM);
@@ -138,7 +140,7 @@ impl HumanScript {
         let shot = {
             let mut state = self.state.borrow_mut();
             state.death_pending = true;
-            spring::random::synced::float() > 0.5
+            random_float(ctx) > 0.5
         };
         ctx.signal(SIG_AIM);
         ctx.signal(SIG_IDLE);
@@ -148,7 +150,7 @@ impl HumanScript {
         } else {
             "DeathEskimo"
         };
-        play_unit_sound(ctx.unit(), sound, 9.0);
+        play_unit_sound(ctx, sound, 9.0);
         if shot {
             self.spawn("mycube-eskimo-death-shot", ctx, run_death_shot);
             WreckLevel::Two
@@ -168,7 +170,7 @@ impl HumanScript {
         ctx: &UnitCtx,
         task: fn(Rc<RefCell<HumanState>>, UnitCtx) -> F,
     ) where
-        F: core::future::Future<Output = ()> + 'static,
+        F: core::future::Future<Output = ()> + spring::RetainedCapture + 'static,
     {
         ctx.spawn(TaskDefinition::with_state(
             name,
@@ -178,10 +180,17 @@ impl HumanScript {
     }
 }
 
-fn loaded(unit: UnitId, weapon: WeaponId) -> bool {
-    spring::units_weapons::get_unit_weapon_state(unit.0, weapon.0 + 1, "reloadFrame")
-        .log_err_once("My Cube eskimo script: get unit weapon state")
-        .is_some_and(|state| state.reload_frame <= spring::game::current_frame() as f32)
+fn loaded(ctx: &UnitCtx, weapon: WeaponId) -> bool {
+    ctx.with_spring(|spring| {
+        Ok(spring
+            .units_weapons()
+            .get_unit_weapon_state(ctx.unit().0, weapon.0 + 1, "reloadFrame")
+            .log_err_once(spring, "My Cube eskimo script: get unit weapon state")
+            .is_some_and(|state| {
+                state.reload_frame <= spring.game().current_frame().unwrap_or(0) as f32
+            }))
+    })
+    .expect("unit-script engine scope")
 }
 
 fn run_gun(state: Rc<RefCell<HumanState>>, ctx: UnitCtx) -> impl core::future::Future<Output = ()> {

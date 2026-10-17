@@ -1,4 +1,4 @@
-use spring::UnitId;
+use spring::{ResultExt, UnitId};
 use spring_addons::rules::Gadget;
 
 use crate::state::Global;
@@ -18,7 +18,8 @@ impl Gadget<Global> for UnitScriptsGadget {
     }
 
     fn init(&self, _ctx: &spring_addons::AddonContext<'_, Global>) {
-        crate::with_cus_module_or_defer(|host| host.attach_existing());
+        crate::with_cus_module(|host, spring| host.attach_existing(spring))
+            .log_err_once(_ctx.spring(), "attaching existing unit scripts failed");
     }
 
     fn unit_created(
@@ -29,10 +30,15 @@ impl Gadget<Global> for UnitScriptsGadget {
         _team: i32,
         _builder: i32,
     ) {
-        crate::with_cus_module_or_defer(move |host| host.unit_created(UnitId(id), def));
+        crate::with_cus_module(move |host, spring| host.unit_created(spring, UnitId(id), def))
+            .log_err_once(_ctx.spring(), "attaching a unit script failed");
     }
 
     fn game_frame(&self, _ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
-        crate::with_cus_module_or_defer(move |host| host.game_frame(frame));
+        crate::with_cus_module(move |host, _| {
+            host.game_frame(frame);
+            Ok(())
+        })
+        .log_err_once(_ctx.spring(), "updating unit scripts failed");
     }
 }

@@ -14,13 +14,13 @@ const MUSIC_VOLUME: f32 = 0.15;
 pub const HIDDEN_INTERFACE: u32 =
     CONSOLE | RESOURCE_BAR | TOOLTIP | CLOCK | PLAYER_INFO | MINIMAP | UNIT_ICONS;
 
-pub fn setup(handler: &mut WidgetHandler<Global>) {
+pub fn setup(handler: &mut WidgetHandler<Global>, spring: &spring::Spring<'_, spring::Ui>) {
     register_widgets!(
         handler,
         [springcabal::controls::GameControls::new().with_rts_controls()]
     );
-    if springcabal::verification::world_only() {
-        gallery::setup(handler);
+    if springcabal::verification::world_only(spring) {
+        gallery::setup(handler, spring);
         return;
     }
     register_widgets!(

@@ -31,7 +31,8 @@ impl Gadget<Global> for ParachutesGadget {
         _team: i32,
         _builder: i32,
     ) {
-        if defs::kind(def) == Some(UnitKind::Parachute) {
+        let spring = _ctx.spring();
+        if defs::kind(spring, def) == Some(UnitKind::Parachute) {
             self.parachutes.borrow_mut().push(id);
         }
     }
@@ -47,17 +48,28 @@ impl Gadget<Global> for ParachutesGadget {
     }
 
     fn game_frame(&self, _ctx: &spring_addons::AddonContext<'_, Global>, _frame: i32) {
-        destroy_all(update_parachutes(&self.parachutes.borrow()), true);
+        let spring = _ctx.spring();
+        destroy_all(
+            _ctx,
+            update_parachutes(spring, &self.parachutes.borrow()),
+            true,
+        );
     }
 }
 
-fn update_parachutes(parachutes: &[i32]) -> Vec<i32> {
+fn update_parachutes(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    parachutes: &[i32],
+) -> Vec<i32> {
     let mut landed = Vec::new();
     for id in parachutes {
-        let Ok(position) = spring::get_unit_position(*id, false, false) else {
+        let Ok(position) = spring
+            .units_info()
+            .get_unit_position(*id, Default::default())
+        else {
             continue;
         };
-        let Ok(ground) = spring::get_ground_height(position.x, position.z) else {
+        let Ok(ground) = spring.terrain().get_ground_height(position.x, position.z) else {
             continue;
         };
         if ground >= position.y {

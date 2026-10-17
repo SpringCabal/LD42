@@ -30,6 +30,8 @@ impl Gadget<Global> for IntegrationGadget {
     }
 
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
-        self.tracker.borrow_mut().update(ctx.global(), frame);
+        self.tracker
+            .borrow_mut()
+            .update(ctx.spring(), ctx.global(), frame);
     }
 }

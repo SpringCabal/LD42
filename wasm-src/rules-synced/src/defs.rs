@@ -62,17 +62,19 @@ struct Defs {
 }
 
 impl Defs {
-    fn resolve() -> Self {
+    fn resolve(spring: &spring::Spring<'_, spring::RulesSynced>) -> Self {
         let entries = DEF_NAMES
             .iter()
             .filter_map(|&(name, kind)| {
-                let id = spring::get_unit_def_id_by_name(name).ok()?;
+                let id = spring.unit_defs().get_unit_def_id_by_name(name).ok()?;
                 Some(DefInfo {
                     id,
                     kind,
-                    health: unit::max_health(custom_param(id, "health").as_deref()),
-                    damage: unit::custom_param_number(custom_param(id, "damage").as_deref())
-                        .unwrap_or(0.0),
+                    health: unit::max_health(custom_param(spring, id, "health").as_deref()),
+                    damage: unit::custom_param_number(
+                        custom_param(spring, id, "damage").as_deref(),
+                    )
+                    .unwrap_or(0.0),
                 })
             })
             .collect();
@@ -84,22 +86,26 @@ impl Defs {
     }
 }
 
-fn custom_param(def: i32, key: &str) -> Option<alloc::string::String> {
-    spring::unit_defs::get_unit_def_custom_param(def, key).ok()
+fn custom_param(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    def: i32,
+    key: &str,
+) -> Option<alloc::string::String> {
+    spring.unit_defs().get_unit_def_custom_param(def, key).ok()
 }
 
-static DEFS: DefCache<Defs> = DefCache::new(Defs::resolve);
+static DEFS: DefCache<Defs> = DefCache::new();
 
-fn with_defs<R>(f: impl FnOnce(&Defs) -> R) -> R {
-    f(DEFS.get())
+fn with_defs<R>(spring: &spring::Spring<'_, spring::RulesSynced>, f: impl FnOnce(&Defs) -> R) -> R {
+    f(DEFS.get_or_init(|| Defs::resolve(spring)))
 }
 
-pub fn kind(def: i32) -> Option<UnitKind> {
-    with_defs(|defs| defs.info(def).map(|info| info.kind))
+pub fn kind(spring: &spring::Spring<'_, spring::RulesSynced>, def: i32) -> Option<UnitKind> {
+    with_defs(spring, |defs| defs.info(def).map(|info| info.kind))
 }
 
-pub fn def_id(kind: UnitKind) -> Option<i32> {
-    with_defs(|defs| {
+pub fn def_id(spring: &spring::Spring<'_, spring::RulesSynced>, kind: UnitKind) -> Option<i32> {
+    with_defs(spring, |defs| {
         defs.entries
             .iter()
             .find(|entry| entry.kind == kind)
@@ -107,13 +113,15 @@ pub fn def_id(kind: UnitKind) -> Option<i32> {
     })
 }
 
-pub fn health(def: i32) -> f32 {
-    with_defs(|defs| {
+pub fn health(spring: &spring::Spring<'_, spring::RulesSynced>, def: i32) -> f32 {
+    with_defs(spring, |defs| {
         defs.info(def)
             .map_or(unit::DEFAULT_HEALTH, |info| info.health)
     })
 }
 
-pub fn damage(def: i32) -> f32 {
-    with_defs(|defs| defs.info(def).map_or(0.0, |info| info.damage))
+pub fn damage(spring: &spring::Spring<'_, spring::RulesSynced>, def: i32) -> f32 {
+    with_defs(spring, |defs| {
+        defs.info(def).map_or(0.0, |info| info.damage)
+    })
 }

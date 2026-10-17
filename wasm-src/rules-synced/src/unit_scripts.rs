@@ -48,6 +48,7 @@ pub enum MyCubeUnitScript {
 
 impl MyCubeUnitScript {
     fn for_kind(
+        spring: &spring::Spring<'_, spring::RulesSynced>,
         kind: Option<UnitKind>,
         unit: UnitId,
         map: &common::PieceMap,
@@ -58,8 +59,8 @@ impl MyCubeUnitScript {
             Some(UnitKind::Drillship) => {
                 Self::Drillship(ShipScript::new(map, Rc::clone(sinking_sound)))
             }
-            Some(UnitKind::Eskimo) => Self::Human(HumanScript::new(unit, map, false)),
-            Some(UnitKind::Pirate) => Self::Human(HumanScript::new(unit, map, true)),
+            Some(UnitKind::Eskimo) => Self::Human(HumanScript::new(spring, unit, map, false)),
+            Some(UnitKind::Pirate) => Self::Human(HumanScript::new(spring, unit, map, true)),
             Some(UnitKind::Iglu) => Self::Iglu(IgluScript::new(map)),
             Some(UnitKind::Lantern) => Self::Lantern,
             Some(UnitKind::Iglu2 | UnitKind::Parachute) | None => Self::None,
@@ -81,14 +82,28 @@ impl MyCubeUnitScript {
 }
 
 impl UnitDefScript<SinkingSoundLock> for MyCubeUnitScript {
-    fn capabilities(def: i32) -> Option<ScriptCapabilities> {
-        defs::kind(def)
+    fn capabilities(
+        spring: &spring::Spring<'_, spring::RulesSynced>,
+        def: i32,
+    ) -> Option<ScriptCapabilities> {
+        defs::kind(spring, def)
             .filter(|kind| kind.has_script())
             .map(capabilities)
     }
 
-    fn for_def(def: i32, ctx: &mut InitCtx<'_>, sinking_sound: &mut SinkingSoundLock) -> Self {
-        Self::for_kind(defs::kind(def), ctx.unit(), &ctx.pieces(), sinking_sound)
+    fn for_def(
+        spring: &spring::Spring<'_, spring::RulesSynced>,
+        def: i32,
+        ctx: &mut InitCtx<'_>,
+        sinking_sound: &mut SinkingSoundLock,
+    ) -> Self {
+        Self::for_kind(
+            spring,
+            defs::kind(spring, def),
+            ctx.unit(),
+            &ctx.pieces(),
+            sinking_sound,
+        )
     }
 }
 
@@ -96,14 +111,14 @@ impl UnitScript for MyCubeUnitScript {
     fn create(&mut self, ctx: &UnitCtx) {
         match self {
             Self::Coalburner(script) => {
-                set_scenery_state(ctx.unit());
+                set_scenery_state(ctx);
                 script.create(ctx);
             }
             Self::Iglu(script) => {
-                set_scenery_state(ctx.unit());
+                set_scenery_state(ctx);
                 script.create(ctx);
             }
-            Self::Lantern => set_scenery_state(ctx.unit()),
+            Self::Lantern => set_scenery_state(ctx),
             Self::Drillship(script) => script.create(ctx),
             Self::Human(script) => script.create(ctx),
             Self::None => {}

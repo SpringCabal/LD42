@@ -1,23 +1,29 @@
 use super::*;
 
 impl Tracker {
-    pub(super) fn update_second_round(&mut self, global: &Global, frame: i32, since: i32) {
+    pub(super) fn update_second_round(
+        &mut self,
+        spring: &spring::Spring<'_, spring::RulesSynced>,
+        global: &Global,
+        frame: i32,
+        since: i32,
+    ) {
         let Some(start) = self.restart.or_else(|| {
             let story = global.story.access();
             (story.started && story.start_frame > since).then_some(story.start_frame)
         }) else {
-            if timed_out(frame, since, "the UI's restart request") {
-                self.check(false, "the UI's restart request reaches the rules");
-                self.suite.finish();
+            if timed_out(spring, frame, since, "the UI's restart request") {
+                self.check(spring, false, "the UI's restart request reaches the rules");
+                self.suite.finish(spring);
             }
             return;
         };
         self.restart = Some(start);
         match frame - start {
-            RESTART_CHECK => self.check_restart(global, start),
+            RESTART_CHECK => self.check_restart(spring, global, start),
             RESTART_CONDEMN => {
                 for id in eskimo_ids(global) {
-                    crate::units::destroy(id, false);
+                    crate::with_addon_context(|ctx| crate::units::destroy(ctx, id, false));
                 }
             }
             RESTART_LOSS_CHECK => {
@@ -26,20 +32,27 @@ impl Tracker {
                     (story.game_end, story.survival_frames())
                 };
                 self.check(
+                    spring,
                     end == Some(GameEnd::Loss),
                     "losing every Eskimo ends the round in a loss",
                 );
                 self.check(
+                    spring,
                     survived == Some(RESTART_CONDEMN + 1),
                     "the survival time counts only the restarted round",
                 );
-                self.suite.finish();
+                self.suite.finish(spring);
             }
             _ => {}
         }
     }
 
-    pub(super) fn check_restart(&mut self, global: &Global, start: i32) {
+    pub(super) fn check_restart(
+        &mut self,
+        spring: &spring::Spring<'_, spring::RulesSynced>,
+        global: &Global,
+        start: i32,
+    ) {
         let (end, step) = {
             let story = global.story.access();
             (story.game_end, story.step)
@@ -47,26 +60,37 @@ impl Tracker {
         let economy = *global.economy.access();
         let tracked = eskimo_ids(global).len();
         self.check(
+            spring,
             end.is_none() && step >= 1,
             "a restart clears the finished round and starts the story over",
         );
         self.check(
+            spring,
             tracked == 10
-                && units_of(UnitKind::Eskimo).len() == 10
-                && units_of(UnitKind::Drillship).is_empty()
-                && units_of(UnitKind::Pirate).is_empty(),
+                && units_of(spring, UnitKind::Eskimo).len() == 10
+                && units_of(spring, UnitKind::Drillship).is_empty()
+                && units_of(spring, UnitKind::Pirate).is_empty(),
             "a restart replaces every unit with a fresh expedition",
         );
         self.check(
+            spring,
             opening_stocks(&economy),
             "a restart refills the village's stocks",
         );
         self.check(
+            spring,
             self.trade_before.is_some_and(|(x, z, before)| {
-                spring::get_ground_height(x, z).is_ok_and(|now| (now - before).abs() < 0.1)
+                spring
+                    .terrain()
+                    .get_ground_height(x, z)
+                    .is_ok_and(|now| (now - before).abs() < 0.1)
             }),
             "a restart restores the ice the first round sold",
         );
-        spring::log_info!("mycube-test", "the second round started at frame {start}");
+        spring::log_info!(
+            spring,
+            "mycube-test",
+            "the second round started at frame {start}"
+        );
     }
 }

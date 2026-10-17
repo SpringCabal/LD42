@@ -21,17 +21,18 @@ fn piece_num(piece: Piece) -> i32 {
 }
 
 pub(super) fn piece_positions<const N: usize>(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
     unit: UnitId,
     map: &PieceMap,
     names: [&str; N],
 ) -> [spring::Float3; N] {
     let mut positions = [spring::Float3::ZERO; N];
-    let Ok(root) = spring::get_unit_root_piece(unit.0) else {
+    let Ok(root) = spring.units_pieces().get_unit_root_piece(unit.0) else {
         return positions;
     };
     let mut stack = alloc::vec![(root, spring::Float3::ZERO)];
     while let Some((num, parent_offset)) = stack.pop() {
-        let Ok(result) = spring::get_unit_piece_info(unit.0, num) else {
+        let Ok(result) = spring.units_pieces().get_unit_piece_info(unit.0, num) else {
             continue;
         };
         if !result.exists {
@@ -81,8 +82,38 @@ pub(super) fn move_piece(ctx: &UnitCtx, piece: Piece, axis: Axis, target: f32, s
     }
 }
 
-pub(super) fn coin_flip() -> bool {
-    spring::random::synced::int(0, 1) == 1
+pub(super) fn coin_flip(ctx: &UnitCtx) -> bool {
+    random_int(ctx, 0, 1) == 1
+}
+
+pub(super) fn random_int(ctx: &UnitCtx, lower: i32, upper: i32) -> i32 {
+    ctx.with_spring(|spring| spring.synced_random().next_int(lower, upper))
+        .expect("synced random int")
+}
+
+pub(super) fn random_float(ctx: &UnitCtx) -> f32 {
+    ctx.with_spring(|spring| spring.synced_random().next_float())
+        .expect("synced random float")
+}
+
+pub(super) fn set_unit_geometry(ctx: &UnitCtx, radius: f32, height: f32) {
+    ctx.with_spring(|spring| {
+        spring
+            .unit_control()
+            .set_unit_mid_and_aim_pos(
+                ctx.unit().0,
+                spring::Float3::new(0.0, 30.0, 0.0),
+                spring::Float3::new(0.0, 30.0, 0.0),
+                true,
+            )
+            .log_err_once(spring, "setting a unit's mid and aim position failed");
+        spring
+            .unit_control()
+            .set_unit_radius_and_height(ctx.unit().0, radius, height)
+            .log_err_once(spring, "setting a unit's radius and height failed");
+        Ok(())
+    })
+    .expect("unit-script engine scope");
 }
 
 pub(super) fn all_named_pieces(map: &PieceMap) -> Vec<Piece> {
@@ -148,18 +179,36 @@ pub(super) fn reset_all(ctx: &UnitCtx, pieces: &[Piece]) {
     }
 }
 
-pub(super) fn set_scenery_state(unit: UnitId) {
-    spring::set_unit_neutral(unit.0, true).log_err("making the scenery neutral failed");
-    spring::set_unit_rules_param_f32(
-        unit.0,
-        unit::UNTARGETABLE,
-        1.0,
-        spring::rules_params::los::PUBLIC,
-    )
-    .log_err("marking the scenery untargetable failed");
+pub(super) fn set_scenery_state(ctx: &UnitCtx) {
+    ctx.with_spring(|spring| {
+        spring
+            .unit_control()
+            .set_unit_neutral(ctx.unit().0, true)
+            .log_err(spring, "making the scenery neutral failed");
+        spring
+            .rules_params()
+            .set_unit_rules_param_f32(
+                ctx.unit().0,
+                unit::UNTARGETABLE,
+                1.0,
+                spring::rules_params::los::PUBLIC,
+            )
+            .log_err(spring, "marking the scenery untargetable failed");
+        Ok(())
+    })
+    .expect("unit-script engine scope");
 }
 
-pub(super) fn play_unit_sound(unit: UnitId, name: &str, volume: f32) {
-    let position = spring::get_unit_position(unit.0, false, false).unwrap_or(spring::Float3::ZERO);
-    let _ = spring::sound::play_sound_file(name, volume, position, spring::Float3::ZERO, 0);
+pub(super) fn play_unit_sound(ctx: &UnitCtx, name: &str, volume: f32) {
+    ctx.with_spring(|spring| {
+        let position = spring
+            .units_info()
+            .get_unit_position(ctx.unit().0, Default::default())
+            .unwrap_or(spring::Float3::ZERO);
+        let _ = spring
+            .sound()
+            .play_sound_file(name, volume, position, spring::Float3::ZERO, 0);
+        Ok(())
+    })
+    .expect("unit-script engine scope");
 }

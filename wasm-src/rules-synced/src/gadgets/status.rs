@@ -34,7 +34,7 @@ impl Gadget<Global> for StatusGadget {
             }
         };
         self.status.send_if_changed(status, |status| {
-            springcabal::message::send_to_ui(&status.encode())
+            springcabal::message::send_to_ui(ctx.spring(), &status.encode())
         });
     }
 }

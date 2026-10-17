@@ -1,6 +1,7 @@
 use alloc::vec::Vec;
 use core::cell::RefCell;
 
+use spring::ResultExt;
 use spring_addons::rules::{Gadget, UnitDestroyedEvent};
 
 use crate::defs::{self, UnitKind};
@@ -33,7 +34,8 @@ impl Gadget<Global> for DrowningGadget {
         _team: i32,
         _builder: i32,
     ) {
-        if defs::kind(def) == Some(UnitKind::Pirate) {
+        let spring = _ctx.spring();
+        if defs::kind(spring, def) == Some(UnitKind::Pirate) {
             self.pirates.borrow_mut().push(id);
         }
     }
@@ -47,6 +49,7 @@ impl Gadget<Global> for DrowningGadget {
     }
 
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, _frame: i32) {
+        let spring = ctx.spring();
         let units: Vec<i32> = {
             let village = ctx.global().village.access();
             let pirates = self.pirates.borrow();
@@ -57,20 +60,32 @@ impl Gadget<Global> for DrowningGadget {
                 .chain(pirates.iter().copied())
                 .collect()
         };
-        destroy_all(update_drowning(units.into_iter()), false);
+        destroy_all(ctx, update_drowning(spring, units.into_iter()), false);
     }
 }
 
-fn update_drowning(units: impl Iterator<Item = i32>) -> Vec<i32> {
+fn update_drowning(
+    spring: &spring::Spring<'_, spring::RulesSynced>,
+    units: impl Iterator<Item = i32>,
+) -> Vec<i32> {
     let mut dead = Vec::new();
     for id in units {
-        if let Ok(position) = spring::get_unit_position(id, false, false)
-            && spring::get_ground_height(position.x, position.z).unwrap_or(1.0) <= 0.0
+        if let Ok(position) = spring
+            .units_info()
+            .get_unit_position(id, Default::default())
+            && spring
+                .terrain()
+                .get_ground_height(position.x, position.z)
+                .unwrap_or(1.0)
+                <= 0.0
         {
-            crate::with_cus_module(|host| {
-                host.with_script(spring::UnitId(id), |ctx, script| script.start_drowning(ctx))
-            });
-            let Some(health) = crate::gadgets::health::behavior::pool(id)
+            crate::with_cus_module(|host, spring| {
+                host.with_script(spring, spring::UnitId(id), |ctx, script| {
+                    script.start_drowning(ctx)
+                })
+            })
+            .log_err_once(spring, "starting a drowning animation failed");
+            let Some(health) = crate::gadgets::health::behavior::pool(spring, id)
                 .map(|health| health - DROWNING_DAMAGE_PER_FRAME)
             else {
                 continue;
@@ -78,7 +93,7 @@ fn update_drowning(units: impl Iterator<Item = i32>) -> Vec<i32> {
             if health <= 0.0 {
                 dead.push(id);
             } else {
-                crate::gadgets::health::behavior::set_pool(id, health);
+                crate::gadgets::health::behavior::set_pool(spring, id, health);
             }
         }
     }

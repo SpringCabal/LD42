@@ -19,12 +19,22 @@ impl GuiSelectionStatsWidget {
         Self
     }
 
-    fn draw_bar(&self, x: f32, y: f32, value: f32, maximum: f32, color: (f32, f32, f32)) {
+    fn draw_bar(
+        &self,
+        spring: &spring::Spring<'_, spring::Ui>,
+        x: f32,
+        y: f32,
+        value: f32,
+        maximum: f32,
+        color: (f32, f32, f32),
+    ) {
         let fraction = (value / maximum.max(1.0)).clamp(0.0, 1.0);
-        let _ = spring::gfx::color(0.08, 0.08, 0.08, 0.9);
-        let _ = spring::gfx::rect(x, y, x + BAR_WIDTH, y + BAR_HEIGHT);
-        let _ = spring::gfx::color(color.0, color.1, color.2, 1.0);
-        let _ = spring::gfx::rect(x, y, x + BAR_WIDTH * fraction, y + BAR_HEIGHT);
+        let _ = spring.gfx().color(0.08, 0.08, 0.08, 0.9);
+        let _ = spring.gfx().rect(x, y, x + BAR_WIDTH, y + BAR_HEIGHT);
+        let _ = spring.gfx().color(color.0, color.1, color.2, 1.0);
+        let _ = spring
+            .gfx()
+            .rect(x, y, x + BAR_WIDTH * fraction, y + BAR_HEIGHT);
     }
 }
 
@@ -35,45 +45,65 @@ impl Widget<Global> for GuiSelectionStatsWidget {
 
     fn draw_screen(
         &self,
-        _ctx: &spring_addons::AddonContext<'_, Global>,
+        _ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>,
         _width: i32,
         height: i32,
     ) {
-        let Ok(selection) = spring::selection::get_selected_units(0) else {
+        let spring = _ctx.spring();
+        let Ok(selection) = spring.selection().get_selected_units() else {
             return;
         };
 
         for (index, unit_id) in selection.into_iter().enumerate() {
-            let Ok(def) = spring::units_info::get_unit_def_id(unit_id) else {
+            let Ok(def) = spring.units_info().get_unit_def_id(unit_id) else {
                 continue;
             };
             let y = height as f32 - FIRST_UNIT_Y - UNIT_PANEL_HEIGHT - UNIT_STEP * index as f32;
-            if defs::kind(def) == Some(UnitKind::Eskimo) {
+            if defs::kind(spring, def) == Some(UnitKind::Eskimo) {
                 self.draw_bar(
+                    spring,
                     0.0,
                     y,
-                    spring::get_unit_rules_param_f32(unit_id, unit::HEALTH).unwrap_or(0.0),
-                    UnitKind::Eskimo.max_health(),
+                    spring
+                        .rules_params()
+                        .get_unit_rules_param_f32(unit_id, unit::HEALTH)
+                        .unwrap_or(0.0),
+                    UnitKind::Eskimo.max_health(spring),
                     (1.0, 0.0, 0.0),
                 );
                 self.draw_bar(
+                    spring,
                     0.0,
                     y + BAR_STEP,
-                    spring::get_unit_rules_param_f32(unit_id, unit::FOOD).unwrap_or(0.0),
+                    spring
+                        .rules_params()
+                        .get_unit_rules_param_f32(unit_id, unit::FOOD)
+                        .unwrap_or(0.0),
                     unit::MAX_NEED,
                     (0.0, 1.0, 0.0),
                 );
                 self.draw_bar(
+                    spring,
                     0.0,
                     y + 2.0 * BAR_STEP,
-                    spring::get_unit_rules_param_f32(unit_id, unit::HEAT).unwrap_or(0.0),
+                    spring
+                        .rules_params()
+                        .get_unit_rules_param_f32(unit_id, unit::HEAT)
+                        .unwrap_or(0.0),
                     unit::MAX_NEED,
                     (0.5, 0.3, 0.1),
                 );
-            } else if let Ok(health) = spring::units_info::get_unit_health(unit_id) {
-                self.draw_bar(0.0, y, health.health, health.max_health, (1.0, 0.0, 0.0));
+            } else if let Ok(health) = spring.units_info().get_unit_health(unit_id) {
+                self.draw_bar(
+                    spring,
+                    0.0,
+                    y,
+                    health.health,
+                    health.max_health,
+                    (1.0, 0.0, 0.0),
+                );
             }
         }
-        let _ = spring::gfx::color(1.0, 1.0, 1.0, 1.0);
+        let _ = spring.gfx().color(1.0, 1.0, 1.0, 1.0);
     }
 }

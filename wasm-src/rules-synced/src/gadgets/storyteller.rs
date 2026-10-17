@@ -25,14 +25,19 @@ impl Gadget<Global> for StorytellerGadget {
     }
 
     fn init(&self, _ctx: &spring_addons::AddonContext<'_, Global>) {
-        let gallery = spring::game_options::get_mod_option("gallery")
+        let spring = _ctx.spring();
+        let gallery = spring
+            .game()
+            .get_mod_option("gallery")
             .ok()
-            .flatten()
+            .filter(|mode| mode.exists)
+            .map(|mode| mode.value)
             .is_some_and(|mode| !mode.is_empty());
         self.off.set(gallery);
     }
 
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, frame: i32) {
+        let spring = ctx.spring();
         if self.off.get() {
             return;
         }
@@ -40,11 +45,15 @@ impl Gadget<Global> for StorytellerGadget {
         if !story.started {
             story.started = true;
             story.start_frame = frame;
-            destroy_all(spring::get_all_units().unwrap_or_default(), true);
-            story::restore_ice();
+            destroy_all(
+                ctx,
+                spring.units().get_all_units().unwrap_or_default(),
+                true,
+            );
+            story::restore_ice(spring);
         }
-        for request in story::run_story(&mut story, frame) {
-            spawning::spawn(request, move |_| {
+        for request in story::run_story(spring, &mut story, frame) {
+            spawning::spawn(ctx, request, move |_| {
                 crate::with_global(|global| {
                     spawning::count_story_spawn(&mut global.story.access_mut(), request.kind);
                 });

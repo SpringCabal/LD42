@@ -32,8 +32,9 @@ impl Gadget<Global> for EskimosGadget {
         _team: i32,
         _builder: i32,
     ) {
+        let spring = ctx.spring();
         let mut village = ctx.global().village.access_mut();
-        match defs::kind(def) {
+        match defs::kind(spring, def) {
             Some(UnitKind::Coalburner) => village.burners.push(id),
             Some(UnitKind::Eskimo) => {
                 village.eskimos.push(Eskimo {
@@ -43,7 +44,7 @@ impl Gadget<Global> for EskimosGadget {
                     eating: false,
                     warm: false,
                 });
-                set_eskimo_needs(id, START_FOOD, START_HEAT);
+                set_eskimo_needs(spring, id, START_FOOD, START_HEAT);
             }
             _ => {}
         }
@@ -61,10 +62,12 @@ impl Gadget<Global> for EskimosGadget {
     }
 
     fn game_frame(&self, ctx: &spring_addons::AddonContext<'_, Global>, _frame: i32) {
+        let spring = ctx.spring();
         let dead = eskimos::update_eskimos(
+            spring,
             &mut ctx.global().village.access_mut(),
             &mut ctx.global().economy.access_mut(),
         );
-        destroy_all(dead, false);
+        destroy_all(ctx, dead, false);
     }
 }
