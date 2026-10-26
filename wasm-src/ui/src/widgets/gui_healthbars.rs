@@ -19,7 +19,8 @@ const INFO_DISTANCE_SQ: f32 = 800_000.0;
 pub struct GuiHealthbarsWidget {
     tracked: RefCell<BTreeMap<i32, Option<UnitKind>>>,
     bars: RefCell<Vec<(i32, UnitKind)>>,
-    listed_frame: Cell<Option<i32>>,
+    initialized: Cell<bool>,
+    dirty: Cell<bool>,
 }
 
 impl GuiHealthbarsWidget {
@@ -28,12 +29,14 @@ impl GuiHealthbarsWidget {
     }
 
     fn refresh_units(&self, spring: &spring::Spring<'_, spring::Ui>) {
-        let frame = spring.game().current_frame().unwrap_or(0);
-        if self.listed_frame.get() == Some(frame) {
+        if self.initialized.get() && !self.dirty.get() {
             return;
         }
-        self.listed_frame.set(Some(frame));
-        let mut units = spring.units().get_all_units().unwrap_or_default();
+        let Ok(mut units) = spring.units().get_all_units() else {
+            return;
+        };
+        self.initialized.set(true);
+        self.dirty.set(false);
         units.sort_unstable();
         let mut tracked = self.tracked.borrow_mut();
         tracked.retain(|id, _| units.binary_search(id).is_ok());
@@ -85,6 +88,69 @@ impl GuiHealthbarsWidget {
 impl Widget<Global> for GuiHealthbarsWidget {
     fn name(&self) -> &'static str {
         "GuiHealthbars"
+    }
+
+    fn unit_created(
+        &self,
+        _ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>,
+        _id: i32,
+        _def: i32,
+        _team: i32,
+        _builder: i32,
+    ) {
+        self.dirty.set(true);
+    }
+
+    fn unit_destroyed(
+        &self,
+        _ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>,
+        _event: &spring_addons::event::UnitDestroyedEvent,
+    ) {
+        self.dirty.set(true);
+    }
+
+    fn unit_entered_los(
+        &self,
+        _ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>,
+        _id: i32,
+        _def: i32,
+        _team: i32,
+        _ally: i32,
+    ) {
+        self.dirty.set(true);
+    }
+
+    fn unit_left_los(
+        &self,
+        _ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>,
+        _id: i32,
+        _def: i32,
+        _team: i32,
+        _ally: i32,
+    ) {
+        self.dirty.set(true);
+    }
+
+    fn unit_given(
+        &self,
+        _ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>,
+        _id: i32,
+        _def: i32,
+        _old: i32,
+        _new: i32,
+    ) {
+        self.dirty.set(true);
+    }
+
+    fn unit_taken(
+        &self,
+        _ctx: &spring_addons::AddonContext<'_, Global, spring::Ui>,
+        _id: i32,
+        _def: i32,
+        _old: i32,
+        _new: i32,
+    ) {
+        self.dirty.set(true);
     }
 
     fn draw_screen(

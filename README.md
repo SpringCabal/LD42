@@ -14,11 +14,10 @@ This remains a Wasm game; native game-module conversion is not included.
 
 The existing 32-check integration suite passes on Linux and the Windows engine
 under Wine (20x simulation speed). All workspace features pass strict Clippy.
-The five-shot visual scenario completes on both GPU and software rendering.
-Manual comparison of the software captures meets all six existing golden
-tolerances (HUD 0.062%; village crops 1.33–3.94%, limit 4%). The visual suite
-still fails its renderer identity check: installed Mesa Ubuntu package revision
-`.4` differs from the recorded `.2`. No goldens, assertions or tolerances changed.
+The five-shot visual scenario completes on NVIDIA; the parent repository stores
+reviewed NVIDIA goldens. Health-bar membership refreshes on creation,
+destruction, LOS and ownership events instead of scanning and sorting all units
+every simulation frame.
 
 ## Differences from Lua
 
