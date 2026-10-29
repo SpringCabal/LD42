@@ -64,13 +64,22 @@ impl Tracker {
             end.is_none() && step >= 1,
             "a restart clears the finished round and starts the story over",
         );
+        // GetAllUnits retains killed units until their death sequence finishes.
+        // The restart must replace living actors; a dying enemy from the first
+        // round must not make this depend on when the UI requests the restart.
+        let living = |kind| {
+            units_of(spring, kind)
+                .into_iter()
+                .filter(|id| crate::units::is_alive(spring, *id))
+                .count()
+        };
         self.check(
             spring,
             tracked == 10
-                && units_of(spring, UnitKind::Eskimo).len() == 10
-                && units_of(spring, UnitKind::Drillship).is_empty()
-                && units_of(spring, UnitKind::Pirate).is_empty(),
-            "a restart replaces every unit with a fresh expedition",
+                && living(UnitKind::Eskimo) == 10
+                && living(UnitKind::Drillship) == 0
+                && living(UnitKind::Pirate) == 0,
+            "a restart creates ten live Eskimos and removes live enemies",
         );
         self.check(
             spring,
