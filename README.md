@@ -2,6 +2,8 @@
 
 Rust/WASM port of SpringCabal’s Ludum Dare 42 game.
 
+World health bars use the original Lua renderer alongside the Core Wasm HUD and input. The Lua and Wasm editions share its shaders, visibility rules, bar states and defaults; gameplay and unit scripts remain in Wasm.
+
 Use the [SpringCabal development repository](https://github.com/gajop/springcabal-dev) for engine setup, launching, builds and verification.
 
 ## Scoped SDK port
