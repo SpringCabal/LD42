@@ -4,7 +4,6 @@ use core::cell::Cell;
 
 use spring_addons::rules::Gadget;
 
-use crate::spawning;
 use crate::state::Global;
 use crate::units::destroy_all;
 
@@ -52,12 +51,10 @@ impl Gadget<Global> for StorytellerGadget {
             );
             story::restore_ice(spring);
         }
-        for request in story::run_story(spring, &mut story, frame) {
-            spawning::spawn(ctx, request, move |_| {
-                crate::with_global(|global| {
-                    spawning::count_story_spawn(&mut global.story.access_mut(), request.kind);
-                });
-            });
+        let batch = story::run_story(&mut story, frame);
+        drop(story);
+        if let Some(batch) = batch {
+            story::spawn_next(batch, 0);
         }
     }
 }

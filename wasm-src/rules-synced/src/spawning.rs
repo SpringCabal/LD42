@@ -12,22 +12,24 @@ pub struct SpawnRequest {
 
 pub fn spawn(
     ctx: &spring_addons::AddonContext<'_, crate::state::Global>,
-    request: SpawnRequest,
-    spawned: impl FnOnce(i32) + spring::RetainedCapture + 'static,
+    request: impl FnOnce(&spring::Spring<'_, spring::RulesSynced>) -> SpawnRequest
+    + spring::RetainedCapture
+    + 'static,
+    spawned: impl FnOnce(SpawnRequest, Option<i32>) + spring::RetainedCapture + 'static,
 ) {
-    let spring = ctx.spring();
-    let kind = request.kind;
-    let Some(id) = defs::def_id(spring, kind) else {
-        return;
-    };
-    let team = if kind.is_scenery() {
-        spring.game().get_gaia_team_id().unwrap_or(request.team)
-    } else {
-        request.team
-    };
     ctx.commands()
         .queue(move |spring| {
-            spring.unit_control().create_unit(
+            let request = request(spring);
+            let kind = request.kind;
+            let Some(id) = defs::def_id(spring, kind) else {
+                return (request, None);
+            };
+            let team = if kind.is_scenery() {
+                spring.game().get_gaia_team_id().unwrap_or(request.team)
+            } else {
+                request.team
+            };
+            let created = spring.unit_control().create_unit(
                 &spring::unit_control::DefRef {
                     name: kind.def_name().into(),
                     id,
@@ -35,10 +37,19 @@ pub fn spawn(
                 request.position,
                 0,
                 team,
-                spring::unit_control::CreateUnitOptions::default(),
-            )
+                spring::unit_control::CreateUnitOptions {
+                    flatten_ground: true,
+                    ..Default::default()
+                },
+            );
+            (request, Some(created))
         })
-        .then(move |spring, created| {
+        .then(move |spring, (request, created)| {
+            let kind = request.kind;
+            let Some(created) = created else {
+                spawned(request, None);
+                return;
+            };
             let unit_id = match created {
                 Ok(unit_id) => unit_id,
                 Err(error) => {
@@ -49,9 +60,26 @@ pub fn spawn(
                         kind.def_name(),
                         request.position
                     );
+                    spawned(request, None);
                     return;
                 }
             };
+            // s11n reapplies position and preserves rotation after CreateUnit.
+            // ForcedMove updates native movement/blocking state; restoring the
+            // Euler rotation also matches the original building orientation.
+            if let Ok(rotation) = spring.units_info().get_unit_rotation(unit_id) {
+                spring
+                    .unit_control()
+                    .set_unit_position(unit_id, request.position)
+                    .log_err(spring, "placing the new story unit failed");
+                spring
+                    .unit_control()
+                    .set_unit_rotation(
+                        unit_id,
+                        Float3::new(rotation.pitch, rotation.yaw, rotation.roll),
+                    )
+                    .log_err(spring, "restoring the new story unit rotation failed");
+            }
             if kind.is_scenery() {
                 spring
                     .unit_control()
@@ -73,7 +101,7 @@ pub fn spawn(
                     )
                     .log_err(spring, "making the scenery blocking failed");
             }
-            spawned(unit_id);
+            spawned(request, Some(unit_id));
         });
 }
 

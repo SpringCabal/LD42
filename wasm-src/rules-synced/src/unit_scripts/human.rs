@@ -9,8 +9,8 @@ use super::common::{
     set_unit_geometry,
 };
 use super::eskimo::{
-    self, HumanPart, HumanPieces, HumanState, apply_idle_frame, idle_task, play_aim, play_death,
-    play_drown, play_shoot, play_throw, play_walk,
+    self, HumanPart, HumanPieces, HumanState, idle_task, play_aim, play_death, play_drown,
+    play_shoot, play_throw, play_walk,
 };
 
 pub struct HumanScript {
@@ -51,7 +51,6 @@ impl HumanScript {
         if has_gun {
             ctx.show(pieces.get(HumanPart::Gun));
         }
-        apply_idle_frame(ctx, &self.state);
         ctx.spawn(idle_task(&self.state));
     }
 

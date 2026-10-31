@@ -164,19 +164,16 @@ fn snapshot(state: &Rc<RefCell<HumanState>>) -> (HumanPieces, [spring::Float3; H
     (state.pieces, state.offsets)
 }
 
-pub(super) fn apply_idle_frame(ctx: &UnitCtx, state: &Rc<RefCell<HumanState>>) {
-    let (pieces, offsets) = snapshot(state);
-    apply_frame(ctx, pieces, &offsets, IDLE[0]);
-}
-
 pub(super) async fn play_idle(state: Rc<RefCell<HumanState>>, ctx: UnitCtx) {
     ctx.set_signal_mask(SIG_WALK);
     if state.borrow().drowning {
         return;
     }
     let (pieces, offsets) = snapshot(&state);
-    apply_frame(&ctx, pieces, &offsets, IDLE[0]);
-    run_animation(&ctx, pieces, &offsets, IDLE, 1).await;
+    // Start at keyframe zero and wait before keyframe one, just like the Lua
+    // PlayAnimation loop. Skipping that wait changes the muzzle pose after a
+    // unit stops moving and can change native weapon/pathfinder decisions.
+    run_animation(&ctx, pieces, &offsets, IDLE, 0).await;
 }
 
 pub(super) async fn play_walk(state: Rc<RefCell<HumanState>>, ctx: UnitCtx) {

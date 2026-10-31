@@ -77,7 +77,7 @@ function Def:Append(newAttribs)
 end
 
 Unit = Def:New{
-	buildCostMetal          = 1, -- avoid zero-power/XP division diagnostics
+	buildCostMetal          = 65, -- match Lua; this also sets default unit mass
 	buildTime               = 1,
 	showNanoFrame			= false,
 	showNanoSpray			= false,

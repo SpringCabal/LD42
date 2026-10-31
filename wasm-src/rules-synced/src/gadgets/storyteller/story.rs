@@ -1,19 +1,19 @@
-use alloc::vec::Vec;
-
 use spring::Float3;
 
 use crate::defs::UnitKind::{self, *};
-use crate::spawning::SpawnRequest;
+use crate::spawning::{self, SpawnRequest};
 use crate::state::{GameEnd, Story};
 use mycube_shared::round::LUA_FRAMES_PER_SECOND;
 
-pub fn run_story(
-    spring: &spring::Spring<'_, spring::RulesSynced>,
-    state: &mut Story,
-    frame: i32,
-) -> Vec<SpawnRequest> {
+#[derive(Clone, Copy)]
+pub struct SpawnBatch {
+    units: &'static [UnitKind],
+    team: i32,
+}
+
+pub fn run_story(state: &mut Story, frame: i32) -> Option<SpawnBatch> {
     if frame < state.next_step {
-        return Vec::new();
+        return None;
     }
     let (message, units, team, wait): (&str, &[UnitKind], i32, i32) = match state.step {
         0 => ("", &INIT[..], 0, 1),
@@ -54,84 +54,128 @@ pub fn run_story(
         15 => ("", &DRILLS_5[..], 1, 160),
         _ => {
             state.end_game(GameEnd::Victory, frame);
-            return Vec::new();
+            return None;
         }
     };
     if !message.is_empty() {
         state.intro_event = message;
     }
-    let mut requests = Vec::with_capacity(units.len());
-    for &unit in units {
-        let (x, y, z) = place(spring, unit, &state.supports);
-        requests.push(SpawnRequest {
-            kind: unit,
-            position: Float3::new(x, y, z),
-            team,
-        });
-        if is_support(unit) {
-            state.supports.push((x, z));
-        }
-        if unit == Iglu {
-            let lantern_x = x + random_int(spring, 130, 150) as f32 * random_sign(spring);
-            let lantern_z = z + random_int(spring, 130, 150) as f32 * random_sign(spring);
-            requests.push(SpawnRequest {
-                kind: Lantern,
-                position: Float3::new(
-                    lantern_x,
-                    spring
-                        .terrain()
-                        .get_ground_height(lantern_x, lantern_z)
-                        .unwrap_or(y),
-                    lantern_z,
-                ),
-                team,
-            });
-        } else if unit == Pirate {
-            requests.push(SpawnRequest {
-                kind: Parachute,
-                position: Float3::new(x, y + 100.0, z),
-                team,
-            });
-        }
-    }
     state.step += 1;
     state.next_step = frame.saturating_add(wait.saturating_mul(LUA_FRAMES_PER_SECOND));
-    requests
+    (!units.is_empty()).then_some(SpawnBatch { units, team })
 }
 
 const IGLU_MIN_DISTANCE: f32 = 400.0;
 const MAX_PLACEMENT_TRIES: u32 = 1000;
 
-fn place(
-    spring: &spring::Spring<'_, spring::RulesSynced>,
-    unit: UnitKind,
-    supports: &[(f32, f32)],
-) -> (f32, f32, f32) {
-    let clear = |(x, _, z): (f32, f32, f32)| {
-        supports.iter().all(|(support_x, support_z)| {
-            let dx = x - support_x;
-            let dz = z - support_z;
-            dx * dx + dz * dz > IGLU_MIN_DISTANCE * IGLU_MIN_DISTANCE
-        })
+// Unit creation and Create scripts consume the same synced RNG as placement.
+// Queue the next random placement only after this unit and its companion exist,
+// preserving Lua's SpawnUnits -> s11n:Add -> companion -> next-unit sequence.
+pub fn spawn_next(batch: SpawnBatch, index: usize) {
+    let Some(&unit) = batch.units.get(index) else {
+        return;
     };
+    crate::with_addon_context(|ctx| {
+        spawning::spawn(
+            ctx,
+            move |spring| {
+                let (x, y, z) = place(spring, unit);
+                SpawnRequest {
+                    kind: unit,
+                    position: Float3::new(x, y, z),
+                    team: batch.team,
+                }
+            },
+            move |request, id| {
+                if id.is_none() {
+                    spawn_next(batch, index + 1);
+                    return;
+                }
+                crate::with_global(|global| {
+                    spawning::count_story_spawn(&mut global.story.access_mut(), request.kind)
+                });
+                let companion = match request.kind {
+                    Iglu => Lantern,
+                    Pirate => Parachute,
+                    _ => {
+                        spawn_next(batch, index + 1);
+                        return;
+                    }
+                };
+                crate::with_addon_context(|ctx| {
+                    spawning::spawn(
+                        ctx,
+                        move |spring| {
+                            let mut position = request.position;
+                            if companion == Lantern {
+                                position.x +=
+                                    random_int(spring, 130, 150) as f32 * random_sign(spring);
+                                position.z +=
+                                    random_int(spring, 130, 150) as f32 * random_sign(spring);
+                                position.y = spring
+                                    .terrain()
+                                    .get_ground_height(position.x, position.z)
+                                    .unwrap_or(position.y);
+                            } else {
+                                position.y += 100.0;
+                            }
+                            SpawnRequest {
+                                kind: companion,
+                                position,
+                                team: batch.team,
+                            }
+                        },
+                        move |request, id| {
+                            if id.is_some() {
+                                crate::with_global(|global| {
+                                    spawning::count_story_spawn(
+                                        &mut global.story.access_mut(),
+                                        request.kind,
+                                    )
+                                });
+                            }
+                            spawn_next(batch, index + 1);
+                        },
+                    );
+                });
+            },
+        );
+    });
+}
+
+fn place(spring: &spring::Spring<'_, spring::RulesSynced>, unit: UnitKind) -> (f32, f32, f32) {
     let mut candidate = find_position(spring, unit);
     if !is_support(unit) {
         return candidate;
     }
-    for _ in 1..MAX_PLACEMENT_TRIES {
-        if clear(candidate) {
+    for attempt in 0..MAX_PLACEMENT_TRIES {
+        let found = spring
+            .units_query()
+            .get_units_in_cylinder(candidate.0, candidate.2, IGLU_MIN_DISTANCE, -1)
+            .unwrap_or_default()
+            .into_iter()
+            .any(|id| {
+                !spring.units_info().get_unit_is_dead(id).unwrap_or(true)
+                    && spring
+                        .units_info()
+                        .get_unit_def_id(id)
+                        .ok()
+                        .and_then(|def| crate::defs::kind(spring, def))
+                        .is_some_and(is_support)
+            });
+        if !found {
             return candidate;
         }
-        candidate = find_position(spring, unit);
+        if attempt + 1 < MAX_PLACEMENT_TRIES {
+            candidate = find_position(spring, unit);
+        }
     }
-    if !clear(candidate) {
-        spring::log_warning!(
-            spring,
-            "mycube",
-            "no room for a {} after {MAX_PLACEMENT_TRIES} tries; placing it at {candidate:?}",
-            unit.def_name()
-        );
-    }
+    spring::log_warning!(
+        spring,
+        "mycube",
+        "no room for a {} after {MAX_PLACEMENT_TRIES} tries",
+        unit.def_name()
+    );
     candidate
 }
 
